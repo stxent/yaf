@@ -4,13 +4,13 @@
 #if defined (FS_WRITE_ENABLED) && defined (FS_RTC_ENABLED)
 #include "rtc.h"
 #endif
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 #define FS_FLAG_RO      0x01 /* Read only */
 #define FS_FLAG_HIDDEN  0x02
 #define FS_FLAG_SYSTEM  0x0C /* System (0x04) or volume label (0x08) */
 #define FS_FLAG_DIR     0x10 /* Subdirectory */
 #define FS_FLAG_ARCHIVE 0x20
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 //Entry count per directory sector
 #define ENTRY_COUNT (SECTOR_SIZE - 5)
 //Entry count per cluster
@@ -25,19 +25,19 @@
 #define ENTRY_SECTOR(index) ((index) >> ENTRY_COUNT)
 //Directory entry offset in sector
 #define ENTRY_OFFSET(index) (((index) & ((1 << ENTRY_COUNT) - 1)) << 5)
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 #ifdef DEBUG
 #include <iostream>
 using namespace std;
 long readExcess = 0;
 #endif
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 static uint8_t readSector(struct fsHandle *, uint32_t);
 static uint8_t fetchEntry(struct fsHandle *, struct fsEntry *);
 static const char *followPath(struct fsHandle *, struct fsEntry *, const char *);
 static uint8_t getNextCluster(struct fsHandle *, uint32_t *);
 static const char *getChunk(const char *, char *);
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 #ifdef FS_WRITE_ENABLED
 static uint8_t freeChain(struct fsHandle *, uint32_t);
 static uint8_t writeSector(struct fsHandle *, uint32_t);
@@ -45,7 +45,7 @@ static uint8_t allocateCluster(struct fsHandle *, uint32_t *);
 static uint8_t createEntry(struct fsHandle *, struct fsEntry *, const char *);
 static uint8_t updateTable(struct fsHandle *, uint32_t);
 #endif
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 struct FileEntry
 {
   char name[8];
@@ -58,7 +58,7 @@ struct FileEntry
   uint16_t clusterLow; /* Starting cluster low word */
   uint32_t size;
 };
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 struct BootSector
 {
   char space0[11];
@@ -75,7 +75,7 @@ struct BootSector
   char space3[460];
   uint16_t bootSignature;
 };
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 struct InfoSector
 {
   uint32_t firstSignature;
@@ -86,8 +86,9 @@ struct InfoSector
   char space1[14];
   uint16_t bootSignature;
 };
-//---------------------------------------------------------------------------
-uint8_t fsLoad(struct fsHandle *fsDesc, struct sDevice *device, uint8_t *memBuffer)
+/*---------------------------------------------------------------------------*/
+uint8_t fsLoad(struct fsHandle *fsDesc, struct sDevice *device,
+               uint8_t *memBuffer)
 {
   struct BootSector *boot;
   struct InfoSector *info;
@@ -118,7 +119,8 @@ uint8_t fsLoad(struct fsHandle *fsDesc, struct sDevice *device, uint8_t *memBuff
 #ifdef FS_WRITE_ENABLED
   fsDesc->fatCount = boot->fatCopies;
   fsDesc->sectorsPerFAT = boot->fatSize;
-  fsDesc->clusterCount = ((boot->partitionSize - fsDesc->dataSector) >> fsDesc->clusterSize) + 2;
+  fsDesc->clusterCount =
+      ((boot->partitionSize - fsDesc->dataSector) >> fsDesc->clusterSize) + 2;
   fsDesc->infoSector = boot->infoSector;
 #ifdef DEBUG
   cout << "Partition sector count: " << boot->partitionSize << endl;
@@ -137,12 +139,12 @@ uint8_t fsLoad(struct fsHandle *fsDesc, struct sDevice *device, uint8_t *memBuff
 #endif
   return FS_OK;
 }
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 uint8_t fsUnload(struct fsHandle *fsDesc)
 {
   return FS_OK;
 }
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 static uint8_t getNextCluster(struct fsHandle *fsDesc, uint32_t *cluster)
 {
 //  uint32_t *clusterArray;
@@ -160,7 +162,7 @@ static uint8_t getNextCluster(struct fsHandle *fsDesc, uint32_t *cluster)
   else
     return FS_EOF;
 }
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 #ifdef FS_WRITE_ENABLED
 #ifdef DEBUG
 uint32_t countFree(struct fsHandle *fsDesc)
@@ -193,7 +195,7 @@ uint32_t countFree(struct fsHandle *fsDesc)
 }
 #endif
 #endif
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 static uint8_t readSector(struct fsHandle *fsDesc, uint32_t sector)
 {
   if (sector && (sector == fsDesc->currentSector))
@@ -210,7 +212,7 @@ static uint8_t readSector(struct fsHandle *fsDesc, uint32_t sector)
   fsDesc->currentSector = sector;
   return FS_OK;
 }
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 #ifdef FS_WRITE_ENABLED
 static uint8_t writeSector(struct fsHandle *fsDesc, uint32_t sector)
 {
@@ -220,7 +222,7 @@ static uint8_t writeSector(struct fsHandle *fsDesc, uint32_t sector)
   return FS_OK;
 }
 #endif
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 /* Copy current sector into FAT sectors located at offset */
 #ifdef FS_WRITE_ENABLED
 static uint8_t updateTable(struct fsHandle *fsDesc, uint32_t offset)
@@ -235,7 +237,7 @@ static uint8_t updateTable(struct fsHandle *fsDesc, uint32_t offset)
   return FS_OK;
 }
 #endif
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 #ifdef FS_WRITE_ENABLED
 static uint8_t allocateCluster(struct fsHandle *fsDesc, uint32_t *cluster)
 {
@@ -261,8 +263,8 @@ static uint8_t allocateCluster(struct fsHandle *fsDesc, uint32_t *cluster)
     if (*((uint32_t *)(fsDesc->buffer + offset)) == 0x00000000)
     {
       *((uint32_t *)(fsDesc->buffer + offset)) = 0x0FFFFFFF;
-      if ((!*cluster || ((*cluster >> FAT_ENTRY_COUNT) != (current >> FAT_ENTRY_COUNT))) && updateTable(fsDesc, (current >> FAT_ENTRY_COUNT)))
-        return 1;
+      if ((!*cluster || (*cluster >> FAT_ENTRY_COUNT != current >> FAT_ENTRY_COUNT)) && updateTable(fsDesc, (current >> FAT_ENTRY_COUNT)))
+        return FS_WRITE_ERROR;
       if (*cluster)
       {
         if (readSector(fsDesc, fsDesc->fatSector + (*cluster >> FAT_ENTRY_COUNT)))
@@ -296,7 +298,7 @@ static uint8_t allocateCluster(struct fsHandle *fsDesc, uint32_t *cluster)
   return FS_ERROR;
 }
 #endif
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 /* dest length is 13: 8 name + dot + 3 extension + null */
 static const char *getChunk(const char *src, char *dest)
 {
@@ -327,13 +329,12 @@ static const char *getChunk(const char *src, char *dest)
   *dest = '\0';
   return src;
 }
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 /* Members entry->index and entry->parent have to be initialized */
 static uint8_t fetchEntry(struct fsHandle *fsDesc, struct fsEntry *entry)
 {
   struct FileEntry *ptr;
   uint32_t sector;
-//  uint8_t *ptr;
 
   entry->attribute = 0;
   entry->cluster = 0;
@@ -358,14 +359,14 @@ static uint8_t fetchEntry(struct fsHandle *fsDesc, struct fsEntry *entry)
       break;
     entry->index++;
   }
-  entry->attribute = ptr->flags;//*((uint8_t *)(ptr + 0x0B));
+  entry->attribute = ptr->flags;
   /* Copy file size, when entry is not directory */
   if (!(entry->attribute & FS_FLAG_DIR))
-    entry->size = ptr->size;//*((uint32_t *)(ptr + 0x1C));
-  entry->cluster = ptr->clusterHigh << 16 | ptr->clusterLow;//(((uint32_t)*((uint16_t *)(ptr + 0x14))) << 16) | *((uint16_t *)(ptr + 0x1A));
+    entry->size = ptr->size;
+  entry->cluster = ptr->clusterHigh << 16 | ptr->clusterLow;
 #ifdef DEBUG
-  entry->time = ptr->time;// *((uint16_t *)(ptr + 0x16));
-  entry->date = ptr->date;//*((uint16_t *)(ptr + 0x18));
+  entry->time = ptr->time;
+  entry->date = ptr->date;
 #endif
   /* Copy entry name */
   memcpy(entry->name, ptr->name, 8);
@@ -382,7 +383,7 @@ static uint8_t fetchEntry(struct fsHandle *fsDesc, struct fsEntry *entry)
   getChunk(entry->name, entry->name);
   return FS_OK;
 }
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 static const char *followPath(struct fsHandle *fsDesc, struct fsEntry *item, const char *path)
 {
   char entryName[13];
@@ -407,7 +408,7 @@ static const char *followPath(struct fsHandle *fsDesc, struct fsEntry *item, con
   }
   return 0;
 }
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 uint8_t fsOpen(struct fsHandle *fsDesc, struct fsFile *fileDesc, const char *path, uint8_t mode)
 {
   const char *followedPath;
@@ -437,7 +438,7 @@ uint8_t fsOpen(struct fsHandle *fsDesc, struct fsFile *fileDesc, const char *pat
     return FS_NOT_FOUND;
 #ifdef FS_WRITE_ENABLED
   /* Attempt to write into read-only file */
-  if ((item.attribute & FS_FLAG_RO) && ((mode == FS_WRITE) || (mode == FS_APPEND)))
+  if ((item.attribute & FS_FLAG_RO) && (mode == FS_WRITE || mode == FS_APPEND))
     return FS_ERROR;
 #endif
   fileDesc->descriptor = fsDesc;
@@ -455,14 +456,13 @@ uint8_t fsOpen(struct fsHandle *fsDesc, struct fsFile *fileDesc, const char *pat
   if ((mode == FS_WRITE) && !*path && fileDesc->size && (fsTruncate(fileDesc) != FS_OK))
     return FS_ERROR;
   /* In append mode file pointer moves to end of file */
-  //FIXME compare file size with zero?
   if ((mode == FS_APPEND) && (fsSeek(fileDesc, fileDesc->size) != FS_OK))
     return FS_ERROR;
 #endif
   fileDesc->state = FS_OPENED;
   return FS_OK;
 }
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 #ifdef FS_WRITE_ENABLED
 static uint8_t freeChain(struct fsHandle *fsDesc, uint32_t cluster)
 {
@@ -489,7 +489,7 @@ static uint8_t freeChain(struct fsHandle *fsDesc, uint32_t cluster)
     }
     cout << "Cleared cluster: " << current << endl;
 #endif
-    if ((current >> FAT_ENTRY_COUNT != next >> FAT_ENTRY_COUNT) && updateTable(fsDesc, (current >> FAT_ENTRY_COUNT)))
+    if ((current >> FAT_ENTRY_COUNT != next >> FAT_ENTRY_COUNT) && updateTable(fsDesc, current >> FAT_ENTRY_COUNT))
     {
       return FS_WRITE_ERROR;
     }
@@ -507,15 +507,14 @@ static uint8_t freeChain(struct fsHandle *fsDesc, uint32_t cluster)
   return FS_OK;
 }
 #endif
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 #ifdef FS_WRITE_ENABLED
 uint8_t fsTruncate(struct fsFile *fileDesc)
 {
-//  uint8_t *ptr;
   struct FileEntry *ptr;
   uint32_t current;
 
-  if ((fileDesc->mode != FS_WRITE) && (fileDesc->mode != FS_APPEND))
+  if (fileDesc->mode != FS_WRITE && fileDesc->mode != FS_APPEND)
     return FS_ERROR;
   if (freeChain(fileDesc->descriptor, fileDesc->cluster) != FS_OK)
     return FS_ERROR;
@@ -528,17 +527,10 @@ uint8_t fsTruncate(struct fsFile *fileDesc)
   ptr->size = 0;
   ptr->clusterHigh = 0;
   ptr->clusterLow = 0;
-//  /* Update file size */
-//  *((uint32_t *)(ptr + 0x1C)) = 0;
-//  /* Update first cluster */
-//  *((uint16_t *)(ptr + 0x14)) = 0; /* High 2 bytes of start cluster */
-//  *((uint16_t *)(ptr + 0x1A)) = 0; /* Low 2 bytes of start cluster */
 #ifdef FS_RTC_ENABLED
   /* Update last modified date */
-  ptr->time = rtcGetTime(); /* Last modified time */
-  ptr->date = rtcGetDate(); /* Last modified date */
-//  *((uint16_t *)(ptr + 0x16)) = rtcGetTime(); /* Last modified time */
-//  *((uint16_t *)(ptr + 0x18)) = rtcGetDate(); /* Last modified date */
+  ptr->time = rtcGetTime();
+  ptr->date = rtcGetDate();
 #endif
   if (writeSector(fileDesc->descriptor, current))
     return FS_WRITE_ERROR;
@@ -550,7 +542,7 @@ uint8_t fsTruncate(struct fsFile *fileDesc)
   return FS_OK;
 }
 #endif
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 #ifdef FS_WRITE_ENABLED
 /* Create new entry inside entry->parent chain */
 /* Members entry->parent and entry->attribute have to be initialized */
@@ -560,7 +552,6 @@ static uint8_t createEntry(struct fsHandle *fsDesc, struct fsEntry *entry, const
   uint8_t counter;
 //  uint16_t clusterCount = 0; /* Followed clusters count */
   uint32_t sector;
-//  uint8_t *ptr;
 
   entry->cluster = 0;
   entry->index = 0;
@@ -585,7 +576,7 @@ static uint8_t createEntry(struct fsHandle *fsDesc, struct fsEntry *entry, const
         {
           sector = SECTOR(fsDesc, entry->parent);
           memset(fsDesc->buffer, 0, (1 << SECTOR_SIZE));
-          for (counter = 0; counter < (1 << fsDesc->clusterSize); counter++)
+          for (counter = 0; counter < 1 << fsDesc->clusterSize; counter++)
           {
             if (writeSector(fsDesc, sector + counter))
               return FS_WRITE_ERROR;
@@ -606,20 +597,23 @@ static uint8_t createEntry(struct fsHandle *fsDesc, struct fsEntry *entry, const
       break;
     entry->index++;
   }
+
   /* Clear name and extension */
   //TODO rewrite
   memset(ptr->name, 0x20, 8 + 3);
-  for (counter = 0; *name && (*name != '.') && (counter < 8); counter++)
+  for (counter = 0; *name && *name != '.' && counter < 8; counter++)
     ptr->name[counter] = *name++;
-  if (!(entry->attribute & FS_FLAG_DIR) && (*name == '.'))
+  if (!(entry->attribute & FS_FLAG_DIR) && *name == '.')
   {
     for (counter = 0, name++; *name && counter < 3; counter++)
       ptr->extension[counter] = *name++;
   }
   /* Fill entry fields with zeros */
-  memset(ptr->unused, 0, 8); //TODO replace with sizeof?
+  memset(ptr->unused, 0, 8);
   ptr->flags = entry->attribute;
-  //TODO save predefined cluster and size values?
+  ptr->clusterHigh = 0;
+  ptr->clusterLow = 0;
+  ptr->size = 0;
 #ifdef FS_RTC_ENABLED
   /* Last modified time and date */
   ptr->time = rtcGetTime();
@@ -630,13 +624,14 @@ static uint8_t createEntry(struct fsHandle *fsDesc, struct fsEntry *entry, const
   return FS_OK;
 }
 #endif
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 uint8_t fsClose(struct fsFile *fileDesc)
 {
   fileDesc->state = FS_CLOSED;
   return FS_OK;
 }
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
+//TODO test behavior
 uint8_t fsSeek(struct fsFile *fileDesc, uint32_t pos)
 {
   uint32_t clusterCount, current;
@@ -664,16 +659,15 @@ uint8_t fsSeek(struct fsFile *fileDesc, uint32_t pos)
   fileDesc->currentSector = (pos >> SECTOR_SIZE) & ((1 << fileDesc->descriptor->clusterSize) - 1);
   return FS_OK;
 }
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 #ifdef FS_WRITE_ENABLED
 uint8_t fsWrite(struct fsFile *fileDesc, uint8_t *buffer, uint16_t count, uint16_t *result)
 {
-//  uint8_t *entry;
   struct FileEntry *ptr;
   uint16_t chunk, offset, written = 0;
   uint32_t tmpSector;
 
-  if ((fileDesc->mode != FS_APPEND) && (fileDesc->mode != FS_WRITE))
+  if (fileDesc->mode != FS_APPEND && fileDesc->mode != FS_WRITE)
     return FS_ERROR;
   if (!fileDesc->size)
   {
@@ -688,7 +682,7 @@ uint8_t fsWrite(struct fsFile *fileDesc, uint8_t *buffer, uint16_t count, uint16
   {
     if (fileDesc->currentSector >= (1 << fileDesc->descriptor->clusterSize))
     {
-      if (allocateCluster(fileDesc->descriptor, &(fileDesc->currentCluster)))
+      if (allocateCluster(fileDesc->descriptor, &fileDesc->currentCluster))
         return FS_WRITE_ERROR;
       fileDesc->currentSector = 0;
     }
@@ -723,8 +717,8 @@ uint8_t fsWrite(struct fsFile *fileDesc, uint8_t *buffer, uint16_t count, uint16
   ptr->size = fileDesc->size;
 #ifdef FS_RTC_ENABLED
   /* Update last modified date */
-  ptr->time = rtcGetTime(); /* Last modified time */
-  ptr->date = rtcGetDate(); /* Last modified date */
+  ptr->time = rtcGetTime();
+  ptr->date = rtcGetDate();
 #endif
   if (writeSector(fileDesc->descriptor, tmpSector))
     return FS_WRITE_ERROR;
@@ -732,7 +726,7 @@ uint8_t fsWrite(struct fsFile *fileDesc, uint8_t *buffer, uint16_t count, uint16
   return FS_OK;
 }
 #endif
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 uint8_t fsRead(struct fsFile *fileDesc, uint8_t *buffer, uint16_t count, uint16_t *result)
 {
   uint16_t chunk, offset, read = 0;
@@ -766,7 +760,7 @@ uint8_t fsRead(struct fsFile *fileDesc, uint8_t *buffer, uint16_t count, uint16_
   *result = read;
   return FS_OK;
 }
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 #ifdef FS_WRITE_ENABLED
 uint8_t fsRemove(struct fsHandle *fsDesc, const char *path)
 {
@@ -805,7 +799,7 @@ uint8_t fsRemove(struct fsHandle *fsDesc, const char *path)
   return FS_OK;
 }
 #endif
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 uint8_t fsOpenDir(struct fsHandle *fsDesc, struct fsDir *dirDesc, const char *path)
 {
   struct fsEntry item;
@@ -828,7 +822,7 @@ uint8_t fsOpenDir(struct fsHandle *fsDesc, struct fsDir *dirDesc, const char *pa
   dirDesc->state = FS_OPENED;
   return FS_OK;
 }
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 /* Name length is 13 characters and includes file name, dot and extension */
 uint8_t fsReadDir(struct fsDir *dirDesc, char *name)
 {
@@ -851,7 +845,7 @@ uint8_t fsReadDir(struct fsDir *dirDesc, char *name)
   strcpy(name, item.name);
   return FS_OK;
 }
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 uint8_t fsSeekDir(struct fsDir *dirDesc, uint16_t pos)
 {
   uint16_t clusterCount;
@@ -882,13 +876,12 @@ uint8_t fsSeekDir(struct fsDir *dirDesc, uint16_t pos)
   dirDesc->currentIndex = pos & (ENTRIES_IN_CLUSTER(dirDesc->descriptor) - 1);
   return FS_OK;
 }
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 #ifdef FS_WRITE_ENABLED
 uint8_t fsMakeDir(struct fsHandle *fsDesc, const char *path)
 {
   uint8_t counter;
   uint32_t tmpSector, parent = fsDesc->rootCluster;
-//  uint8_t *ptr;
   struct FileEntry *ptr;
   const char *followedPath;
   struct fsEntry item;
@@ -953,14 +946,13 @@ uint8_t fsMakeDir(struct fsHandle *fsDesc, const char *path)
   return FS_OK;
 }
 #endif
-//---------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
 #ifdef FS_WRITE_ENABLED
 uint8_t fsMove(struct fsHandle *fsDesc, const char *path, const char *newPath)
 {
   uint8_t attribute/*, counter*/;
   uint16_t index;
   uint32_t parent, cluster, size, tmpSector;
-//  uint8_t *ptr;
   struct FileEntry *ptr;
   const char *followedPath;
   struct fsEntry item;
@@ -983,7 +975,7 @@ uint8_t fsMove(struct fsHandle *fsDesc, const char *path, const char *newPath)
 
   while (*newPath && (followedPath = followPath(fsDesc, &item, newPath)))
     newPath = followedPath;
-  if (!*newPath) //Entry with same name exists
+  if (!*newPath) /* Entry with same name exists */
     return FS_ERROR;
 
 /*  if (parent == item.parent) //Same folder
@@ -1028,7 +1020,6 @@ uint8_t fsMove(struct fsHandle *fsDesc, const char *path, const char *newPath)
   if (readSector(fsDesc, tmpSector))
     return FS_READ_ERROR;
   ptr = (struct FileEntry *)(fsDesc->buffer + ENTRY_OFFSET(item.index));
-  //TODO move cluster and size to createEntry?
   ptr->clusterHigh = cluster >> 16;
   ptr->clusterLow = cluster;
   ptr->size = size;
