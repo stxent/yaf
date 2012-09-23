@@ -7,7 +7,7 @@
 //#define FS_WRITE_BUFFERED
 #define FS_WRITE_ENABLED
 #define FS_RTC_ENABLED
-#pragma pack(1)
+//#pragma pack(1)
 /*---------------------------------------------------------------------------*/
 /* Cluster size may be 1, 2, 4, 8, 16, 32, 64, 128 sectors                   */
 /* Sector size may be 512, 1024, 2048, 4096 bytes, default is 512            */
@@ -20,7 +20,8 @@ enum fsMode      {FS_NONE = 0, FS_READ, FS_WRITE, FS_APPEND};
 enum fsResult    {FS_OK = 0, FS_ERROR, FS_WRITE_ERROR, FS_READ_ERROR,
                   FS_NOT_FOUND, FS_DEVICE_ERROR, FS_EOF};
 /*---------------------------------------------------------------------------*/
-struct fsEntry
+//TODO move to fat.c
+struct FsEntry
 {
   uint8_t attribute; /* File or directory attributes */
   uint16_t index; /* Entry position in parent cluster */
@@ -33,9 +34,9 @@ struct fsEntry
 #endif
 };
 /*---------------------------------------------------------------------------*/
-struct fsFile
+struct FsFile
 {
-  struct fsHandle *descriptor;
+  struct FsHandle *descriptor;
   enum fsCondition state; /* Opened or closed */
   enum fsMode mode; /* Access mode: read, write or append */
   uint32_t cluster; /* First cluster of file data */
@@ -48,23 +49,23 @@ struct fsFile
   uint32_t parentCluster; /* Directory cluster where entry located */
 #endif
 #ifdef DEBUG
-  struct fsEntry data;
+  struct FsEntry data;
 #endif
 };
 /*---------------------------------------------------------------------------*/
-struct fsDir
+struct FsDir
 {
-  struct fsHandle *descriptor;
+  struct FsHandle *descriptor;
   enum fsCondition state; /* Opened or closed */
   uint32_t cluster; /* First cluster of folder data */
   uint16_t currentIndex; /* Entry in current cluster */
   uint32_t currentCluster;
 #ifdef DEBUG
-  struct fsEntry data;
+  struct FsEntry data;
 #endif
 };
 /*---------------------------------------------------------------------------*/
-struct fsHandle
+struct FsHandle
 {
   struct sDevice *device;
   uint8_t *buffer;
@@ -79,27 +80,27 @@ struct fsHandle
 #endif
 };
 /*---------------------------------------------------------------------------*/
-enum fsResult fsOpen(struct fsHandle *, struct fsFile *, const char *, enum fsMode);
-enum fsResult fsClose(struct fsFile *);
-enum fsResult fsRead(struct fsFile *, uint8_t *, uint16_t, uint16_t *);
-enum fsResult fsSeek(struct fsFile *, uint32_t);
-enum fsResult fsOpenDir(struct fsHandle *, struct fsDir *, const char *);
-enum fsResult fsReadDir(struct fsDir *, char *);
-enum fsResult fsSeekDir(struct fsDir *, uint16_t);
+enum fsResult fsOpen(struct FsHandle *, struct FsFile *, const char *, enum fsMode);
+enum fsResult fsClose(struct FsFile *);
+enum fsResult fsRead(struct FsFile *, uint8_t *, uint16_t, uint16_t *);
+enum fsResult fsSeek(struct FsFile *, uint32_t);
+enum fsResult fsOpenDir(struct FsHandle *, struct FsDir *, const char *);
+enum fsResult fsReadDir(struct FsDir *, char *);
+enum fsResult fsSeekDir(struct FsDir *, uint16_t);
 /*---------------------------------------------------------------------------*/
 #ifdef FS_WRITE_ENABLED
-enum fsResult fsWrite(struct fsFile *, uint8_t *, uint16_t, uint16_t *);
-enum fsResult fsTruncate(struct fsFile *);
-enum fsResult fsRemove(struct fsHandle *, const char *);
-enum fsResult fsMakeDir(struct fsHandle *, const char *);
-enum fsResult fsMove(struct fsHandle *, const char *, const char *);
+enum fsResult fsWrite(struct FsFile *, uint8_t *, uint16_t, uint16_t *);
+enum fsResult fsTruncate(struct FsFile *);
+enum fsResult fsRemove(struct FsHandle *, const char *);
+enum fsResult fsMakeDir(struct FsHandle *, const char *);
+enum fsResult fsMove(struct FsHandle *, const char *, const char *);
 #endif
 /*---------------------------------------------------------------------------*/
-enum fsResult fsLoad(struct fsHandle *, struct sDevice *, uint8_t *);
-enum fsResult fsUnload(struct fsHandle *);
+enum fsResult fsLoad(struct FsHandle *, struct sDevice *, uint8_t *);
+enum fsResult fsUnload(struct FsHandle *);
 /*---------------------------------------------------------------------------*/
 #ifdef DEBUG
-uint32_t countFree(struct fsHandle *);
+uint32_t countFree(struct FsHandle *);
 #endif
 /*---------------------------------------------------------------------------*/
 #endif

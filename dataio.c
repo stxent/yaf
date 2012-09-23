@@ -27,11 +27,11 @@ uint8_t rawWrite(struct sDevice *dev, uint32_t sector)
   return 0;
 }
 //---------------------------------------------------------------------------
-uint8_t sRead(struct sDevice *dev, uint8_t *data, uint32_t index)
+uint8_t sRead(struct sDevice *dev, uint8_t *data, uint32_t index, uint8_t count)
 {
-  if (index >= dev->size)
+  if (index + count > dev->size)
     return 1;
-  memcpy(data, ((uint8_t *)dataHandler) + ((index + dev->offset) << BLOCK_SIZE_POW), (1 << BLOCK_SIZE_POW));
+  memcpy(data, ((uint8_t *)dataHandler) + ((index + dev->offset) << BLOCK_SIZE_POW), (1 << BLOCK_SIZE_POW) * count);
   readCount++;
   #ifdef DEBUG
     cout << "--------Fetched sector: " << dec << (long)index << endl;
@@ -39,11 +39,11 @@ uint8_t sRead(struct sDevice *dev, uint8_t *data, uint32_t index)
   return 0;
 }
 //---------------------------------------------------------------------------
-uint8_t sWrite(struct sDevice *dev, const uint8_t *data, uint32_t index)
+uint8_t sWrite(struct sDevice *dev, const uint8_t *data, uint32_t index, uint8_t count)
 {
-  if (index >= dev->size)
+  if (index + count > dev->size)
     return 1;
-  memcpy(((uint8_t *)dataHandler) + ((index + dev->offset) << BLOCK_SIZE_POW), data, (1 << BLOCK_SIZE_POW));
+  memcpy(((uint8_t *)dataHandler) + ((index + dev->offset) << BLOCK_SIZE_POW), data, (1 << BLOCK_SIZE_POW) * count);
   writeCount++;
   #ifdef DEBUG
     cout << "--------Wrote sector: " << dec << (long)index << endl;
