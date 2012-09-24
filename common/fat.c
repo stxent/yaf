@@ -1,6 +1,5 @@
 #include <string.h>
 #include "fat.h"
-#include "mem.h"
 #if defined (FS_WRITE_ENABLED) && defined (FS_RTC_ENABLED)
 #include "rtc.h"
 #endif
@@ -34,6 +33,7 @@
 /*---------------------------------------------------------------------------*/
 #ifdef DEBUG
 #include <stdio.h>
+#include <stdlib.h>
 long readExcess = 0;
 #endif
 /*---------------------------------------------------------------------------*/
@@ -94,7 +94,15 @@ struct InfoSector
   uint16_t bootSignature;
 } __attribute__((packed));
 /*---------------------------------------------------------------------------*/
-enum fsResult fsLoad(struct FsHandle *fsDesc, struct sDevice *device,
+void fsSetIO(struct FsHandle *fsDesc,
+    enum fsResult (*r)(struct FsDevice *, uint8_t *, uint32_t, uint8_t),
+    enum fsResult (*w)(struct FsDevice *, const uint8_t *, uint32_t, uint8_t))
+{
+  fsDesc->read = r;
+  fsDesc->write = w;
+}
+/*---------------------------------------------------------------------------*/
+enum fsResult fsLoad(struct FsHandle *fsDesc, struct FsDevice *device,
     uint8_t *memBuffer)
 {
   struct BootSector *boot;
@@ -147,11 +155,10 @@ enum fsResult fsLoad(struct FsHandle *fsDesc, struct sDevice *device,
   return FS_OK;
 }
 /*---------------------------------------------------------------------------*/
-enum fsResult fsUnload(struct FsHandle *fsDesc)
+void fsUnload(struct FsHandle *fsDesc)
 {
   fsDesc->buffer = 0;
   fsDesc->device = 0;
-  return FS_OK;
 }
 /*---------------------------------------------------------------------------*/
 static enum fsResult getNextCluster(struct FsHandle *fsDesc, uint32_t *cluster)
@@ -174,14 +181,15 @@ static enum fsResult getNextCluster(struct FsHandle *fsDesc, uint32_t *cluster)
 #ifdef DEBUG
 uint32_t countFree(struct FsHandle *fsDesc)
 {
-  uint32_t res;
-  uint32_t *count = new uint32_t[fsDesc->fatCount];
+  uint32_t res, current;
+  uint32_t *count = (uint32_t *)malloc(sizeof(uint32_t) * fsDesc->fatCount);
+  uint8_t fat, i, j;
+  uint16_t offset;
 
-  for (uint8_t fat = 0; fat < fsDesc->fatCount; fat++)
+  for (fat = 0; fat < fsDesc->fatCount; fat++)
   {
-    uint16_t offset;
     count[fat] = 0;
-    for (uint32_t current = 0; current < fsDesc->clusterCount; current++)
+    for (current = 0; current < fsDesc->clusterCount; current++)
     {
       if (readSector(fsDesc, fsDesc->fatSector + (current >> FE_COUNT)))
         return FS_READ_ERROR;
@@ -190,14 +198,14 @@ uint32_t countFree(struct FsHandle *fsDesc)
         count[fat]++;
     }
   }
-  for (uint8_t i = 0; i < fsDesc->fatCount; i++)
-    for (uint8_t j = 0; j < fsDesc->fatCount; j++)
+  for (i = 0; i < fsDesc->fatCount; i++)
+    for (j = 0; j < fsDesc->fatCount; j++)
       if ((i != j) && (count[i] != count[j]))
       {
         printf("FAT records differ: %d and %d\n", count[i], count[j]);
       }
   res = count[0];
-  delete[] count;
+  free(count);
   return res;
 }
 #endif
@@ -209,7 +217,7 @@ static enum fsResult burstReadSector(struct FsHandle *fsDesc,
 //#ifdef DEBUG
 //  printf("Burst read sector %X, count %d\n", sector, count);
 //#endif
-  if (sRead(fsDesc->device, buffer, sector, count))
+  if (fsDesc->read(fsDesc->device, buffer, sector, count))
     return FS_READ_ERROR;
   else
     return FS_OK;
@@ -226,7 +234,7 @@ static enum fsResult readSector(struct FsHandle *fsDesc, uint32_t sector)
 #else
     return FS_OK;
 #endif
-  if (sRead(fsDesc->device, fsDesc->buffer, sector, 1))
+  if (fsDesc->read(fsDesc->device, fsDesc->buffer, sector, 1))
     return FS_READ_ERROR;
   fsDesc->currentSector = sector;
   return FS_OK;
@@ -235,7 +243,7 @@ static enum fsResult readSector(struct FsHandle *fsDesc, uint32_t sector)
 #ifdef FS_WRITE_ENABLED
 static enum fsResult writeSector(struct FsHandle *fsDesc, uint32_t sector)
 {
-  if (sWrite(fsDesc->device, fsDesc->buffer, sector, 1))
+  if (fsDesc->write(fsDesc->device, fsDesc->buffer, sector, 1))
     return FS_WRITE_ERROR;
   fsDesc->currentSector = sector;
   return FS_OK;

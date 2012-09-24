@@ -2,7 +2,6 @@
 #define FAT_H_
 /*---------------------------------------------------------------------------*/
 #include <stdint.h>
-#include "settings.h"
 /*---------------------------------------------------------------------------*/
 //#define FS_WRITE_BUFFERED
 #define FS_WRITE_ENABLED
@@ -18,7 +17,15 @@
 enum fsCondition {FS_OPENED = 0, FS_CLOSED};
 enum fsMode      {FS_NONE = 0, FS_READ, FS_WRITE, FS_APPEND};
 enum fsResult    {FS_OK = 0, FS_ERROR, FS_WRITE_ERROR, FS_READ_ERROR,
-                  FS_NOT_FOUND, FS_DEVICE_ERROR, FS_EOF};
+    FS_NOT_FOUND, FS_DEVICE_ERROR, FS_EOF};
+/*---------------------------------------------------------------------------*/
+struct FsDevice
+{
+  uint8_t *buffer;
+  uint8_t type;
+  uint32_t offset;
+  uint32_t size;
+};
 /*---------------------------------------------------------------------------*/
 //TODO move to fat.c
 struct FsEntry
@@ -67,8 +74,6 @@ struct FsDir
 /*---------------------------------------------------------------------------*/
 struct FsHandle
 {
-  struct sDevice *device;
-  uint8_t *buffer;
   uint8_t clusterSize; /* Sectors per cluster */
   uint32_t currentSector, rootCluster, dataSector, fatSector;
 #ifdef FS_WRITE_ENABLED
@@ -78,9 +83,16 @@ struct FsHandle
   uint32_t clusterCount; /* Number of clusters */
   uint32_t lastAllocated; /* Last allocated cluster */
 #endif
+  /* Low-level members and functions to handle hardware devices */
+  uint8_t *buffer;
+  struct FsDevice *device;
+  enum fsResult (*read)(struct FsDevice *, uint8_t *, uint32_t, uint8_t);
+  enum fsResult (*write)(struct FsDevice *, const uint8_t *, uint32_t,
+      uint8_t);
 };
 /*---------------------------------------------------------------------------*/
-enum fsResult fsOpen(struct FsHandle *, struct FsFile *, const char *, enum fsMode);
+enum fsResult fsOpen(struct FsHandle *, struct FsFile *, const char *,
+    enum fsMode);
 enum fsResult fsClose(struct FsFile *);
 enum fsResult fsRead(struct FsFile *, uint8_t *, uint16_t, uint16_t *);
 enum fsResult fsSeek(struct FsFile *, uint32_t);
@@ -96,8 +108,11 @@ enum fsResult fsMakeDir(struct FsHandle *, const char *);
 enum fsResult fsMove(struct FsHandle *, const char *, const char *);
 #endif
 /*---------------------------------------------------------------------------*/
-enum fsResult fsLoad(struct FsHandle *, struct sDevice *, uint8_t *);
-enum fsResult fsUnload(struct FsHandle *);
+enum fsResult fsLoad(struct FsHandle *, struct FsDevice *, uint8_t *);
+void fsUnload(struct FsHandle *);
+void fsSetIO(struct FsHandle *,
+    enum fsResult (*)(struct FsDevice *, uint8_t *, uint32_t, uint8_t),
+    enum fsResult (*)(struct FsDevice *, const uint8_t *, uint32_t, uint8_t));
 /*---------------------------------------------------------------------------*/
 #ifdef DEBUG
 uint32_t countFree(struct FsHandle *);
