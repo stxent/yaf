@@ -1,29 +1,30 @@
-#include "io.h"
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/stat.h>
-//---------------------------------------------------------------------------
+#include <unistd.h>
+#include "io.h"
+/*----------------------------------------------------------------------------*/
 #undef DEBUG
-//---------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
 char devicePath[255];
 static void *dataHandler;
 static int fileHandler;
 static struct stat fileStat;
 long readCount = 0, writeCount = 0;
-//---------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
 uint8_t rawRead(struct FsDevice *dev, uint32_t sector)
 {
   memcpy(dev->buffer, ((uint8_t *)dataHandler) + (sector << SECTOR_SIZE), (1 << SECTOR_SIZE));
   return 0;
 }
-//---------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
 uint8_t rawWrite(struct FsDevice *dev, uint32_t sector)
 {
   memcpy(((uint8_t *)dataHandler) + (sector << SECTOR_SIZE), dev->buffer, (1 << SECTOR_SIZE));
   return 0;
 }
-//---------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
 enum fsResult sRead(struct FsDevice *dev, uint8_t *data, uint32_t index, uint8_t count)
 {
   if (index + count > dev->size)
@@ -35,7 +36,7 @@ enum fsResult sRead(struct FsDevice *dev, uint8_t *data, uint32_t index, uint8_t
   #endif
   return 0;
 }
-//---------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
 enum fsResult sWrite(struct FsDevice *dev, const uint8_t *data, uint32_t index, uint8_t count)
 {
   if (index + count > dev->size)
@@ -47,7 +48,7 @@ enum fsResult sWrite(struct FsDevice *dev, const uint8_t *data, uint32_t index, 
   #endif
   return 0;
 }
-//---------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
 uint8_t sOpen(struct FsDevice *dev, uint8_t *memBuffer, const char *fileName)
 {
   dev->buffer = memBuffer;
@@ -64,7 +65,7 @@ uint8_t sOpen(struct FsDevice *dev, uint8_t *memBuffer, const char *fileName)
     return 1;
   return 0;
 }
-//---------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
 uint8_t sReadTable(struct FsDevice *dev, uint32_t sector, uint8_t index)
 {
   uint8_t *ptr;
@@ -82,7 +83,7 @@ uint8_t sReadTable(struct FsDevice *dev, uint32_t sector, uint8_t index)
   dev->size = *((uint32_t *)(ptr + 0x0C));
   return 0;
 }
-//---------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
 uint8_t sClose(struct FsDevice *dev)
 {
   if (munmap(dataHandler, fileStat.st_size) == -1)
@@ -90,4 +91,4 @@ uint8_t sClose(struct FsDevice *dev)
   close(fileHandler);
   return 0;
 }
-//---------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/

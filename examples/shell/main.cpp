@@ -72,50 +72,50 @@ int util_ls(char **args, int count, struct FsHandle *handler, const char *locati
       if (details)
       {
         parsePath(path, location, fname);
-#ifdef DEBUG
-        FsEntry *eData = 0;
-        if (fsOpen(handler, &file, path, FS_READ) == FS_OK)
-        {
-          eData = &file.data;
-          fsClose(&file);
-        }
-        else if (fsOpenDir(handler, &tempdir, path) == FS_OK)
-        {
-          eData = &tempdir.data;
-        }
-        if (eData)
-        {
-          cout.width(8);
-          cout << left << eData->size;
-          //drwx
-          strbuf[4] = ' ';
-          strbuf[5] = 0;
-          strbuf[1] = 'r';
-          strbuf[3] = '-';
-          if (eData->attribute & 0x10)
-            strbuf[0] = 'd';
-          else
-            strbuf[0] = '-';
-          if (eData->attribute & 0x01)
-            strbuf[2] = '-';
-          else
-            strbuf[2] = 'w';
-          cout << strbuf;
-          timeToStr(strbuf, eData->time);
-          cout << strbuf << " ";
-          dateToStr(strbuf, eData->date);
-          cout.width(11);
-          cout << strbuf << " ";
-#ifdef FS_WRITE_ENABLED
-          sprintf(strbuf, "%d.%d", eData->parent, eData->index);
-          cout.width(12);
-          cout << strbuf;
-#endif
-          cout.width(7);
-          cout << eData->cluster;
-          cout << fname << right << endl;
-        }
-#endif
+// #ifdef DEBUG
+//         FsEntry *eData = 0;
+//         if (fsOpen(handler, &file, path, FS_READ) == FS_OK)
+//         {
+//           eData = &file.data;
+//           fsClose(&file);
+//         }
+//         else if (fsOpenDir(handler, &tempdir, path) == FS_OK)
+//         {
+//           eData = &tempdir.data;
+//         }
+//         if (eData)
+//         {
+//           cout.width(8);
+//           cout << left << eData->size;
+//           //drwx
+//           strbuf[4] = ' ';
+//           strbuf[5] = 0;
+//           strbuf[1] = 'r';
+//           strbuf[3] = '-';
+//           if (eData->attribute & 0x10)
+//             strbuf[0] = 'd';
+//           else
+//             strbuf[0] = '-';
+//           if (eData->attribute & 0x01)
+//             strbuf[2] = '-';
+//           else
+//             strbuf[2] = 'w';
+//           cout << strbuf;
+//           timeToStr(strbuf, eData->time);
+//           cout << strbuf << " ";
+//           dateToStr(strbuf, eData->date);
+//           cout.width(11);
+//           cout << strbuf << " ";
+// #ifdef FS_WRITE_ENABLED
+//           sprintf(strbuf, "%d.%d", eData->parent, eData->index);
+//           cout.width(12);
+//           cout << strbuf;
+// #endif
+//           cout.width(7);
+//           cout << eData->cluster;
+//           cout << fname << right << endl;
+//         }
+// #endif
       }
       else
       {
@@ -169,7 +169,7 @@ int util_info(struct FsHandle *handler)
   cout << "Size of fsHandle:   " << sizeof(FsHandle) << endl;
   cout << "Size of fsFile:     " << sizeof(FsFile) << endl;
   cout << "Size of fsDir:      " << sizeof(FsDir) << endl;
-  cout << "Size of fsEntry:    " << sizeof(FsEntry) << endl;
+//   cout << "Size of fsEntry:    " << sizeof(FsEntry) << endl;
   return FS_OK;
 }
 //---------------------------------------------------------------------------
