@@ -61,61 +61,49 @@ int util_ls(char **args, int count, struct FsHandle *handler, const char *locati
 #ifdef DEBUG
     struct FsFile file;
     struct FsDir tempdir;
-    char strbuf[16];
+    char strbuf[40];
 #endif
     char fname[13];
     char path[256];
     int listPos = 0;
+    if (details)
+      cout << "PARENT.INDEX CLUSTER ACCESS     SIZE     DATE                NAME" << endl;
     while (fsReadDir(&dir, fname) == FS_OK)
     {
       listPos++;
       if (details)
       {
         parsePath(path, location, fname);
-// #ifdef DEBUG
-//         FsEntry *eData = 0;
-//         if (fsOpen(handler, &file, path, FS_READ) == FS_OK)
-//         {
-//           eData = &file.data;
-//           fsClose(&file);
-//         }
-//         else if (fsOpenDir(handler, &tempdir, path) == FS_OK)
-//         {
-//           eData = &tempdir.data;
-//         }
-//         if (eData)
-//         {
-//           cout.width(8);
-//           cout << left << eData->size;
-//           //drwx
-//           strbuf[4] = ' ';
-//           strbuf[5] = 0;
-//           strbuf[1] = 'r';
-//           strbuf[3] = '-';
-//           if (eData->attribute & 0x10)
-//             strbuf[0] = 'd';
-//           else
-//             strbuf[0] = '-';
-//           if (eData->attribute & 0x01)
-//             strbuf[2] = '-';
-//           else
-//             strbuf[2] = 'w';
-//           cout << strbuf;
-//           timeToStr(strbuf, eData->time);
-//           cout << strbuf << " ";
-//           dateToStr(strbuf, eData->date);
-//           cout.width(11);
-//           cout << strbuf << " ";
-// #ifdef FS_WRITE_ENABLED
-//           sprintf(strbuf, "%d.%d", eData->parent, eData->index);
-//           cout.width(12);
-//           cout << strbuf;
-// #endif
-//           cout.width(7);
-//           cout << eData->cluster;
-//           cout << fname << right << endl;
-//         }
-// #endif
+        FsStat stat;
+        if (fsStat(handler, path, &stat) == FS_OK)
+        {
+#ifdef DEBUG
+          sprintf(strbuf, "%d.%d", stat.pcluster, stat.pindex);
+          cout.width(12);
+          cout << strbuf << ' ';
+          cout.width(7);
+          cout << stat.cluster << ' ';
+#endif
+          //Access
+          if (stat.type == FS_TYPE_DIR)
+            strbuf[0] = 'd';
+          else
+            strbuf[0] = '-';
+          strcpy(strbuf + 1, "rwxrwxrwx");
+          for (int ai = 8; ai >= 0; ai--)
+            if (!(stat.access & (1 << ai)))
+              strbuf[9 - ai] = '-';
+
+          cout << strbuf << ' ';
+
+          cout.width(8);
+          cout << left << stat.size << ' ';
+
+          strftime(strbuf, sizeof(strbuf), "%Y-%m-%d %H:%M:%S", gmtime((time_t *)&stat.atime));
+          cout << strbuf << ' ';
+          cout.width(11);
+          cout << fname << right << endl;
+        }
       }
       else
       {
@@ -197,7 +185,7 @@ int main(int argc, char *argv[])
   else
     cout << "No partitions found, selected raw partition at 0" << endl;
 
-  if (fsLoad(&handler, &dev, (uint8_t *)internalBuf) != FS_OK)
+  if (fsLoad(&handler, &dev) != FS_OK)
   {
     cout << "ERROR!" << endl;
     return 0;

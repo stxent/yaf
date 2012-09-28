@@ -3,9 +3,9 @@
 /*----------------------------------------------------------------------------*/
 #include <stdint.h>
 /*----------------------------------------------------------------------------*/
-#ifdef DEBUG
-#pragma pack(1)
-#endif
+// #ifdef DEBUG
+// #pragma pack(1)
+// #endif
 /*----------------------------------------------------------------------------*/
 //#define FS_WRITE_BUFFERED
 #define FS_WRITE_ENABLED
@@ -17,12 +17,6 @@
 #define SECTOR_SIZE     9 /* Power of sector size */
 #define FS_BUFFER       (1 << SECTOR_SIZE)
 #define FS_NAME_MAX     13 /* Name + dot + extension + null character */
-/*----------------------------------------------------------------------------*/
-// enum fsCondition
-// {
-//     FS_OPENED = 0,
-//     FS_CLOSED
-// } __attribute__((packed));
 /*----------------------------------------------------------------------------*/
 enum fsMode
 {
@@ -51,16 +45,10 @@ struct FsDevice
   uint32_t size;
 };
 /*----------------------------------------------------------------------------*/
-// struct FsEntry
-// {
-//   char name[FS_NAME_MAX];
-// };
-/*----------------------------------------------------------------------------*/
 struct FsFile
 {
   /* Common fields */
   struct FsHandle *descriptor;
-//   enum fsCondition state; /* Opened or closed */
   enum fsMode mode; /* Access mode: read, write or append */
   uint32_t size; /* File size */
   uint32_t position; /* Position in file */
@@ -79,8 +67,7 @@ struct FsDir
 {
   /* Common fields */
   struct FsHandle *descriptor;
-//   enum fsCondition state; /* Opened or closed */
-//   uint16_t position; /* Position in directory */ //TODO
+//   uint16_t position; /* Position in directory */                   /* TODO */
 
   /* Filesystem-specific fields */
   uint32_t cluster; /* First cluster of directory data */
@@ -109,17 +96,42 @@ struct FsHandle
 #endif
 };
 /*----------------------------------------------------------------------------*/
+enum fsEntryType
+{
+  FS_TYPE_NONE = 0, /* Unknown type */
+  FS_TYPE_FIFO, /* Named pipe */
+  FS_TYPE_CHAR, /* Character device */
+  FS_TYPE_DIR, /* Directory */
+  FS_TYPE_REG, /* Regular file */
+  FS_TYPE_LNK, /* Symbolic link */
+  FS_TYPE_SOCK /* Socket */
+} __attribute__((packed));
+/*----------------------------------------------------------------------------*/
+struct FsStat
+{
+  uint64_t atime;
+  uint32_t size;
+#ifdef DEBUG
+  uint16_t access;
+  uint32_t cluster;
+  uint32_t pcluster;
+  uint16_t pindex;
+#endif
+  enum fsEntryType type;
+};
+/*----------------------------------------------------------------------------*/
+enum fsResult fsStat(struct FsHandle *, const char *, struct FsStat *);
 enum fsResult fsOpen(struct FsHandle *, struct FsFile *, const char *,
     enum fsMode);
-enum fsResult fsClose(struct FsFile *);
+void fsClose(struct FsFile *);
 enum fsResult fsRead(struct FsFile *, uint8_t *, uint16_t, uint16_t *);
 enum fsResult fsSeek(struct FsFile *, uint32_t);
 enum fsResult fsOpenDir(struct FsHandle *, struct FsDir *, const char *);
-// enum fsResult fsReadDir(struct FsDir *, struct FsEntry *);
+void fsCloseDir(struct FsDir *);
 enum fsResult fsReadDir(struct FsDir *, char *);
-// enum fsResult fsRewindDir(struct FsDir *); //TODO
-// enum fsResult fsSeekDir(struct FsDir *, uint16_t); //TODO
-// uint16_t fsTellDir(struct FsDir *); //TODO
+// enum fsResult fsRewindDir(struct FsDir *);                         /* TODO */
+// enum fsResult fsSeekDir(struct FsDir *, uint16_t);                 /* TODO */
+// uint16_t fsTellDir(struct FsDir *);                                /* TODO */
 /*----------------------------------------------------------------------------*/
 #ifdef FS_WRITE_ENABLED
 enum fsResult fsWrite(struct FsFile *, uint8_t *, uint16_t, uint16_t *);
@@ -128,11 +140,11 @@ enum fsResult fsMakeDir(struct FsHandle *, const char *);
 enum fsResult fsMove(struct FsHandle *, const char *, const char *);
 #endif
 /*----------------------------------------------------------------------------*/
-enum fsResult fsLoad(struct FsHandle *, struct FsDevice *, uint8_t *);
-void fsUnload(struct FsHandle *);
 void fsSetIO(struct FsHandle *,
     enum fsResult (*)(struct FsDevice *, uint8_t *, uint32_t, uint8_t),
     enum fsResult (*)(struct FsDevice *, const uint8_t *, uint32_t, uint8_t));
+enum fsResult fsLoad(struct FsHandle *, struct FsDevice *);
+void fsUnload(struct FsHandle *);
 /*----------------------------------------------------------------------------*/
 #ifdef DEBUG
 uint32_t countFree(struct FsHandle *);
