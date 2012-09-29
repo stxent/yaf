@@ -141,12 +141,12 @@ int util_info(struct FsHandle *handler)
 #endif
   cout << "Device:             " << devicePath << endl;
   cout << "Sectors in cluster: " << (int)(1 << handler->clusterSize) << endl;
-  cout << "FAT sector:         " << handler->fatSector << endl;
+  cout << "FAT sector:         " << handler->tableSector << endl;
   cout << "Data sector:        " << handler->dataSector << endl;
   cout << "Root cluster:       " << handler->rootCluster << endl;
 #ifdef FS_WRITE_ENABLED
-  cout << "FAT records count:  " << (int)handler->fatCount << endl;
-  cout << "Sectors in FAT:     " << handler->sectorsPerFAT << endl;
+  cout << "FAT records count:  " << (int)handler->tableCount << endl;
+  cout << "Sectors in FAT:     " << handler->tableSize << endl;
   cout << "Info sector:        " << handler->infoSector << endl;
   cout << "Data clusters:      " << handler->clusterCount << endl;
   cout << "Last allocated:     " << handler->lastAllocated << endl;

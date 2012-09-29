@@ -6,49 +6,33 @@ static const int32_t startYear = 1970;
 static const uint8_t calendar[] =
     {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 /*----------------------------------------------------------------------------*/
-// uint64_t unixTime(DateTime crtime, char *local,unsigned char DST)
 uint64_t unixTime(struct Time *tm)
 {
-  uint64_t s = 0; /* Stores how many seconds passed from 1.1.1970, 00:00:00 */
+  /* Stores how many seconds passed from 1.1.1970, 00:00:00 */
+  uint64_t s = 0;
 
+  /* If the current year is a leap one than add one day (86400 sec) */
   if (!(tm->year % 4) && (tm->mon > 2))
-  {
-    s += 86400; // if the current year is a leap one -> add one day (86400 sec)
-    tm->mon--;
-  }
-  // dec the current month (find how many months have passed from the current year)
+    s += 86400;
+
+  /* Decrement current month */
+  tm->mon--;
+  /* Sum the days from January to the current month */
   while (tm->mon)
-  // sum the days from January to the current month
   {
-    tm->mon--;                      // dec the month
-    s += (calendar[tm->mon]) * 86400;    ; // add the number of days from a month * 86400 sec
+    /* Add the number of days from a month * 86400 sec */
+    s += calendar[--tm->mon] * 86400;
   }
-  // Next, add to s variable: (the number of days from each year (even leap years)) * 
-//           86400 sec, 
-  // the number of days from the current month
-  // the each hour & minute & second from the current day
-  s += ((((tm->year - startYear) * 365) + ((tm->year - startYear) >> 2)) * (uint32_t)86400) + (tm->day - 1) * (uint32_t)86400 +
-      (tm->hour * (uint32_t)3600) + (tm->min * (uint32_t)60) + (uint32_t)tm->sec;
-//   while(timezone[localposition])
-//   // search the first locations in the database
-//   {
-//   if (timezone[localposition]==local) {foundlocal=1; break ; // if the locations was found -> break the searching loop
-//   localposition++
-//   ; // incr the counter (stores the position of the local city in the array)
-//   }
-//   if (foundlocal)
-//   // if the local area is found inside the timezone[] array 
-//   {
-//   // calculate the time difference between localtime and UTC
-//   if (DST) s-=((timevalue[0][localposition]+timevalue[1][localposition])*3600);// if DST is active (Summer Time) -> subtract the 
-//   standard time difference + 1 hour 
-//   else s-=(timevalue[0][localposition]*3600)                                ; // else subtract the standard time difference (in se
-//   conds: 1 hour=3600 sec)
-//   }
-//   else s=0
-//   ; // return 0 if the local area is not foundinside the timezone[] array
-//   return s
-//   ; // return the UNIX TIME
+  /* Add:
+   * (the number of days from each year (even leap years)) * 86400 sec,
+   * the number of days from the current month,
+   * the each hour & minute & second from the current day
+   */
+  s += ((((tm->year - startYear) * 365) + ((tm->year - startYear) >> 2)) *
+      (uint64_t)86400) + (tm->day - 1) * (uint32_t)86400 +
+      (tm->hour * (uint32_t)3600) + (tm->min * (uint32_t)60) +
+      (uint32_t)tm->sec;
+
   return s;
 }
 /*----------------------------------------------------------------------------*/

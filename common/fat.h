@@ -85,12 +85,12 @@ struct FsHandle
       uint8_t);
 
   /* Filesystem-specific fields */
-  uint8_t clusterSize; /* Sectors per cluster */
-  uint32_t currentSector, rootCluster, dataSector, fatSector;
+  uint8_t clusterSize; /* Sectors per cluster power */
+  uint32_t currentSector, rootCluster, dataSector, tableSector;
 #ifdef FS_WRITE_ENABLED
-  uint8_t fatCount;
+  uint8_t tableCount; /* FAT tables count */
+  uint32_t tableSize; /* Size in sectors of each FAT table */
   uint16_t infoSector;
-  uint32_t sectorsPerFAT;
   uint32_t clusterCount; /* Number of clusters */
   uint32_t lastAllocated; /* Last allocated cluster */
 #endif
