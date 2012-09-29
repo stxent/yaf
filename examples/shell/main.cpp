@@ -1,129 +1,261 @@
-#include <stdio.h>
+#include <cstdio>
 #include <iostream>
 #include <fstream>
-#include <stdlib.h>
-#include <time.h>
-#include <string.h>
+#include <cstdlib>
+#include <ctime>
 #include <sstream>
-//---------------------------------------------------------------------------
+#include <cstring>
+#include <map>
+#include <vector>
+//------------------------------------------------------------------------------
+#include <openssl/md5.h>
+//------------------------------------------------------------------------------
 extern "C"
 {
 #include "fat.h"
 #include "io.h"
 #include "rtc.h"
 }
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 using namespace std;
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 extern long readExcess, readCount, writeCount;
-extern char devicePath[255];
-//---------------------------------------------------------------------------
-void parsePath(char *dest, const char *folder, const char *path)
+//------------------------------------------------------------------------------
+enum cResult {
+  C_OK = 0,
+  C_SYNTAX,
+  C_TERMINATE,
+  C_ERROR
+};
+//------------------------------------------------------------------------------
+string extractName(const string &path)
 {
-  size_t length;
+  int length = 0;
+  for (int i = path.size() - 1; i >= 0; i--, length++)
+    if (path[i] == '/')
+    {
+      if (length)
+        return path.substr(i + 1);
+      else
+        return (string)"";
+    }
+  return path;
+}
+//------------------------------------------------------------------------------
+string parsePath(const string &folder, const string &path)
+{
+  string res;
   if (path[0] != '/')
   {
-    strcpy(dest, folder);
-    length = strlen(folder);
-    if (length > 1)
-    {
-      dest[length] = '/';
-      dest[length + 1] = '\0';
-    }
-    strcpy(dest + strlen(dest), path);
+    res = folder;
+    if (folder.size() > 1)
+      res += "/";
+    res += path;
   }
   else
-    strcpy(dest, path);
-  length = strlen(dest);
-  if ((length > 1) && (dest[length] == '/'))
-    dest[length] = '\0';
+    res = path;
+  return res;
 }
-//---------------------------------------------------------------------------
-int util_cd(struct FsHandle *handler, char *location)
+//------------------------------------------------------------------------------
+vector<string> parseArgs(const char **args, int count)
 {
-  struct FsDir dir;
-  if (fsOpenDir(handler, &dir, location) == FS_OK)
-    return FS_OK;
-#ifdef DEBUG
-  cout << "cd: " << location << ": No such directory" << endl;
-#endif
-  return FS_ERROR;
+  vector<string> res;
+  for (int i = 0; i < count; i++)
+    res.push_back((string)args[i]);
+  return res;
 }
-//---------------------------------------------------------------------------
-int util_ls(char **args, int count, struct FsHandle *handler, const char *location)
+//------------------------------------------------------------------------------
+string int2str(long int val, int base = 10)
 {
-  struct FsDir dir;
-  bool details = false;
-  if ((count >= 2) && !strcmp(args[1], "-l"))
-    details = true;
-  if (fsOpenDir(handler, &dir, location) == FS_OK)
+  stringstream stream;
+  if (base == 16)
+    stream << hex << val;
+  else if (base == 10)
+    stream << dec << val;
+  return stream.str();
+}
+//------------------------------------------------------------------------------
+string time2str(uint64_t tm)
+{
+  char tbuf[24];
+  strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M:%S",
+      gmtime((time_t *)&tm));
+  return (string)tbuf;
+}
+//------------------------------------------------------------------------------
+inline char dec2hex(unsigned char value)
+{
+  return (value < 10) ? ('0' + value) : ('a' + value - 10);
+}
+//------------------------------------------------------------------------------
+string hexdigest(const unsigned char *src)
+{
+  string res;
+  for (uint8_t i = 0; i < 16; i++)
   {
-#ifdef DEBUG
-    struct FsFile file;
-    struct FsDir tempdir;
-    char strbuf[40];
-#endif
-    char fname[13];
-    char path[256];
-    int listPos = 0;
-    if (details)
-      cout << "PARENT.INDEX CLUSTER ACCESS     SIZE     DATE                NAME" << endl;
-    while (fsReadDir(&dir, fname) == FS_OK)
+    res += dec2hex(src[i] >> 4);
+    res += dec2hex(src[i] & 0x0F);
+  }
+  return res;
+}
+//------------------------------------------------------------------------------
+enum cResult util_cd(struct FsHandle *handler, const vector<string> &args,
+    string &loc)
+{
+  struct FsDir dir;
+  enum fsResult fsres;
+  string newloc;
+
+  if (args.size() < 2)
+    return C_SYNTAX;
+  newloc = parsePath(loc, args[1]);
+
+  fsres = fsOpenDir(handler, &dir, newloc.c_str());
+  if (fsres == FS_OK)
+  {
+    fsCloseDir(&dir);
+    loc = newloc;
+    return C_OK;
+  }
+  else
+  {
+    cout << "cd: " << newloc << ": No such directory" << endl;
+    return C_ERROR;
+  }
+}
+//------------------------------------------------------------------------------
+vector< map<string, string> > util_ls(struct FsHandle *handler,
+    const vector<string> &args, const string &loc)
+{
+  vector< map<string, string> > entries;
+  struct FsDir dir;
+  struct FsStat stat;
+  bool details = false;
+  enum fsResult fsres;
+  string path;
+
+  for (unsigned int i = 1; i < args.size(); i++)
+  {
+    if (args[i] == "-l")
     {
-      listPos++;
-      if (details)
+      details = true;
+      continue;
+    }
+  }
+
+  fsres = fsOpenDir(handler, &dir, loc.c_str());
+  if (fsres == FS_OK)
+  {
+    char fname[13];
+    int pos;
+    for (pos = 1; (fsres = fsReadDir(&dir, fname)) == FS_OK; pos++)
+    {
+      map<string, string> retval;
+      stringstream estream;
+      path = parsePath(loc, (string)fname);
+      if (fsStat(handler, path.c_str(), &stat) == FS_OK)
       {
-        parsePath(path, location, fname);
-        FsStat stat;
-        if (fsStat(handler, path, &stat) == FS_OK)
+        string str_size = int2str(stat.size, 10);
+        string str_atime = time2str(stat.atime);
+
+        retval.insert(pair<string, string>("name", fname));
+        retval.insert(pair<string, string>("size", str_size));
+//         retval.insert(pair<string, string>("time", str_atime));
+        entries.push_back(retval);
+
+        if (details)
         {
 #ifdef DEBUG
-          sprintf(strbuf, "%d.%d", stat.pcluster, stat.pindex);
-          cout.width(12);
-          cout << strbuf << ' ';
-          cout.width(7);
-          cout << stat.cluster << ' ';
-#endif
+          estream.width(10);
+          estream << stat.pcluster << '.';
+          estream.width(3);
+          estream << left << stat.pindex << right << ' ';
+          estream.width(10);
+          estream << stat.cluster << ' ';
+
           //Access
-          if (stat.type == FS_TYPE_DIR)
-            strbuf[0] = 'd';
-          else
-            strbuf[0] = '-';
-          strcpy(strbuf + 1, "rwxrwxrwx");
-          for (int ai = 8; ai >= 0; ai--)
-            if (!(stat.access & (1 << ai)))
-              strbuf[9 - ai] = '-';
+          char access[4];
+          access[0] = (stat.type == FS_TYPE_DIR) ? 'd' : '-';
+          access[1] = 'r';
+          access[2] = (stat.access & 02) ? 'w' : '-';
+          access[3] = '\0';
+          estream << access;
+#endif
+          estream.width(10);
+          estream << str_size << ' ';
+          estream << str_atime << ' ';
+          estream << fname;
 
-          cout << strbuf << ' ';
-
-          cout.width(8);
-          cout << left << stat.size << ' ';
-
-          strftime(strbuf, sizeof(strbuf), "%Y-%m-%d %H:%M:%S", gmtime((time_t *)&stat.atime));
-          cout << strbuf << ' ';
-          cout.width(11);
-          cout << fname << right << endl;
+          cout << estream.str() << endl;
+        }
+        else
+        {
+          cout.width(20);
+          cout << left << fname << right;
+          if (!(pos % 4))
+            cout << endl;
         }
       }
-      else
-      {
-        cout.width(20);
-        cout << left << fname;
-        if (!(listPos % 5))
-          cout << right << endl;
-      }
+//       else
+//       {
+//       }
     }
-    if (!details && (listPos % 5))
+    if (!details && ((pos - 1) % 4))
       cout << endl;
-    return FS_OK;
+    fsCloseDir(&dir);
   }
-#ifdef DEBUG
-  cout << "ls: " << location << ": No such directory" << endl;
-#endif
-  return FS_ERROR;
+  else
+  {
+    cout << "ls: " << loc << ": No such directory" << endl;
+  }
+  return entries;
 }
-//---------------------------------------------------------------------------
-int util_stat(struct FsHandle *handler)
+//------------------------------------------------------------------------------
+vector< map<string, string> > util_md5sum(struct FsHandle *handler,
+    const vector<string> &args, const string &loc)
+{
+  const int bufSize = 64;
+  vector< map<string, string> > entries;
+  struct FsFile file;
+  enum fsResult fsres;
+
+  for (unsigned int i = 1; i < args.size(); i++)
+  {
+    string newloc = parsePath(loc, args[i]);
+    fsres = fsOpen(handler, &file, newloc.c_str(), FS_READ);
+    if (fsres == FS_OK)
+    {
+      uint16_t cnt;
+      char buf[bufSize];
+      MD5_CTX md5result;
+      unsigned char md5str[16];
+      map<string, string> retval;
+
+      MD5_Init(&md5result);
+      while ((fsres = fsRead(&file, (uint8_t *)buf, bufSize, &cnt)) == FS_OK)
+      {
+        if (cnt)
+          MD5_Update(&md5result, (const void *)buf, cnt);
+      }
+      fsClose(&file);
+      MD5_Final(md5str, &md5result);
+
+      string digest = hexdigest(md5str);
+      string extracted = extractName(newloc);
+      cout << digest << '\t' << extracted << endl;
+      retval.insert(pair<string, string>("name", extracted));
+      retval.insert(pair<string, string>("checksum", digest));
+      entries.push_back(retval);
+    }
+    else
+    {
+      cout << "md5sum: " << newloc << ": No such file" << endl;
+    }
+  }
+  return entries;
+}
+//------------------------------------------------------------------------------
+int util_io(struct FsHandle *handler)
 {
 #ifdef DEBUG
   cout << "Read excess:     " << readExcess << endl;
@@ -132,14 +264,13 @@ int util_stat(struct FsHandle *handler)
   cout << "Sectors written: " << writeCount << endl;
   return FS_OK;
 }
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int util_info(struct FsHandle *handler)
 {
 #if defined (FS_WRITE_ENABLED) && defined (DEBUG)
   uint32_t sz;
   sz = countFree(handler);
 #endif
-  cout << "Device:             " << devicePath << endl;
   cout << "Sectors in cluster: " << (int)(1 << handler->clusterSize) << endl;
   cout << "FAT sector:         " << handler->tableSector << endl;
   cout << "Data sector:        " << handler->dataSector << endl;
@@ -154,89 +285,139 @@ int util_info(struct FsHandle *handler)
   cout << "Free clusters:      " << sz << endl;
 #endif
 #endif
-  cout << "Size of fsHandle:   " << sizeof(FsHandle) << endl;
-  cout << "Size of fsFile:     " << sizeof(FsFile) << endl;
-  cout << "Size of fsDir:      " << sizeof(FsDir) << endl;
-//   cout << "Size of fsEntry:    " << sizeof(FsEntry) << endl;
+  cout << "Size of FsDevice:   " << sizeof(FsDevice) << endl;
+  cout << "Size of FsHandle:   " << sizeof(FsHandle) << endl;
+  cout << "Size of FsFile:     " << sizeof(FsFile) << endl;
+  cout << "Size of FsDir:      " << sizeof(FsDir) << endl;
   return FS_OK;
 }
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+enum cResult commandParser(FsHandle *handler, string &loc, const char *str)
+{
+  vector<string> args;
+  stringstream parser;
+
+  parser.clear();
+  parser << str;
+  if (parser.eof())
+    return C_SYNTAX;
+
+  for (int count = 0; !parser.eof(); count++)
+  {
+    string argstr;
+    parser >> argstr;
+    args.push_back(argstr);
+  }
+  if (args[0] == "io")
+  {
+    util_io(handler);
+  }
+//     case "stat":
+//       util_io(handler);
+//       break;
+  if (args[0] == "info")
+  {
+    util_info(handler);
+  }
+  if (args[0] == "cd")
+  {
+    enum cResult retval;
+    retval = util_cd(handler, args, loc);
+    if (retval != C_OK)
+      cout << "Error" << endl;
+  }
+  if (args[0] == "ls")
+  {
+    vector< map<string, string> > retval;
+    retval = util_ls(handler, args, loc);
+//     vector<string> required;
+//     required.push_back(args[i]);
+  }
+  if (args[0] == "md5sum")
+  {
+    vector< map<string, string> > retval;
+    retval = util_md5sum(handler, args, loc);
+//     vector<string> required;
+//     required.push_back(args[i]);
+  }
+  if (args[0] == "exit")
+    return C_TERMINATE;
+  return C_OK;
+}
+//------------------------------------------------------------------------------
+volatile char internalBuf[FS_BUFFER];
+//------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
   if (argc < 2)
     return 0;
-  char internalBuf[FS_BUFFER];
+
   FsDevice dev;
   FsHandle handler;
 
   fsSetIO(&handler, sRead, sWrite);
-  sOpen(&dev, (uint8_t *)internalBuf, argv[1]);
-  if (!sReadTable(&dev, 0, 0))
+  if (sOpen(&dev, (uint8_t *)internalBuf, argv[1]) != FS_OK)
   {
-    //0x0B: 32-bit FAT
-    //0x0C: 32-bit FAT, using INT 13 Extensions.
-    //0x1B: Hidden 32-bit FAT
-    //0x1C: Hidden 32-bit FAT, using INT 13 Extensions
+    printf("Error opening file\n");
+    return 0;
+  }
+  if (sReadTable(&dev, 0, 0) == FS_OK)
+  {
+    /*
+     * 0x0B: 32-bit FAT
+     * 0x0C: 32-bit FAT, using INT 13 Extensions.
+     * 0x1B: Hidden 32-bit FAT
+     * 0x1C: Hidden 32-bit FAT, using INT 13 Extensions
+     */
     if (dev.type != 0x0B)
-      cout << "Wrong partition descriptor, expected: 0x0B, got: " << hex << (int)dev.type << dec << endl;
+    {
+      printf("Wrong partition descriptor, expected: 0x0B, got: 0x%02X\n",
+          dev.type);
+    }
     else
-      cout << "Selected partition: offset = " << dev.offset << ", size = " << dev.size << ", type = " << hex << (int)dev.type << dec << endl;
+    {
+      printf("Selected partition: offset = %d, size = %d, type = 0x%02X\n",
+          dev.offset, dev.size, dev.type);
+    }
   }
   else
-    cout << "No partitions found, selected raw partition at 0" << endl;
+    printf("No partitions found, selected raw partition at 0\n");
 
   if (fsLoad(&handler, &dev) != FS_OK)
   {
-    cout << "ERROR!" << endl;
+    printf("Error loading partition\n");
     return 0;
   }
 
-  const int argCount = 8;
-  const int argLength = 80;
-  char **args = new char *[argCount];
-  for (int i = 0; i < argCount; i++)
-    args[i] = new char[argLength];
-  char location[256];
-  location[0] = '/';
-  memset(location + 1, '\0', sizeof(location) - 1);
-  stringstream parseBuffer;
+  string location = "/";
   bool terminate = false;
+  enum cResult res;
+
   while (!terminate)
   {
-    int count;
-    char buf[256], cbuf[256];
+    char buf[512];
+    string path;
     cout << location << "> ";
-    cin.getline(cbuf, sizeof(cbuf));
-    parseBuffer.clear();
-    parseBuffer << cbuf;
-    if (!parseBuffer.eof())
+    cin.getline(buf, sizeof(buf));
+    res = commandParser(&handler, location, buf);
+    switch (res)
     {
-      for (count = 0; !parseBuffer.eof() && (count < argCount); count++)
-        parseBuffer >> args[count];
-      if (!strcmp(args[0], "exit"))
+      case C_TERMINATE:
         terminate = true;
-      if (!strcmp(args[0], "stat"))
-        util_stat(&handler);
-      if (!strcmp(args[0], "info"))
-        util_info(&handler);
-      if (!strcmp(args[0], "cd") && (count >= 2))
-      {
-        parsePath(buf, location, args[1]);
-        if (util_cd(&handler, buf) == FS_OK)
-          strcpy(location, buf);
-      }
-      if (!strcmp(args[0], "ls"))
-      {
-        util_ls(args, count, &handler, location);
-      }
+        break;
+      case C_SYNTAX:
+        cout << "Syntax error" << endl;
+        break;
+      case C_ERROR:
+        cout << "Error occured" << endl;
+        break;
+      case C_OK:
+      default:
+        break;
     }
   }
 
-  cout << "Unloading" << endl;
+  printf("Unloading\n");
   fsUnload(&handler);
   return 0;
-
-  for (int i = 0; i < argCount; i++)
-    delete[] args[i];
-  delete[] args;
 }

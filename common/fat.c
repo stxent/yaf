@@ -500,9 +500,11 @@ enum fsResult fsStat(struct FsHandle *fsDesc, const char *path,
   else
     stat->type = FS_TYPE_REG;
 
-  stat->access = 0777; /* rwxrwxrwx */
+#ifdef DEBUG
+  stat->access = 07; /* rwx */
   if (item.attribute & FS_FLAG_RO)
-    stat->access &= 0555;
+    stat->access &= 05;
+#endif
 
 #ifdef FS_RTC_ENABLED
   tm.sec = ptr->time & 0x1F;
