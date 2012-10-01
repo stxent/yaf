@@ -18,6 +18,8 @@
 #define FS_BUFFER       (1 << SECTOR_SIZE)
 #define FS_NAME_MAX     13 /* Name + dot + extension + null character */
 /*----------------------------------------------------------------------------*/
+struct FsDevice;
+/*----------------------------------------------------------------------------*/
 enum fsMode
 {
     FS_NONE = 0,
@@ -37,9 +39,17 @@ enum fsResult
     FS_DEVICE_ERROR
 } __attribute__((packed));
 /*----------------------------------------------------------------------------*/
+typedef enum fsResult (*fsDevRead)(struct FsDevice *, uint8_t *, uint32_t,
+    uint8_t);
+typedef enum fsResult (*fsDevWrite)(struct FsDevice *, const uint8_t *,
+    uint32_t, uint8_t);
+/*----------------------------------------------------------------------------*/
 struct FsDevice
 {
   uint8_t *buffer;
+  fsDevRead read;
+  fsDevWrite write;
+
   uint8_t type;
   uint32_t offset;
   uint32_t size;
@@ -77,12 +87,8 @@ struct FsDir
 /*----------------------------------------------------------------------------*/
 struct FsHandle
 {
-  /* Common low-level fields and functions to handle hardware layer */
-  uint8_t *buffer;
+  /* Common fields */
   struct FsDevice *device;
-  enum fsResult (*read)(struct FsDevice *, uint8_t *, uint32_t, uint8_t);
-  enum fsResult (*write)(struct FsDevice *, const uint8_t *, uint32_t,
-      uint8_t);
 
   /* Filesystem-specific fields */
   uint8_t clusterSize; /* Sectors per cluster power */
@@ -140,9 +146,7 @@ enum fsResult fsMakeDir(struct FsHandle *, const char *);
 enum fsResult fsMove(struct FsHandle *, const char *, const char *);
 #endif
 /*----------------------------------------------------------------------------*/
-void fsSetIO(struct FsHandle *,
-    enum fsResult (*)(struct FsDevice *, uint8_t *, uint32_t, uint8_t),
-    enum fsResult (*)(struct FsDevice *, const uint8_t *, uint32_t, uint8_t));
+void fsSetIO(struct FsDevice *, fsDevRead, fsDevWrite);
 enum fsResult fsLoad(struct FsHandle *, struct FsDevice *);
 void fsUnload(struct FsHandle *);
 /*----------------------------------------------------------------------------*/

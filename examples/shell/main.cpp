@@ -355,7 +355,7 @@ int main(int argc, char *argv[])
   FsDevice dev;
   FsHandle handler;
 
-  fsSetIO(&handler, sRead, sWrite);
+  fsSetIO(&dev, sRead, sWrite);
   if (sOpen(&dev, (uint8_t *)internalBuf, argv[1]) != FS_OK)
   {
     printf("Error opening file\n");
