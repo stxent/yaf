@@ -210,6 +210,105 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
   }
   return entries;
 }
+
+//------------------------------------------------------------------------------
+#ifdef FS_WRITE_ENABLED
+enum cResult util_mkdir(struct FsHandle *handler, const vector<string> &args,
+    string &loc)
+{
+  //Process only first argument
+  if (args.size() < 2)
+    return C_SYNTAX;
+  string newloc = parsePath(loc, args[1]);
+  enum fsResult fsres = fsMakeDir(handler, newloc.c_str());
+  if (fsres != FS_OK)
+  {
+    cout << "mkdir: " << newloc << ": Error creating folder" << endl;
+    return C_ERROR;
+  }
+  else
+  {
+    return C_OK;
+  }
+}
+#endif
+//------------------------------------------------------------------------------
+#ifdef FS_WRITE_ENABLED
+enum cResult util_rm(struct FsHandle *handler, const vector<string> &args,
+    string &loc)
+{
+  enum cResult res = C_OK;
+  enum fsResult fsres;
+
+  for (unsigned int i = 1; i < args.size(); i++)
+  {
+    string newloc = parsePath(loc, args[i]);
+    fsres = fsRemove(handler, newloc.c_str());
+    if (fsres != FS_OK)
+    {
+      cout << "rm: " << newloc << ": No such file" << endl;
+      res = C_ERROR;
+    }
+  }
+  return res;
+}
+#endif
+//---------------------------------------------------------------------------
+//Write file from host filesystem to opened volume
+#ifdef FS_WRITE_ENABLED
+enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
+    string &loc)
+{
+  //Process only first and second arguments
+  if (args.size() < 3)
+    return C_SYNTAX;
+
+  string host = args[1];
+  string target = parsePath(loc, args[2]);
+
+  int bufSize = 512;
+
+  struct FsFile file;
+  ifstream datafile;
+  datafile.open(host.c_str());
+  if (!datafile)
+  {
+    cout << "put: " << host << ": File does not exist" << endl;
+    return C_ERROR;
+  }
+  if (fsOpen(handler, &file, target.c_str(), FS_WRITE) == FS_OK)
+  {
+    fsResult ecode;
+    uint16_t cnt;
+    uint64_t total = 0;
+
+    while (!datafile.eof())
+    {
+      char *ibuf = new char[bufSize];
+      datafile.read(ibuf, bufSize);
+      ecode = fsWrite(&file, (uint8_t *)ibuf, datafile.gcount(), &cnt);
+      total += cnt;
+      delete ibuf;
+      if ((ecode != FS_OK) || (cnt != datafile.gcount()))
+      {
+        cout << "put: " << target << ": Write error on " << total << endl;
+        break;
+      }
+      if (!datafile.gcount())
+        break;
+    }
+    fsClose(&file);
+  }
+  else
+  {
+    cout << "put: " << target << ": Error creating file" << endl;
+    datafile.close();
+    return C_ERROR;
+  }
+  datafile.close();
+  return C_OK;
+}
+#endif
 //------------------------------------------------------------------------------
 vector< map<string, string> > util_md5sum(struct FsHandle *handler,
     const vector<string> &args, const string &loc)
@@ -332,6 +431,27 @@ enum cResult commandParser(FsHandle *handler, string &loc, const char *str)
     retval = util_ls(handler, args, loc);
 //     vector<string> required;
 //     required.push_back(args[i]);
+  }
+  if (args[0] == "mkdir")
+  {
+    enum cResult retval;
+    retval = util_mkdir(handler, args, loc);
+    if (retval != C_OK)
+      cout << "Error" << endl;
+  }
+  if (args[0] == "rm")
+  {
+    enum cResult retval;
+    retval = util_rm(handler, args, loc);
+    if (retval != C_OK)
+      cout << "Error" << endl;
+  }
+  if (args[0] == "put")
+  {
+    enum cResult retval;
+    retval = util_put(handler, args, loc);
+    if (retval != C_OK)
+      cout << "Error" << endl;
   }
   if (args[0] == "md5sum")
   {
