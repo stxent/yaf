@@ -5,10 +5,14 @@
 #include <ctime>
 #include <sstream>
 #include <cstring>
+
+#include <algorithm>
 #include <map>
 #include <vector>
 //------------------------------------------------------------------------------
 #include <openssl/md5.h>
+//------------------------------------------------------------------------------
+#include <boost/regex.hpp>
 //------------------------------------------------------------------------------
 extern "C"
 {
@@ -27,6 +31,9 @@ enum cResult {
   C_TERMINATE,
   C_ERROR
 };
+//------------------------------------------------------------------------------
+enum cResult commandParser(FsHandle *, string &, const string &,
+    const string *);
 //------------------------------------------------------------------------------
 string extractName(const string &path)
 {
@@ -132,7 +139,7 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
   struct FsStat stat;
   bool details = false;
   enum fsResult fsres;
-  string path;
+  string path, dirPath;
 
   for (unsigned int i = 1; i < args.size(); i++)
   {
@@ -141,9 +148,12 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
       details = true;
       continue;
     }
+    //TODO add miltiple directories
+    dirPath = args[i];
   }
 
-  fsres = fsOpenDir(handler, &dir, loc.c_str());
+  dirPath = parsePath(loc, dirPath);
+  fsres = fsOpenDir(handler, &dir, dirPath.c_str());
   if (fsres == FS_OK)
   {
     char fname[13];
@@ -152,7 +162,7 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
     {
       map<string, string> retval;
       stringstream estream;
-      path = parsePath(loc, (string)fname);
+      path = parsePath(dirPath, (string)fname);
       if (fsStat(handler, path.c_str(), &stat) == FS_OK)
       {
         string str_size = int2str(stat.size, 10);
@@ -285,7 +295,7 @@ enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
     while (!datafile.eof())
     {
       char *ibuf = new char[bufSize];
-      datafile.read(ibuf, bufSize);
+      datafile.read(ibuf, bufSize); //FIXME rewrite
       ecode = fsWrite(&file, (uint8_t *)ibuf, datafile.gcount(), &cnt);
       total += cnt;
       delete ibuf;
@@ -391,9 +401,59 @@ int util_info(struct FsHandle *handler)
   return FS_OK;
 }
 //------------------------------------------------------------------------------
-enum cResult commandParser(FsHandle *handler, string &loc, const char *str)
+void util_autotest(FsHandle *handler, const vector<string> &args)
+{
+  if (args.size() < 2)
+    return;
+
+  string loc = "/";
+  ifstream testbench;
+  testbench.open(args[1].c_str());
+  if (!testbench)
+  {
+    cout << "autotest: " << args[1] << ": No such file" << endl;
+    return;
+  }
+
+  string data;
+  boost::regex parser("\"(.*?)\"");
+  boost::smatch results;
+
+  while (!testbench.eof())
+  {
+    getline(testbench, data);
+    string::const_iterator dataStart = data.begin();
+    string::const_iterator dataEnd = data.end();
+
+    string comStr = "";
+    string argStr = "";
+
+    while (boost::regex_search(dataStart, dataEnd, results, parser))
+    {
+      if (comStr == "")
+      {
+        comStr = string(results[1].first, results[1].second);
+      }
+      else
+      {
+        argStr = string(results[1].first, results[1].second);
+      }
+      dataStart = results[1].second + 1;
+    }
+    if (comStr != "")
+    {
+      cout << "> " << comStr << endl;
+      commandParser(handler, loc, comStr, &argStr);
+    }
+  }
+  testbench.close();
+}
+//------------------------------------------------------------------------------
+enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
+    const string *ret = NULL)
 {
   vector<string> args;
+  vector<string> retvals;
   stringstream parser;
 
   parser.clear();
@@ -407,6 +467,22 @@ enum cResult commandParser(FsHandle *handler, string &loc, const char *str)
     parser >> argstr;
     args.push_back(argstr);
   }
+
+  if (ret)
+  {
+    parser.clear();
+    parser << *ret;
+    if (!parser.eof())
+    {
+      for (int count = 0; !parser.eof(); count++)
+      {
+        string argstr;
+        parser >> argstr;
+        retvals.push_back(argstr);
+      }
+    }
+  }
+
   if (args[0] == "io")
   {
     util_io(handler);
@@ -427,10 +503,37 @@ enum cResult commandParser(FsHandle *handler, string &loc, const char *str)
   }
   if (args[0] == "ls")
   {
-    vector< map<string, string> > retval;
-    retval = util_ls(handler, args, loc);
-//     vector<string> required;
-//     required.push_back(args[i]);
+    vector< map<string, string> > result;
+    result = util_ls(handler, args, loc);
+
+    if (retvals.size() > 0)
+    {
+      if (retvals.size() != result.size())
+      {
+        cout << "Error" << endl;
+        return C_ERROR;
+      }
+
+      vector< map<string, string> >::iterator i;
+      unsigned int found = 0, pos = 0;
+      for (i = result.begin(); i != result.end(); i++, pos++)
+      {
+        if (retvals[pos] == (*i)["name"])
+          found++;
+        else
+          cout << "ls: " << retvals[pos] << ": No such file or directory" << endl;
+      }
+      if (found == retvals.size())
+      {
+        cout << "OK" << endl;
+        return C_OK;
+      }
+      else
+      {
+        cout << "Error" << endl;
+        return C_ERROR;
+      }
+    }
   }
   if (args[0] == "mkdir")
   {
@@ -459,6 +562,10 @@ enum cResult commandParser(FsHandle *handler, string &loc, const char *str)
     retval = util_md5sum(handler, args, loc);
 //     vector<string> required;
 //     required.push_back(args[i]);
+  }
+  if (args[0] == "autotest")
+  {
+    util_autotest(handler, args);
   }
   if (args[0] == "exit")
     return C_TERMINATE;
@@ -515,11 +622,11 @@ int main(int argc, char *argv[])
 
   while (!terminate)
   {
-    char buf[512];
+    string command;
     string path;
     cout << location << "> ";
-    cin.getline(buf, sizeof(buf));
-    res = commandParser(&handler, location, buf);
+    getline(cin, command);
+    res = commandParser(&handler, location, command);
     switch (res)
     {
       case C_TERMINATE:
@@ -529,7 +636,7 @@ int main(int argc, char *argv[])
         cout << "Syntax error" << endl;
         break;
       case C_ERROR:
-        cout << "Error occured" << endl;
+//         cout << "Error occured" << endl;
         break;
       case C_OK:
       default:

@@ -6,7 +6,7 @@ CXX=g++
 all: project
 
 project: main.o fat.o io.o rtc.o
-	$(CXX) main.o fat.o io.o rtc.o -lrt -lcrypto -o $(PROJECT)
+	$(CXX) main.o fat.o io.o rtc.o -lrt -lcrypto -lboost_regex -o $(PROJECT)
 
 main.o: main.cpp
 	$(CXX) $(CFLAGS) main.cpp
