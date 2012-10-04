@@ -206,9 +206,11 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
             cout << endl;
         }
       }
-//       else
-//       {
-//       }
+      else
+      {
+        //Error opening file, insert empty item
+        retval.insert(pair<string, string>("name", ""));
+      }
     }
     if (!details && ((pos - 1) % 4))
       cout << endl;
@@ -264,6 +266,42 @@ enum cResult util_rm(struct FsHandle *handler, const vector<string> &args,
 }
 #endif
 //---------------------------------------------------------------------------
+#ifdef FS_WRITE_ENABLED
+enum cResult util_mv(struct FsHandle *handler, const vector<string> &args,
+    string &loc)
+{
+  //Process only first and second arguments
+  if (args.size() < 3)
+    return C_SYNTAX;
+
+  string src = parsePath(loc, args[1]);
+  string dst = parsePath(loc, args[2]);
+
+  if (fsMove(handler, src.c_str(), dst.c_str()) == FS_OK)
+  {
+    return C_OK;
+  }
+  else
+  {
+    struct FsFile file;
+    if (fsOpen(handler, &file, src.c_str(), FS_READ) != FS_OK)
+      cout << "mv: " << src << ": No such file" << endl;
+    else
+    {
+      fsClose(&file);
+      if (fsOpen(handler, &file, dst.c_str(), FS_READ) == FS_OK)
+      {
+        cout << "mv: " << dst << ": File exists" << endl;
+        fsClose(&file);
+      }
+      else
+        cout << "mv: Error moving file" << endl;
+    }
+    return C_ERROR;
+  }
+}
+#endif
+//---------------------------------------------------------------------------
 //Write file from host filesystem to opened volume
 #ifdef FS_WRITE_ENABLED
 enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
@@ -283,7 +321,7 @@ enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
   datafile.open(host.c_str());
   if (!datafile)
   {
-    cout << "put: " << host << ": File does not exist" << endl;
+    cout << "put: " << host << ": No such file" << endl;
     return C_ERROR;
   }
   if (fsOpen(handler, &file, target.c_str(), FS_WRITE) == FS_OK)
@@ -330,6 +368,7 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handler,
 
   for (unsigned int i = 1; i < args.size(); i++)
   {
+    map<string, string> retval;
     string newloc = parsePath(loc, args[i]);
     fsres = fsOpen(handler, &file, newloc.c_str(), FS_READ);
     if (fsres == FS_OK)
@@ -338,7 +377,6 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handler,
       char buf[bufSize];
       MD5_CTX md5result;
       unsigned char md5str[16];
-      map<string, string> retval;
 
       MD5_Init(&md5result);
       while ((fsres = fsRead(&file, (uint8_t *)buf, bufSize, &cnt)) == FS_OK)
@@ -354,12 +392,14 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handler,
       cout << digest << '\t' << extracted << endl;
       retval.insert(pair<string, string>("name", extracted));
       retval.insert(pair<string, string>("checksum", digest));
-      entries.push_back(retval);
     }
     else
     {
+      //Error opening file, insert empty item
+      retval.insert(pair<string, string>("name", ""));
       cout << "md5sum: " << newloc << ": No such file" << endl;
     }
+    entries.push_back(retval);
   }
   return entries;
 }
@@ -523,6 +563,7 @@ enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
         else
           cout << "ls: " << retvals[pos] << ": No such file or directory" << endl;
       }
+
       if (found == retvals.size())
       {
         cout << "OK" << endl;
@@ -549,6 +590,13 @@ enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
     if (retval != C_OK)
       cout << "Error" << endl;
   }
+  if (args[0] == "mv")
+  {
+    enum cResult retval;
+    retval = util_mv(handler, args, loc);
+    if (retval != C_OK)
+      cout << "Error" << endl;
+  }
   if (args[0] == "put")
   {
     enum cResult retval;
@@ -558,8 +606,43 @@ enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
   }
   if (args[0] == "md5sum")
   {
-    vector< map<string, string> > retval;
-    retval = util_md5sum(handler, args, loc);
+    vector< map<string, string> > result;
+    result = util_md5sum(handler, args, loc);
+
+    if (retvals.size() > 0)
+    {
+      if (retvals.size() != result.size())
+      {
+        cout << "Error" << endl;
+        return C_ERROR;
+      }
+
+      vector< map<string, string> >::iterator i;
+      unsigned int found = 0, pos = 0;
+      for (i = result.begin(); i != result.end(); i++, pos++)
+      {
+        if (retvals[pos] == (*i)["checksum"])
+          found++;
+        else
+        {
+          cout << "md5sum: " << (*i)["name"] <<
+              ": Checksum difference, expected " << retvals[pos] <<
+              ", got " << (*i)["checksum"] << endl;
+          break;
+        }
+      }
+
+      if (found == retvals.size())
+      {
+        cout << "OK" << endl;
+        return C_OK;
+      }
+      else
+      {
+        cout << "Error" << endl;
+        return C_ERROR;
+      }
+    }
 //     vector<string> required;
 //     required.push_back(args[i]);
   }
