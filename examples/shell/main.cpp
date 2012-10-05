@@ -23,7 +23,7 @@ extern "C"
 //------------------------------------------------------------------------------
 using namespace std;
 //------------------------------------------------------------------------------
-extern long readExcess, readCount, writeCount;
+extern long readCount, writeCount;
 //------------------------------------------------------------------------------
 enum cResult {
   C_OK = 0,
@@ -358,6 +358,51 @@ enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
 }
 #endif
 //------------------------------------------------------------------------------
+enum cResult util_cp(struct FsHandle *handler, const vector<string> &args,
+    const string &loc)
+{
+  //TODO add argument parsing
+  string src = parsePath(loc, args[1]);
+  string dst = parsePath(loc, args[2]);
+  
+  struct FsFile srcFile, dstFile;
+  if (fsOpen(handler, &srcFile, src.c_str(), FS_READ) != FS_OK)
+  {
+    return C_ERROR;
+  }
+  if (fsOpen(handler, &dstFile, dst.c_str(), FS_WRITE) != FS_OK)
+  {
+    fsClose(&srcFile);
+    return C_ERROR;
+  }
+
+  const int bufSize = 5000;
+  char buf[bufSize];
+  enum fsResult fsres;
+  while (!fsEndOfFile(&srcFile))
+  {
+    uint16_t cnt, wcnt;
+
+    fsres = fsRead(&srcFile, (uint8_t *)buf, bufSize, &cnt);
+    if (fsres != FS_OK)
+    {
+      cout << "cp: Error" << endl;
+      return C_ERROR;
+    }
+    wcnt = cnt;
+    fsres = fsWrite(&dstFile, (uint8_t *)buf, wcnt, &cnt);
+    if (fsres != FS_OK)
+    {
+      cout << "cp: Error" << endl;
+      return C_ERROR;
+    }
+  }
+
+  fsClose(&dstFile);
+  fsClose(&srcFile);
+  return C_OK;
+}
+//------------------------------------------------------------------------------
 vector< map<string, string> > util_md5sum(struct FsHandle *handler,
     const vector<string> &args, const string &loc)
 {
@@ -406,9 +451,6 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handler,
 //------------------------------------------------------------------------------
 int util_io(struct FsHandle *handler)
 {
-#ifdef DEBUG
-  cout << "Read excess:     " << readExcess << endl;
-#endif
   cout << "Sectors read:    " << readCount << endl;
   cout << "Sectors written: " << writeCount << endl;
   return FS_OK;
@@ -604,6 +646,13 @@ enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
     if (retval != C_OK)
       cout << "Error" << endl;
   }
+  if (args[0] == "cp")
+  {
+    enum cResult retval;
+    retval = util_cp(handler, args, loc);
+    if (retval != C_OK)
+      cout << "Error" << endl;
+  }
   if (args[0] == "md5sum")
   {
     vector< map<string, string> > result;
@@ -665,7 +714,7 @@ int main(int argc, char *argv[])
   FsDevice dev;
   FsHandle handler;
 
-  fsSetIO(&handler, sRead, sWrite);
+  fsSetIO(&dev, sRead, sWrite);
   if (sOpen(&dev, (uint8_t *)internalBuf, argv[1]) != FS_OK)
   {
     printf("Error opening file\n");

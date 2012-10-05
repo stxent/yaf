@@ -26,7 +26,7 @@ enum fsResult rawWrite(struct FsDevice *dev, uint32_t sector)
   return FS_OK;
 }
 /*----------------------------------------------------------------------------*/
-enum fsResult sRead(struct FsDevice *dev, uint8_t *data, uint32_t index,
+enum fsResult sRead(struct FsDevice *dev, uint32_t index, uint8_t *data,
     uint8_t count)
 {
   if (index + count > dev->size)
@@ -40,7 +40,7 @@ enum fsResult sRead(struct FsDevice *dev, uint8_t *data, uint32_t index,
   return FS_OK;
 }
 /*----------------------------------------------------------------------------*/
-enum fsResult sWrite(struct FsDevice *dev, const uint8_t *data, uint32_t index,
+enum fsResult sWrite(struct FsDevice *dev, uint32_t index, const uint8_t *data,
     uint8_t count)
 {
   if (index + count > dev->size)
