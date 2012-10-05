@@ -2,6 +2,7 @@
 #define FAT_H_
 /*----------------------------------------------------------------------------*/
 #include <stdint.h>
+#include <stdbool.h>
 /*----------------------------------------------------------------------------*/
 // #ifdef DEBUG
 // #pragma pack(1)
@@ -39,10 +40,10 @@ enum fsResult
     FS_DEVICE_ERROR
 } __attribute__((packed));
 /*----------------------------------------------------------------------------*/
-typedef enum fsResult (*fsDevRead)(struct FsDevice *, uint8_t *, uint32_t,
+typedef enum fsResult (*fsDevRead)(struct FsDevice *, uint32_t, uint8_t *,
     uint8_t);
-typedef enum fsResult (*fsDevWrite)(struct FsDevice *, const uint8_t *,
-    uint32_t, uint8_t);
+typedef enum fsResult (*fsDevWrite)(struct FsDevice *, uint32_t,
+    const uint8_t *, uint8_t);
 /*----------------------------------------------------------------------------*/
 struct FsDevice
 {
@@ -132,6 +133,7 @@ enum fsResult fsOpen(struct FsHandle *, struct FsFile *, const char *,
 void fsClose(struct FsFile *);
 enum fsResult fsRead(struct FsFile *, uint8_t *, uint16_t, uint16_t *);
 enum fsResult fsSeek(struct FsFile *, uint32_t);
+bool fsEndOfFile(struct FsFile *);
 enum fsResult fsOpenDir(struct FsHandle *, struct FsDir *, const char *);
 void fsCloseDir(struct FsDir *);
 enum fsResult fsReadDir(struct FsDir *, char *);

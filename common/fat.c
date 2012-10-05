@@ -8,7 +8,6 @@
 #ifdef DEBUG
 #include <stdio.h>
 #include <stdlib.h>
-long readExcess = 0;
 #endif
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
@@ -137,6 +136,8 @@ struct infoSectorImage
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 static enum fsResult readSector(struct FsHandle *, uint32_t);
+static enum fsResult burstReadSector(struct FsHandle *, uint32_t,
+    uint8_t *, uint8_t);
 static enum fsResult fetchEntry(struct FsHandle *, struct fsObject *);
 static const char *followPath(struct FsHandle *, struct fsObject *,
     const char *);
@@ -144,9 +145,11 @@ static enum fsResult getNextCluster(struct FsHandle *, uint32_t *);
 static const char *getChunk(const char *, char *);
 /*----------------------------------------------------------------------------*/
 #ifdef FS_WRITE_ENABLED
+static enum fsResult writeSector(struct FsHandle *, uint32_t);
+static enum fsResult burstWriteSector(struct FsHandle *, uint32_t,
+    const uint8_t *, uint8_t);
 static enum fsResult truncate(struct FsFile *);
 static enum fsResult freeChain(struct FsHandle *, uint32_t);
-static enum fsResult writeSector(struct FsHandle *, uint32_t);
 static enum fsResult allocateCluster(struct FsHandle *, uint32_t *);
 static enum fsResult createEntry(struct FsHandle *, struct fsObject *,
     const char *);
@@ -269,38 +272,40 @@ uint32_t countFree(struct FsHandle *fsDesc)
 #endif
 #endif
 /*----------------------------------------------------------------------------*/
-static enum fsResult burstReadSector(struct FsHandle *fsDesc,
-    uint32_t sector, uint8_t *buffer, uint8_t count)
-{
-  if (fsDesc->device->read(fsDesc->device, buffer, sector, count))
-    return FS_READ_ERROR;
-  else
-    return FS_OK;
-}
-/*----------------------------------------------------------------------------*/
 static enum fsResult readSector(struct FsHandle *fsDesc, uint32_t sector)
 {
   if (sector && (sector == fsDesc->currentSector))
-#ifdef DEBUG
-  {
-    readExcess++;
     return FS_OK;
-  }
-#else
-    return FS_OK;
-#endif
-  if (fsDesc->device->read(fsDesc->device, fsDesc->device->buffer, sector, 1))
+  if (fsDesc->device->read(fsDesc->device, sector, fsDesc->device->buffer, 1))
     return FS_READ_ERROR;
   fsDesc->currentSector = sector;
+  return FS_OK;
+}
+/*----------------------------------------------------------------------------*/
+static enum fsResult burstReadSector(struct FsHandle *fsDesc,
+    uint32_t sector, uint8_t *buffer, uint8_t count)
+{
+  if (fsDesc->device->read(fsDesc->device, sector, buffer, count))
+    return FS_READ_ERROR;
   return FS_OK;
 }
 /*----------------------------------------------------------------------------*/
 #ifdef FS_WRITE_ENABLED
 static enum fsResult writeSector(struct FsHandle *fsDesc, uint32_t sector)
 {
-  if (fsDesc->device->write(fsDesc->device, fsDesc->device->buffer, sector, 1))
+  if (fsDesc->device->write(fsDesc->device, sector, fsDesc->device->buffer, 1))
     return FS_WRITE_ERROR;
   fsDesc->currentSector = sector;
+  return FS_OK;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FS_WRITE_ENABLED
+static enum fsResult burstWriteSector(struct FsHandle *fsDesc, uint32_t sector,
+    const uint8_t *buffer, uint8_t count)
+{
+  if (fsDesc->device->write(fsDesc->device, sector, buffer, count))
+    return FS_WRITE_ERROR;
   return FS_OK;
 }
 #endif
@@ -614,6 +619,11 @@ enum fsResult fsOpen(struct FsHandle *fsDesc, struct FsFile *fileDesc,
   return FS_OK;
 }
 /*----------------------------------------------------------------------------*/
+bool fsEndOfFile(struct FsFile *fileDesc)
+{
+  return (fileDesc->position >= fileDesc->size);
+}
+/*----------------------------------------------------------------------------*/
 #ifdef FS_WRITE_ENABLED
 static enum fsResult freeChain(struct FsHandle *fsDesc, uint32_t cluster)
 {
@@ -843,22 +853,47 @@ enum fsResult fsWrite(struct FsFile *fileDesc, uint8_t *buffer,
         return FS_WRITE_ERROR;
       fileDesc->currentSector = 0;
     }
-    tmpSector = getSector(fileDesc->descriptor, fileDesc->currentCluster) +
-        fileDesc->currentSector;
+
     /* Position in sector */
-    offset = (fileDesc->size + written) & ((1 << SECTOR_SIZE) - 1);
-    chunk = (1 << SECTOR_SIZE) - offset; /* Length of remaining sector space */
-    chunk = (count < chunk) ? count : chunk;
-    if (offset && readSector(fileDesc->descriptor, tmpSector))
-      return FS_READ_ERROR;
-    memcpy(fileDesc->descriptor->device->buffer + offset,
-        buffer + written, chunk);
-    if (writeSector(fileDesc->descriptor, tmpSector))
-      return FS_WRITE_ERROR;
+    offset = (fileDesc->position + written) & ((1 << SECTOR_SIZE) - 1);
+    if (offset || count < (1 << SECTOR_SIZE)) /* Position within sector */
+    {
+      /* Length of remaining sector space */
+      chunk = (1 << SECTOR_SIZE) - offset;
+      chunk = (count < chunk) ? count : chunk;
+      tmpSector = getSector(fileDesc->descriptor, fileDesc->currentCluster) +
+          fileDesc->currentSector;
+      if (readSector(fileDesc->descriptor, tmpSector))
+        return FS_READ_ERROR;
+      memcpy(fileDesc->descriptor->device->buffer + offset,
+          buffer + written, chunk);
+      if (writeSector(fileDesc->descriptor, tmpSector))
+        return FS_WRITE_ERROR;
+      if (chunk + offset >= (1 << SECTOR_SIZE))
+        fileDesc->currentSector++;
+    }
+    else /* Position aligned with start of sector */
+    {
+      /* Length of remaining cluster space */
+      chunk = ((1 << SECTOR_SIZE) << fileDesc->descriptor->clusterSize) -
+          (fileDesc->currentSector << SECTOR_SIZE);
+      chunk = (count < chunk) ? count & ~((1 << SECTOR_SIZE) - 1) : chunk;
+#ifdef DEBUG
+      printf("Burst write position %d, chunk size %d, sector count %d\n",
+          written, chunk, chunk >> SECTOR_SIZE);
+#endif
+      //TODO rename fileDesc
+      if (burstWriteSector(fileDesc->descriptor,
+          getSector(fileDesc->descriptor, fileDesc->currentCluster) +
+          fileDesc->currentSector, buffer + written, chunk >> SECTOR_SIZE))
+      {
+        return FS_READ_ERROR;
+      }
+      fileDesc->currentSector += chunk >> SECTOR_SIZE;
+    }
+
     written += chunk;
     count -= chunk;
-    if (chunk + offset >= (1 << SECTOR_SIZE))
-      fileDesc->currentSector++;
   }
 
   tmpSector = getSector(fileDesc->descriptor, fileDesc->parentCluster) +
@@ -931,7 +966,7 @@ enum fsResult fsRead(struct FsFile *fileDesc, uint8_t *buffer,
       /* Length of remaining cluster space */
       chunk = ((1 << SECTOR_SIZE) << fileDesc->descriptor->clusterSize) -
           (fileDesc->currentSector << SECTOR_SIZE);
-      chunk = (count < chunk) ? count & ((1 << SECTOR_SIZE) - 1) : chunk;
+      chunk = (count < chunk) ? count & ~((1 << SECTOR_SIZE) - 1) : chunk;
 #ifdef DEBUG
       printf("Burst read position %d, chunk size %d, sector count %d\n",
           read, chunk, chunk >> SECTOR_SIZE);
