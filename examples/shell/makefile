@@ -1,7 +1,11 @@
 PROJECT=fatshell
-CFLAGS=-c -Wall -DDEBUG
+CFLAGS=-c -Wall
 CC=gcc
 CXX=g++
+
+ifneq ($(DEBUG), 0)
+	CFLAGS+=-DDEBUG
+endif
 
 all: project
 

@@ -14,15 +14,15 @@ long readCount = 0, writeCount = 0;
 /*----------------------------------------------------------------------------*/
 enum fsResult rawRead(struct FsDevice *dev, uint32_t sector)
 {
-  memcpy(dev->buffer, ((uint8_t *)dataHandler) + (sector << SECTOR_SIZE),
-      (1 << SECTOR_SIZE));
+  memcpy(dev->buffer, ((uint8_t *)dataHandler) + (sector << SECTOR_POW),
+      SECTOR_SIZE);
   return FS_OK;
 }
 /*----------------------------------------------------------------------------*/
 enum fsResult rawWrite(struct FsDevice *dev, uint32_t sector)
 {
-  memcpy(((uint8_t *)dataHandler) + (sector << SECTOR_SIZE), dev->buffer,
-      (1 << SECTOR_SIZE));
+  memcpy(((uint8_t *)dataHandler) + (sector << SECTOR_POW), dev->buffer,
+      SECTOR_SIZE);
   return FS_OK;
 }
 /*----------------------------------------------------------------------------*/
@@ -32,7 +32,7 @@ enum fsResult sRead(struct FsDevice *dev, uint32_t index, uint8_t *data,
   if (index + count > dev->size)
     return FS_ERROR;
   memcpy(data, ((uint8_t *)dataHandler) +
-      ((index + dev->offset) << SECTOR_SIZE), (1 << SECTOR_SIZE) * count);
+      ((index + dev->offset) << SECTOR_POW), SECTOR_SIZE * count);
   readCount++;
   #ifdef DEBUG
     printf("----Fetched sector: %d\n", (long)index);
@@ -45,8 +45,8 @@ enum fsResult sWrite(struct FsDevice *dev, uint32_t index, const uint8_t *data,
 {
   if (index + count > dev->size)
     return FS_ERROR;
-  memcpy(((uint8_t *)dataHandler) + ((index + dev->offset) << SECTOR_SIZE),
-      data, (1 << SECTOR_SIZE) * count);
+  memcpy(((uint8_t *)dataHandler) + ((index + dev->offset) << SECTOR_POW),
+      data, SECTOR_SIZE * count);
   writeCount++;
   #ifdef DEBUG
     printf("----Wrote sector: %d\n", (long)index);
@@ -79,15 +79,15 @@ enum fsResult sReadTable(struct FsDevice *dev, uint32_t sector, uint8_t index)
 
   if (rawRead(dev, sector))
     return 1;
-  if (*((uint16_t *)(dev->buffer + 0x01FE)) != 0xAA55)
+  if (*(uint16_t *)(dev->buffer + 0x01FE) != 0xAA55)
     return 1;
 
   ptr = dev->buffer + 0x01BE + (index << 4); /* Pointer to partition entry */
-  if (!*((uint8_t *)(ptr + 0x04))) /* Empty entry */
+  if (!*(uint8_t *)(ptr + 0x04)) /* Empty entry */
     return 1;
-  dev->type = *((uint8_t *)(ptr + 0x04)); /* File system descriptor */
-  dev->offset = *((uint32_t *)(ptr + 0x08));
-  dev->size = *((uint32_t *)(ptr + 0x0C));
+  dev->type = *(uint8_t *)(ptr + 0x04); /* File system descriptor */
+  dev->offset = *(uint32_t *)(ptr + 0x08);
+  dev->size = *(uint32_t *)(ptr + 0x0C);
   return 0;
 }
 /*----------------------------------------------------------------------------*/

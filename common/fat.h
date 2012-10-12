@@ -15,9 +15,9 @@
 /* Cluster size may be 1, 2, 4, 8, 16, 32, 64, 128 sectors                    */
 /* Sector size may be 512, 1024, 2048, 4096 bytes, default is 512             */
 /*----------------------------------------------------------------------------*/
-#define SECTOR_SIZE     9 /* Power of sector size */
-#define FS_BUFFER       (1 << SECTOR_SIZE)
-#define FS_NAME_MAX     13 /* Name + dot + extension + null character */
+#define SECTOR_POW      (9) /* Sector size in power of 2 */
+#define SECTOR_SIZE     (1 << SECTOR_POW) /* Sector size in bytes */
+#define FS_BUFFER       (SECTOR_SIZE * 1) /* TODO add buffering */
 /*----------------------------------------------------------------------------*/
 struct FsDevice;
 /*----------------------------------------------------------------------------*/
