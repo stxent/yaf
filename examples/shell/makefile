@@ -1,5 +1,5 @@
 PROJECT=fatshell
-CFLAGS=-c -Wall
+CFLAGS=-c -Wall -Wextra -Winline
 CC=gcc
 CXX=g++
 

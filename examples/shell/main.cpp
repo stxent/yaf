@@ -519,6 +519,7 @@ void util_autotest(FsHandle *handler, const vector<string> &args)
       else
       {
         argStr = string(results[1].first, results[1].second);
+        break;
       }
       dataStart = results[1].second + 1;
     }
