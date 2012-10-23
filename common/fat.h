@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 /*----------------------------------------------------------------------------*/
+#include "interface.h"
+/*----------------------------------------------------------------------------*/
 // #ifdef DEBUG
 // #pragma pack(1)
 // #endif
@@ -15,7 +17,7 @@
 /* Cluster size may be 1, 2, 4, 8, 16, 32, 64, 128 sectors                    */
 /* Sector size may be 512, 1024, 2048, 4096 bytes, default is 512             */
 /*----------------------------------------------------------------------------*/
-#define SECTOR_POW      (9) /* Sector size in power of 2 */
+#define SECTOR_POW      9 /* Sector size in power of 2 */
 #define SECTOR_SIZE     (1 << SECTOR_POW) /* Sector size in bytes */
 #define FS_BUFFER       (SECTOR_SIZE * 1) /* TODO add buffering */
 /*----------------------------------------------------------------------------*/
@@ -40,16 +42,12 @@ enum fsResult
     FS_DEVICE_ERROR
 } __attribute__((packed));
 /*----------------------------------------------------------------------------*/
-typedef enum fsResult (*fsDevRead)(struct FsDevice *, uint32_t, uint8_t *,
-    uint8_t);
-typedef enum fsResult (*fsDevWrite)(struct FsDevice *, uint32_t,
-    const uint8_t *, uint8_t);
-/*----------------------------------------------------------------------------*/
 struct FsDevice
 {
+  struct Interface *iface;
+  enum fsResult (*read)(struct FsDevice *, uint32_t, uint8_t *, uint8_t);
+  enum fsResult (*write)(struct FsDevice *, uint32_t, const uint8_t *, uint8_t);
   uint8_t *buffer;
-  fsDevRead read;
-  fsDevWrite write;
 
   uint8_t type;
   uint32_t offset;
@@ -137,9 +135,9 @@ bool fsEndOfFile(struct FsFile *);
 enum fsResult fsOpenDir(struct FsHandle *, struct FsDir *, const char *);
 void fsCloseDir(struct FsDir *);
 enum fsResult fsReadDir(struct FsDir *, char *);
-// enum fsResult fsRewindDir(struct FsDir *);                         /* TODO */
-// enum fsResult fsSeekDir(struct FsDir *, uint16_t);                 /* TODO */
-// uint16_t fsTellDir(struct FsDir *);                                /* TODO */
+/* enum fsResult fsRewindDir(struct FsDir *); TODO */
+/* enum fsResult fsSeekDir(struct FsDir *, uint16_t); TODO */
+/* uint16_t fsTellDir(struct FsDir *); TODO */
 /*----------------------------------------------------------------------------*/
 #ifdef FS_WRITE_ENABLED
 enum fsResult fsWrite(struct FsFile *, uint8_t *, uint16_t, uint16_t *);
@@ -148,7 +146,7 @@ enum fsResult fsMakeDir(struct FsHandle *, const char *);
 enum fsResult fsMove(struct FsHandle *, const char *, const char *);
 #endif
 /*----------------------------------------------------------------------------*/
-void fsSetIO(struct FsDevice *, fsDevRead, fsDevWrite);
+/* enum fsResult mmdReadTable(struct FsDevice *, uint32_t, uint8_t); TODO */
 enum fsResult fsLoad(struct FsHandle *, struct FsDevice *);
 void fsUnload(struct FsHandle *);
 /*----------------------------------------------------------------------------*/

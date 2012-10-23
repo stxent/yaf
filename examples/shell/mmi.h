@@ -1,12 +1,16 @@
-#ifndef IO_H_
-#define IO_H_
+#ifndef MMD_H_
+#define MMD_H_
 /*----------------------------------------------------------------------------*/
-#include "fat.h"
-#include "mmi.h"
+#include "interface.h"
 /*----------------------------------------------------------------------------*/
-enum fsResult mmdOpen(struct FsDevice *, struct Interface *, uint8_t *);
-void mmdClose(struct FsDevice *);
+typedef uint64_t ptrSize;
 /*----------------------------------------------------------------------------*/
-enum fsResult mmdReadTable(struct FsDevice *, uint32_t, uint8_t);
+struct MmiConfig
+{
+  const char *path;
+};
 /*----------------------------------------------------------------------------*/
-#endif
+enum ifResult mmiInit(struct Interface *, const void *);
+void mmiDeinit(struct Interface *);
+/*----------------------------------------------------------------------------*/
+#endif /* MMD_H_ */

@@ -9,8 +9,8 @@ endif
 
 all: project
 
-project: main.o fat.o io.o rtc.o
-	$(CXX) main.o fat.o io.o rtc.o -lrt -lcrypto -lboost_regex -o $(PROJECT)
+project: main.o fat.o io.o rtc.o mutex.o interface.o mmi.o
+	$(CXX) main.o fat.o io.o rtc.o mutex.o interface.o mmi.o -lrt -lcrypto -lboost_regex -o $(PROJECT)
 
 main.o: main.cpp
 	$(CXX) $(CFLAGS) main.cpp
@@ -23,6 +23,15 @@ io.o: io.c io.h
 
 rtc.o: rtc.c rtc.h
 	$(CC) $(CFLAGS) rtc.c
+
+mutex.o: mutex.c mutex.h
+	$(CC) $(CFLAGS) mutex.c
+
+interface.o: interface.c interface.h
+	$(CC) $(CFLAGS) interface.c
+
+mmi.o: mmi.c mmi.h
+	$(CC) $(CFLAGS) mmi.c
 
 clean:
 	rm -rf *.o *.lst $(PROJECT)

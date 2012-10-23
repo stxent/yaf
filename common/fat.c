@@ -11,37 +11,35 @@
 #endif
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
-#define FLAG_RO         ((uint8_t)0x01) /* Read only */
-#define FLAG_HIDDEN     ((uint8_t)0x02)
-#define FLAG_SYSTEM     ((uint8_t)0x0C) /* System or volume label */
-#define FLAG_DIR        ((uint8_t)0x10) /* Subdirectory */
-#define FLAG_ARCHIVE    ((uint8_t)0x20)
+#define FLAG_RO         (uint8_t)0x01 /* Read only */
+#define FLAG_HIDDEN     (uint8_t)0x02
+#define FLAG_SYSTEM     (uint8_t)0x0C /* System or volume label */
+#define FLAG_DIR        (uint8_t)0x10 /* Subdirectory */
+#define FLAG_ARCHIVE    (uint8_t)0x20
 /*----------------------------------------------------------------------------*/
-#define E_FLAG_EMPTY    ((char)0xE5) /* Directory entry is free */
+#define E_FLAG_EMPTY    (char)0xE5 /* Directory entry is free */
 /*----------------------------------------------------------------------------*/
 #define CLUSTER_EOC_VAL         0x0FFFFFF8
 #define FILE_SIZE_MAX           0xFFFFFFFF
 #define FILE_NAME_MAX           13 /* Name + dot + extension + null character */
 /*----------------------------------------------------------------------------*/
 /* File or directory entry size power */
-#define E_POWER                 (SECTOR_POW - 5)
+#define E_POW                   (SECTOR_POW - 5)
 /* Table entries per FAT sector power */
 #define TE_COUNT                (SECTOR_POW - 2)
 /* Table entry offset in FAT sector */
 #define TE_OFFSET(arg)          (((arg) & ((1 << TE_COUNT) - 1)) << 2)
 /* Directory entry position in cluster */
-#define E_SECTOR(index)         ((index) >> E_POWER)
+#define E_SECTOR(index)         ((index) >> E_POW)
 /* Directory entry offset in sector */
 #define E_OFFSET(index)         (((index) << 5) & (SECTOR_SIZE - 1))
 /*----------------------------------------------------------------------------*/
 /*------------------Inline functions------------------------------------------*/
-/*----------------------------------------------------------------------------*/
 static inline bool clusterFree(uint32_t);
 static inline bool clusterEOC(uint32_t);
 static inline bool clusterUsed(uint32_t);
 static inline uint32_t getSector(struct FsHandle *fsDesc, uint32_t);
 static inline uint16_t entryCount(struct FsHandle *fsDesc);
-/*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 static inline bool clusterFree(uint32_t cluster)
 {
@@ -68,7 +66,7 @@ static inline uint32_t getSector(struct FsHandle *fsDesc, uint32_t cluster)
 /* File or directory entries per directory cluster */
 static inline uint16_t entryCount(struct FsHandle *fsDesc)
 {
-  return 1 << E_POWER << fsDesc->clusterSize;
+  return 1 << E_POW << fsDesc->clusterSize;
 }
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
@@ -82,7 +80,6 @@ struct fsObject
   uint32_t size; /* File size or zero for directories */
   char name[FILE_NAME_MAX];
 };
-/*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 /* Structure directory entry located in memory buffer */
 struct dirEntryImage
@@ -158,11 +155,24 @@ static enum fsResult updateTable(struct FsHandle *, uint32_t);
 #endif
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
-void fsSetIO(struct FsDevice *fsDev, fsDevRead rFunc, fsDevWrite wFunc)
-{
-  fsDev->read = rFunc;
-  fsDev->write = wFunc;
-}
+/* TODO */
+// enum fsResult mmdReadTable(struct FsDevice *dev, uint32_t sector, uint8_t index)
+// {
+//   uint8_t *ptr;
+// 
+//   if (rawRead(dev, sector))
+//     return 1;
+//   if (*(uint16_t *)(dev->buffer + 0x01FE) != 0xAA55)
+//     return 1;
+// 
+//   ptr = dev->buffer + 0x01BE + (index << 4); /* Pointer to partition entry */
+//   if (!*(uint8_t *)(ptr + 0x04)) /* Empty entry */
+//     return 1;
+//   dev->type = *(uint8_t *)(ptr + 0x04); /* File system descriptor */
+//   dev->offset = *(uint32_t *)(ptr + 0x08);
+//   dev->size = *(uint32_t *)(ptr + 0x0C);
+//   return 0;
+// }
 /*----------------------------------------------------------------------------*/
 enum fsResult fsLoad(struct FsHandle *fsDesc, struct FsDevice *fsDev)
 {
@@ -1094,7 +1104,7 @@ enum fsResult fsReadDir(struct FsDir *dirDesc, char *name)
 //   clusterCount >>= SECTOR_POW - 5 + dirDesc->descriptor->clusterSize;
 
 //   current = dirDesc->cluster;
-//   clusterCount = pos >> (E_POWER + dirDesc->descriptor->clusterSize);
+//   clusterCount = pos >> (E_POW + dirDesc->descriptor->clusterSize);
 //   while (clusterCount--)
 //   {
 //     if (getNextCluster(dirDesc->descriptor, &current))

@@ -19,11 +19,13 @@ extern "C"
 #include "fat.h"
 #include "io.h"
 #include "rtc.h"
+#include "interface.h"
+#include "mmi.h"
 }
 //------------------------------------------------------------------------------
 using namespace std;
 //------------------------------------------------------------------------------
-extern long readCount, writeCount;
+// extern long readCount, writeCount;
 //------------------------------------------------------------------------------
 enum cResult {
   C_OK = 0,
@@ -451,8 +453,8 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handler,
 //------------------------------------------------------------------------------
 int util_io(struct FsHandle *handler)
 {
-  cout << "Sectors read:    " << readCount << endl;
-  cout << "Sectors written: " << writeCount << endl;
+//   cout << "Sectors read:    " << readCount << endl;
+//   cout << "Sectors written: " << writeCount << endl;
   return FS_OK;
 }
 //------------------------------------------------------------------------------
@@ -712,16 +714,25 @@ int main(int argc, char *argv[])
   if (argc < 2)
     return 0;
 
+  Interface mmaped;
   FsDevice dev;
   FsHandle handler;
 
-  fsSetIO(&dev, sRead, sWrite);
-  if (sOpen(&dev, (uint8_t *)internalBuf, argv[1]) != FS_OK)
+  struct MmiConfig mmapedConf = {
+    .path = (const char *)argv[1]
+  };
+
+  if (mmiInit(&mmaped, (void *)&mmapedConf) != IF_OK)
   {
     printf("Error opening file\n");
     return 0;
   }
-  if (sReadTable(&dev, 0, 0) == FS_OK)
+  if (mmdOpen(&dev, &mmaped, (uint8_t *)internalBuf) != FS_OK)
+  {
+    printf("Error connecting interface with partiotion device\n");
+    return 0;
+  }
+  if (mmdReadTable(&dev, 0, 0) == FS_OK)
   {
     /*
      * 0x0B: 32-bit FAT
