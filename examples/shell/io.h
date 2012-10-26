@@ -1,7 +1,8 @@
 #ifndef IO_H_
 #define IO_H_
 /*----------------------------------------------------------------------------*/
-#include "fat.h"
+#include "fs.h"
+#include "bdev.h"
 #include "mmi.h"
 /*----------------------------------------------------------------------------*/
 enum fsResult mmdOpen(struct FsDevice *, struct Interface *, uint8_t *);

@@ -16,11 +16,13 @@
 //------------------------------------------------------------------------------
 extern "C"
 {
-#include "fat.h"
+#include "bdev.h"
+#include "fs.h"
 #include "io.h"
 #include "rtc.h"
 #include "interface.h"
 #include "mmi.h"
+#include "fat32.h"
 }
 //------------------------------------------------------------------------------
 using namespace std;
@@ -381,7 +383,7 @@ enum cResult util_cp(struct FsHandle *handler, const vector<string> &args,
   const int bufSize = 5000;
   char buf[bufSize];
   enum fsResult fsres;
-  while (!fsEndOfFile(&srcFile))
+  while (!fsEof(&srcFile))
   {
     uint16_t cnt, wcnt;
 
@@ -464,20 +466,20 @@ int util_info(struct FsHandle *handler)
   uint32_t sz;
   sz = countFree(handler);
 #endif
-  cout << "Sectors in cluster: " << (int)(1 << handler->clusterSize) << endl;
-  cout << "FAT sector:         " << handler->tableSector << endl;
-  cout << "Data sector:        " << handler->dataSector << endl;
-  cout << "Root cluster:       " << handler->rootCluster << endl;
-#ifdef FS_WRITE_ENABLED
-  cout << "FAT records count:  " << (int)handler->tableCount << endl;
-  cout << "Sectors in FAT:     " << handler->tableSize << endl;
-  cout << "Info sector:        " << handler->infoSector << endl;
-  cout << "Data clusters:      " << handler->clusterCount << endl;
-  cout << "Last allocated:     " << handler->lastAllocated << endl;
-#ifdef DEBUG
-  cout << "Free clusters:      " << sz << endl;
-#endif
-#endif
+//   cout << "Sectors in cluster: " << (int)(1 << handler->clusterSize) << endl;
+//   cout << "FAT sector:         " << handler->tableSector << endl;
+//   cout << "Data sector:        " << handler->dataSector << endl;
+//   cout << "Root cluster:       " << handler->rootCluster << endl;
+// #ifdef FS_WRITE_ENABLED
+//   cout << "FAT records count:  " << (int)handler->tableCount << endl;
+//   cout << "Sectors in FAT:     " << handler->tableSize << endl;
+//   cout << "Info sector:        " << handler->infoSector << endl;
+//   cout << "Data clusters:      " << handler->clusterCount << endl;
+//   cout << "Last allocated:     " << handler->lastAllocated << endl;
+// #ifdef DEBUG
+//   cout << "Free clusters:      " << sz << endl;
+// #endif
+// #endif
   cout << "Size of FsDevice:   " << sizeof(FsDevice) << endl;
   cout << "Size of FsHandle:   " << sizeof(FsHandle) << endl;
   cout << "Size of FsFile:     " << sizeof(FsFile) << endl;
@@ -718,6 +720,7 @@ int main(int argc, char *argv[])
   FsDevice dev;
   FsHandle handler;
 
+  fat32Init(&handler);
   struct MmiConfig mmapedConf = {
     .path = (const char *)argv[1]
   };
@@ -754,7 +757,7 @@ int main(int argc, char *argv[])
   else
     printf("No partitions found, selected raw partition at 0\n");
 
-  if (fsLoad(&handler, &dev) != FS_OK)
+  if (fsMount(&handler, &dev) != FS_OK)
   {
     printf("Error loading partition\n");
     return 0;
@@ -789,6 +792,6 @@ int main(int argc, char *argv[])
   }
 
   printf("Unloading\n");
-  fsUnload(&handler);
+  fsUmount(&handler);
   return 0;
 }
