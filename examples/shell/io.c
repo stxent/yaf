@@ -7,10 +7,12 @@
 /*----------------------------------------------------------------------------*/
 #undef DEBUG
 /*----------------------------------------------------------------------------*/
-enum fsResult mmdRead(struct FsDevice *, uint32_t, uint8_t *, uint8_t);
-enum fsResult mmdWrite(struct FsDevice *, uint32_t, const uint8_t *, uint8_t);
+enum ifResult mmdRead(struct BlockDevice *, uint32_t, uint8_t *, uint8_t,
+    enum blockPriority);
+enum ifResult mmdWrite(struct BlockDevice *, uint32_t, const uint8_t *, uint8_t,
+    enum blockPriority);
 /*----------------------------------------------------------------------------*/
-enum fsResult mmdOpen(struct FsDevice *dev, struct Interface *iface,
+enum ifResult mmdOpen(struct BlockDevice *dev, struct Interface *iface,
     uint8_t *buffer)
 {
   dev->iface = iface;
@@ -23,14 +25,14 @@ enum fsResult mmdOpen(struct FsDevice *dev, struct Interface *iface,
   return FS_OK;
 }
 /*----------------------------------------------------------------------------*/
-void mmdClose(struct FsDevice *dev)
+void mmdClose(struct BlockDevice *dev)
 {
   dev->iface = 0;
   dev->buffer = 0;
 }
 /*----------------------------------------------------------------------------*/
-enum fsResult mmdRead(struct FsDevice *dev, uint32_t index, uint8_t *data,
-    uint8_t count)
+enum ifResult mmdRead(struct BlockDevice *dev, uint32_t index, uint8_t *data,
+    uint8_t count, enum blockPriority priority)
 {
   ptrSize pos;
   if (index + count > dev->size)
@@ -44,8 +46,8 @@ enum fsResult mmdRead(struct FsDevice *dev, uint32_t index, uint8_t *data,
   return FS_OK;
 }
 /*----------------------------------------------------------------------------*/
-enum fsResult mmdWrite(struct FsDevice *dev, uint32_t index,
-    const uint8_t *data, uint8_t count)
+enum ifResult mmdWrite(struct BlockDevice *dev, uint32_t index,
+    const uint8_t *data, uint8_t count, enum blockPriority priority)
 {
   ptrSize pos;
   if (index + count > dev->size)
@@ -59,7 +61,8 @@ enum fsResult mmdWrite(struct FsDevice *dev, uint32_t index,
   return FS_OK;
 }
 /*----------------------------------------------------------------------------*/
-enum fsResult mmdReadTable(struct FsDevice *dev, uint32_t sector, uint8_t index)
+enum ifResult mmdReadTable(struct BlockDevice *dev, uint32_t sector,
+    uint8_t index)
 {
 //   uint8_t *ptr;
 // 

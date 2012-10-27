@@ -6,7 +6,7 @@
 
 #include "fs.h"
 /*------------------------------------------------------------------------------*/
-enum fsResult fsMount(struct FsHandle *sys, struct FsDevice *dev)
+enum fsResult fsMount(struct FsHandle *sys, struct BlockDevice *dev)
 {
   return sys->mount(sys, dev);
 }
@@ -90,20 +90,20 @@ enum fsResult fsSeek(struct FsFile *file, uint32_t pos)
     return FS_ERROR;
 }
 /*------------------------------------------------------------------------------*/
-enum fsResult fsRead(struct FsFile *file, uint8_t *buf, uint16_t length,
+enum fsResult fsRead(struct FsFile *file, uint8_t *buf, uint16_t len,
     uint16_t *result)
 {
   if (file->read)
-    return file->read(file, buf, length, result);
+    return file->read(file, buf, len, result);
   else
     return FS_ERROR;
 }
 /*------------------------------------------------------------------------------*/
-enum fsResult fsWrite(struct FsFile *file, const uint8_t *buf, uint16_t length,
+enum fsResult fsWrite(struct FsFile *file, const uint8_t *buf, uint16_t len,
     uint16_t *result)
 {
   if (file->write)
-    return file->write(file, buf, length, result);
+    return file->write(file, buf, len, result);
   else
     return FS_ERROR;
 }

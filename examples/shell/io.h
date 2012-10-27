@@ -5,9 +5,9 @@
 #include "bdev.h"
 #include "mmi.h"
 /*----------------------------------------------------------------------------*/
-enum fsResult mmdOpen(struct FsDevice *, struct Interface *, uint8_t *);
-void mmdClose(struct FsDevice *);
+enum ifResult mmdOpen(struct BlockDevice *, struct Interface *, uint8_t *);
+void mmdClose(struct BlockDevice *);
 /*----------------------------------------------------------------------------*/
-enum fsResult mmdReadTable(struct FsDevice *, uint32_t, uint8_t);
+enum ifResult mmdReadTable(struct BlockDevice *, uint32_t, uint8_t);
 /*----------------------------------------------------------------------------*/
 #endif

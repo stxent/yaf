@@ -480,10 +480,10 @@ int util_info(struct FsHandle *handler)
 //   cout << "Free clusters:      " << sz << endl;
 // #endif
 // #endif
-  cout << "Size of FsDevice:   " << sizeof(FsDevice) << endl;
-  cout << "Size of FsHandle:   " << sizeof(FsHandle) << endl;
-  cout << "Size of FsFile:     " << sizeof(FsFile) << endl;
-  cout << "Size of FsDir:      " << sizeof(FsDir) << endl;
+  cout << "Size of BlockDevice: " << sizeof(BlockDevice) << endl;
+  cout << "Size of FsHandle:    " << sizeof(FsHandle) << endl;
+  cout << "Size of FsFile:      " << sizeof(FsFile) << endl;
+  cout << "Size of FsDir:       " << sizeof(FsDir) << endl;
   return FS_OK;
 }
 //------------------------------------------------------------------------------
@@ -717,7 +717,7 @@ int main(int argc, char *argv[])
     return 0;
 
   Interface mmaped;
-  FsDevice dev;
+  BlockDevice dev;
   FsHandle handler;
 
   fat32Init(&handler);

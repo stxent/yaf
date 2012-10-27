@@ -20,16 +20,16 @@ enum fsMode
     FS_APPEND
 } __attribute__((packed));
 /*----------------------------------------------------------------------------*/
-// enum fsResult
-// {
-//     FS_OK = 0,
-//     FS_ERROR,
-//     FS_DEVICE_ERROR,
-//     FS_WRITE_ERROR,
-//     FS_READ_ERROR,
-//     FS_EOF,
-//     FS_NOT_FOUND
-// } __attribute__((packed));
+enum fsResult
+{
+    FS_OK = 0,
+    FS_ERROR,
+    FS_DEVICE_ERROR,
+    FS_WRITE_ERROR,
+    FS_READ_ERROR,
+    FS_EOF,
+    FS_NOT_FOUND
+} __attribute__((packed));
 /*----------------------------------------------------------------------------*/
 /* TODO rewrite */
 enum fsEntryType
@@ -91,11 +91,11 @@ struct FsDir
 /*----------------------------------------------------------------------------*/
 struct FsHandle
 {
-  struct FsDevice *device;
+  struct BlockDevice *device;
   /* Filesystem-specific data */
   void *data;
 
-  enum fsResult (*mount)(struct FsHandle *, struct FsDevice *);
+  enum fsResult (*mount)(struct FsHandle *, struct BlockDevice *);
   void (*umount)(struct FsHandle *);
   enum fsResult (*stat)(struct FsHandle *, const char *, struct FsStat *);
   enum fsResult (*open)(struct FsHandle *, struct FsFile *, const char *,
@@ -107,7 +107,7 @@ struct FsHandle
 };
 /*------------------------------------------------------------------------------*/
 /* Filesystem handle functions */
-enum fsResult fsMount(struct FsHandle *, struct FsDevice *);
+enum fsResult fsMount(struct FsHandle *, struct BlockDevice *);
 void fsUmount(struct FsHandle *);
 enum fsResult fsStat(struct FsHandle *, const char *, struct FsStat *);
 enum fsResult fsOpen(struct FsHandle *, struct FsFile *, const char *,

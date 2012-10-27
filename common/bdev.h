@@ -8,34 +8,41 @@
 #define BDEV_H_
 /*----------------------------------------------------------------------------*/
 #include <stdint.h>
-#include <stdbool.h>
+/*----------------------------------------------------------------------------*/
+#include "interface.h"
 /*----------------------------------------------------------------------------*/
 #define SECTOR_POW      9 /* Sector size in power of 2 */
 #define SECTOR_SIZE     (1 << SECTOR_POW) /* Sector size in bytes */
 #define FS_BUFFER       (SECTOR_SIZE * 1) /* TODO add buffering */
 /*----------------------------------------------------------------------------*/
-//FIXME remove
-enum fsResult
+enum blockPriority
 {
-    FS_OK = 0,
-    FS_ERROR,
-    FS_DEVICE_ERROR,
-    FS_WRITE_ERROR,
-    FS_READ_ERROR,
-    FS_EOF,
-    FS_NOT_FOUND
+    B_PRIORITY_LOWEST = 0,
+    B_PRIORITY_LOW,
+    B_PRIORITY_MEDIUM,
+    B_PRIORITY_HIGH,
+    B_PRIORITY_HIGHEST
 } __attribute__((packed));
 /*----------------------------------------------------------------------------*/
-struct FsDevice
+struct BlockDevice
 {
   struct Interface *iface;
-  enum fsResult (*read)(struct FsDevice *, uint32_t, uint8_t *, uint8_t);
-  enum fsResult (*write)(struct FsDevice *, uint32_t, const uint8_t *, uint8_t);
+  enum ifResult (*read)(struct BlockDevice *, uint32_t, uint8_t *, uint8_t,
+      enum blockPriority);
+  enum ifResult (*write)(struct BlockDevice *, uint32_t, const uint8_t *,
+      uint8_t, enum blockPriority);
   uint8_t *buffer;
+  /* Device-specific data */
+  void *data;
 
   uint8_t type;
   uint32_t offset;
   uint32_t size;
 };
+/*------------------------------------------------------------------------------*/
+enum ifResult blockRead(struct BlockDevice *, uint32_t, uint8_t *, uint8_t,
+    enum blockPriority);
+enum ifResult blockWrite(struct BlockDevice *, uint32_t, const uint8_t *, uint8_t,
+    enum blockPriority);
 /*------------------------------------------------------------------------------*/
 #endif /* BDEV_H_ */
