@@ -20,7 +20,6 @@ struct MemMapedInterface
   int file;
   struct stat info;
   ptrSize position;
-//   long readCount, writeCount;
 };
 /*----------------------------------------------------------------------------*/
 unsigned int mmiRead(struct Interface *, uint8_t *, unsigned int);

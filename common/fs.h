@@ -91,7 +91,7 @@ struct FsDir
 /*----------------------------------------------------------------------------*/
 struct FsHandle
 {
-  struct BlockDevice *device;
+  struct BlockDevice *dev;
   /* Filesystem-specific data */
   void *data;
 

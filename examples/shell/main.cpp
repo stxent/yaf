@@ -476,9 +476,9 @@ int util_info(struct FsHandle *handler)
 //   cout << "Info sector:        " << handler->infoSector << endl;
 //   cout << "Data clusters:      " << handler->clusterCount << endl;
 //   cout << "Last allocated:     " << handler->lastAllocated << endl;
-// #ifdef DEBUG
-//   cout << "Free clusters:      " << sz << endl;
-// #endif
+#ifdef DEBUG
+  cout << "Free clusters:      " << sz << endl;
+#endif
 // #endif
   cout << "Size of BlockDevice: " << sizeof(BlockDevice) << endl;
   cout << "Size of FsHandle:    " << sizeof(FsHandle) << endl;
@@ -730,12 +730,12 @@ int main(int argc, char *argv[])
     printf("Error opening file\n");
     return 0;
   }
-  if (mmdOpen(&dev, &mmaped, (uint8_t *)internalBuf) != FS_OK)
+  if (mmdOpen(&dev, &mmaped, (uint8_t *)internalBuf) != IF_OK)
   {
     printf("Error connecting interface with partiotion device\n");
     return 0;
   }
-  if (mmdReadTable(&dev, 0, 0) == FS_OK)
+  if (mmdReadTable(&dev, 0, 0) == IF_OK)
   {
     /*
      * 0x0B: 32-bit FAT
@@ -743,15 +743,10 @@ int main(int argc, char *argv[])
      * 0x1B: Hidden 32-bit FAT
      * 0x1C: Hidden 32-bit FAT, using INT 13 Extensions
      */
-    if (dev.type != 0x0B)
+    if (mmdGetType(&dev) != 0x0B)
     {
-      printf("Wrong partition descriptor, expected: 0x0B, got: 0x%02X\n",
-          dev.type);
-    }
-    else
-    {
-      printf("Selected partition: offset = %d, size = %d, type = 0x%02X\n",
-          dev.offset, dev.size, dev.type);
+      printf("Wrong partition type, expected: 0x0B, got: 0x%02X\n",
+          mmdGetType(&dev));
     }
   }
   else

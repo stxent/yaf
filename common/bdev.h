@@ -11,9 +11,12 @@
 /*----------------------------------------------------------------------------*/
 #include "interface.h"
 /*----------------------------------------------------------------------------*/
-#define SECTOR_POW      9 /* Sector size in power of 2 */
-#define SECTOR_SIZE     (1 << SECTOR_POW) /* Sector size in bytes */
-#define FS_BUFFER       (SECTOR_SIZE * 1) /* TODO add buffering */
+/* Sector size in power of 2 */
+#ifndef SECTOR_POW
+#warning "SECTOR_POW not defined, used default value of 9"
+#define SECTOR_POW 9
+#endif /* SECTOR_POW */
+#define SECTOR_SIZE (1 << SECTOR_POW) /* Sector size in bytes */
 /*----------------------------------------------------------------------------*/
 enum blockPriority
 {
@@ -34,10 +37,6 @@ struct BlockDevice
   uint8_t *buffer;
   /* Device-specific data */
   void *data;
-
-  uint8_t type;
-  uint32_t offset;
-  uint32_t size;
 };
 /*------------------------------------------------------------------------------*/
 enum ifResult blockRead(struct BlockDevice *, uint32_t, uint8_t *, uint8_t,
