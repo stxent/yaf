@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef FS_RTC_ENABLED
+#ifdef FAT_RTC_ENABLED
 #include "rtc.h"
 #endif
 /*----------------------------------------------------------------------------*/
@@ -50,7 +50,7 @@ struct FatFile
   uint32_t cluster; /* First cluster of file data */
   uint8_t currentSector; /* Sector in current cluster */
   uint32_t currentCluster;
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
   uint16_t parentIndex; /* Entry position in parent cluster */
   uint32_t parentCluster; /* Directory cluster where entry located */
 #endif
@@ -67,9 +67,10 @@ struct FatDir
 struct FatHandle
 {
   /* Filesystem-specific fields */
+  /* Cluster size may be 1, 2, 4, 8, 16, 32, 64, 128 sectors */
   uint8_t clusterSize; /* Sectors per cluster power */
   uint32_t currentSector, rootCluster, dataSector, tableSector;
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
   uint8_t tableCount; /* FAT tables count */
   uint32_t tableSize; /* Size in sectors of each FAT table */
   uint16_t infoSector;
@@ -182,7 +183,7 @@ static const char *followPath(struct FsHandle *, struct FatObject *,
 static enum fsResult getNextCluster(struct FsHandle *, uint32_t *);
 static const char *getChunk(const char *, char *);
 /*----------------------------------------------------------------------------*/
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
 static enum fsResult truncate(struct FsFile *);
 static enum fsResult freeChain(struct FsHandle *, uint32_t);
 static enum fsResult allocateCluster(struct FsHandle *, uint32_t *);
@@ -203,44 +204,19 @@ enum fsResult fatSeek(struct FsFile *, uint32_t);
 enum fsResult fatRead(struct FsFile *, uint8_t *, uint16_t, uint16_t *);
 void fatCloseDir(struct FsDir *);
 enum fsResult fatReadDir(struct FsDir *, char *);
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
 enum fsResult fatRemove(struct FsHandle *, const char *);
 enum fsResult fatMove(struct FsHandle *, const char *, const char *);
 enum fsResult fatMakeDir(struct FsHandle *, const char *);
 enum fsResult fatWrite(struct FsFile *, const uint8_t *, uint16_t, uint16_t *);
 #endif
 /*----------------------------------------------------------------------------*/
-void fat32Init(struct FsHandle *sys)
-{
-  sys->data = 0;
-  sys->mount = fatMount;
-  sys->umount = fatUmount;
-  sys->stat = fatStat;
-  sys->open = fatOpen;
-  sys->openDir = fatOpenDir;
-
-#ifdef FS_WRITE_ENABLED
-  sys->remove = fatRemove;
-  sys->move = fatMove;
-  sys->makeDir = fatMakeDir;
-#else
-  sys->remove = 0;
-  sys->move = 0;
-  sys->makeDir = 0;
-#endif
-#ifdef DEBUG
-  printf("Size of FatHandle: %u\n", (unsigned int)sizeof(struct FatHandle));
-  printf("Size of FatFile:   %u\n", (unsigned int)sizeof(struct FatFile));
-  printf("Size of FatDir:    %u\n", (unsigned int)sizeof(struct FatDir));
-#endif
-}
-/*----------------------------------------------------------------------------*/
-enum fsResult fatMount(struct FsHandle *sys, struct BlockDevice *dev)
+enum fsResult fat32Mount(struct FsHandle *sys, struct BlockDevice *dev)
 {
   struct FatHandle *handle;
   uint16_t tmp;
   struct BootSectorImage *boot;
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
   struct InfoSectorImage *info;
 #endif
 
@@ -280,7 +256,7 @@ enum fsResult fatMount(struct FsHandle *sys, struct BlockDevice *dev)
   handle->tableSector = boot->reservedSectors;
   handle->dataSector = handle->tableSector + boot->fatCopies * boot->fatSize;
   handle->rootCluster = boot->rootCluster;
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
   handle->tableCount = boot->fatCopies;
   handle->tableSize = boot->fatSize;
   handle->clusterCount = ((boot->partitionSize -
@@ -306,9 +282,30 @@ enum fsResult fatMount(struct FsHandle *sys, struct BlockDevice *dev)
 #ifdef DEBUG
   printf("Free clusters: %u\n", info->freeClusters);
 #endif /* DEBUG */
-#endif /* FS_WRITE_ENABLED */
+#endif /* FAT_WRITE_ENABLED */
   sys->dev = dev;
   sys->data = (void *)handle;
+
+  sys->umount = fatUmount;
+  sys->stat = fatStat;
+  sys->open = fatOpen;
+  sys->openDir = fatOpenDir;
+
+#ifdef FAT_WRITE_ENABLED
+  sys->remove = fatRemove;
+  sys->move = fatMove;
+  sys->makeDir = fatMakeDir;
+#else
+  sys->remove = 0;
+  sys->move = 0;
+  sys->makeDir = 0;
+#endif
+#ifdef DEBUG
+  printf("Size of FatHandle: %u\n", (unsigned int)sizeof(struct FatHandle));
+  printf("Size of FatFile:   %u\n", (unsigned int)sizeof(struct FatFile));
+  printf("Size of FatDir:    %u\n", (unsigned int)sizeof(struct FatDir));
+#endif
+
   return FS_OK;
 }
 /*----------------------------------------------------------------------------*/
@@ -342,12 +339,12 @@ static enum fsResult getNextCluster(struct FsHandle *sys, uint32_t *cluster)
   }
 }
 /*----------------------------------------------------------------------------*/
-#if defined(FS_WRITE_ENABLED) && defined(DEBUG)
+#if defined(FAT_WRITE_ENABLED) && defined(DEBUG)
 uint32_t countFree(struct FsHandle *sys)
 {
   struct FatHandle *handle = (struct FatHandle *)sys->data;
   uint32_t res = 0, current;
-  uint32_t *count = (uint32_t *)malloc(sizeof(uint32_t) * handle->tableCount);
+  uint32_t *count = malloc(sizeof(uint32_t) * handle->tableCount);
   uint8_t fat, i, j;
   uint16_t offset;
 
@@ -381,7 +378,7 @@ uint32_t countFree(struct FsHandle *sys)
 #endif
 /*----------------------------------------------------------------------------*/
 /* Copy current sector into FAT sectors located at offset */
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
 static enum fsResult updateTable(struct FsHandle *sys, uint32_t offset)
 {
   struct FatHandle *handle = (struct FatHandle *)sys->data;
@@ -399,7 +396,7 @@ static enum fsResult updateTable(struct FsHandle *sys, uint32_t offset)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
 static enum fsResult allocateCluster(struct FsHandle *sys,
     uint32_t *cluster)
 {
@@ -589,7 +586,7 @@ enum fsResult fatStat(struct FsHandle *sys, const char *path,
   const char *followedPath;
   struct FatObject item;
   uint32_t sector;
-#ifdef FS_RTC_ENABLED
+#ifdef FAT_RTC_ENABLED
   struct DirEntryImage *ptr;
   struct Time tm;
 #endif
@@ -604,7 +601,7 @@ enum fsResult fatStat(struct FsHandle *sys, const char *path,
       E_SECTOR(item.index);
   if (blockRead(sys->dev, sector, sys->dev->buffer, 1, B_PRIORITY_LOW))
     return FS_READ_ERROR;
-#ifdef FS_RTC_ENABLED
+#ifdef FAT_RTC_ENABLED
   ptr = (struct DirEntryImage *)(sys->dev->buffer + E_OFFSET(item.index));
 #endif
 
@@ -625,7 +622,7 @@ enum fsResult fatStat(struct FsHandle *sys, const char *path,
     result->access &= 05;
 #endif
 
-#ifdef FS_RTC_ENABLED
+#ifdef FAT_RTC_ENABLED
   tm.sec = ptr->time & 0x1F;
   tm.min = (ptr->time >> 5) & 0x3F;
   tm.hour = (ptr->time >> 11) & 0x1F;
@@ -652,7 +649,7 @@ enum fsResult fatOpen(struct FsHandle *sys, struct FsFile *file,
   /* Non-zero when entry not found */
   if (*path)
   {
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
     if (mode == FS_WRITE)
     {
       item.attribute = 0;
@@ -668,7 +665,7 @@ enum fsResult fatOpen(struct FsHandle *sys, struct FsFile *file,
   /* Not found if system, volume name or directory */
   if (item.attribute & (FLAG_SYSTEM | FLAG_DIR))
     return FS_NOT_FOUND;
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
   /* Attempt to write into read-only file */
   if ((item.attribute & FLAG_RO) && (mode == FS_WRITE || mode == FS_APPEND))
     return FS_ERROR;
@@ -685,7 +682,7 @@ enum fsResult fatOpen(struct FsHandle *sys, struct FsFile *file,
   fh->currentCluster = item.cluster;
   fh->currentSector = 0;
 
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
   fh->parentCluster = item.parent;
   fh->parentIndex = item.index;
 
@@ -711,7 +708,7 @@ enum fsResult fatOpen(struct FsHandle *sys, struct FsFile *file,
   file->eof = fatEof;
   file->seek = fatSeek;
   file->read = fatRead;
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
   file->write = fatWrite;
 #else
   file->write = 0;
@@ -724,7 +721,7 @@ bool fatEof(struct FsFile *file)
   return (file->position >= file->size);
 }
 /*----------------------------------------------------------------------------*/
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
 static enum fsResult freeChain(struct FsHandle *sys, uint32_t cluster)
 {
   struct FatHandle *handle = (struct FatHandle *)sys->data;
@@ -781,7 +778,7 @@ static enum fsResult freeChain(struct FsHandle *sys, uint32_t cluster)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
 static enum fsResult truncate(struct FsFile *file)
 {
   struct FsHandle *sys = file->descriptor;
@@ -803,7 +800,7 @@ static enum fsResult truncate(struct FsFile *file)
   ptr->size = 0;
   ptr->clusterHigh = 0;
   ptr->clusterLow = 0;
-#ifdef FS_RTC_ENABLED
+#ifdef FAT_RTC_ENABLED
   /* Update last modified date */
   ptr->time = rtcGetTime();
   ptr->date = rtcGetDate();
@@ -819,7 +816,7 @@ static enum fsResult truncate(struct FsFile *file)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
 /* Create new entry inside entry->parent chain */
 /* Members entry->parent and entry->attribute have to be initialized */
 static enum fsResult createEntry(struct FsHandle *sys,
@@ -895,7 +892,7 @@ static enum fsResult createEntry(struct FsHandle *sys,
   ptr->clusterHigh = 0;
   ptr->clusterLow = 0;
   ptr->size = 0;
-#ifdef FS_RTC_ENABLED
+#ifdef FAT_RTC_ENABLED
   /* Last modified time and date */
   ptr->time = rtcGetTime();
   ptr->date = rtcGetDate();
@@ -950,7 +947,7 @@ enum fsResult fatSeek(struct FsFile *file, uint32_t pos)
   return FS_OK;
 }
 /*----------------------------------------------------------------------------*/
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
 enum fsResult fatWrite(struct FsFile *file, const uint8_t *buffer,
     uint16_t count, uint16_t *result)
 {
@@ -1044,7 +1041,7 @@ enum fsResult fatWrite(struct FsFile *file, const uint8_t *buffer,
   file->position = file->size;
   /* Update file size */
   ptr->size = file->size;
-#ifdef FS_RTC_ENABLED
+#ifdef FAT_RTC_ENABLED
   /* Update last modified date */
   //FIXME rewrite
   ptr->time = rtcGetTime();
@@ -1126,7 +1123,7 @@ enum fsResult fatRead(struct FsFile *file, uint8_t *buffer,
   return FS_OK;
 }
 /*----------------------------------------------------------------------------*/
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
 enum fsResult fatRemove(struct FsHandle *sys, const char *path)
 {
   struct DirEntryImage *ptr;
@@ -1266,7 +1263,7 @@ enum fsResult fatReadDir(struct FsDir *dir, char *name)
 //   return FS_OK;
 // }
 /*----------------------------------------------------------------------------*/
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
 enum fsResult fatMakeDir(struct FsHandle *sys, const char *path)
 {
   struct FatHandle *handle = (struct FatHandle *)sys->data;
@@ -1327,7 +1324,7 @@ enum fsResult fatMakeDir(struct FsHandle *sys, const char *path)
     ptr->clusterHigh = parent >> 16;
     ptr->clusterLow = parent;
   }
-#ifdef FS_RTC_ENABLED
+#ifdef FAT_RTC_ENABLED
   ptr->time = (ptr - 1)->time;
   ptr->date = (ptr - 1)->date;
 #endif
@@ -1338,7 +1335,7 @@ enum fsResult fatMakeDir(struct FsHandle *sys, const char *path)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
 enum fsResult fatMove(struct FsHandle *sys, const char *src,
     const char *dest)
 {

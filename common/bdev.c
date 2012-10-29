@@ -25,3 +25,9 @@ enum ifResult blockWrite(struct BlockDevice *dev, uint32_t pos,
   else
     return IF_ERROR;
 }
+/*------------------------------------------------------------------------------*/
+void blockDeinit(struct BlockDevice *dev)
+{
+  if (dev->deinit)
+    dev->deinit(dev);
+}

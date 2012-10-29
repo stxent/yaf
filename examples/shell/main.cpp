@@ -228,7 +228,7 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
 }
 
 //------------------------------------------------------------------------------
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
 enum cResult util_mkdir(struct FsHandle *handler, const vector<string> &args,
     string &loc)
 {
@@ -249,7 +249,7 @@ enum cResult util_mkdir(struct FsHandle *handler, const vector<string> &args,
 }
 #endif
 //------------------------------------------------------------------------------
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
 enum cResult util_rm(struct FsHandle *handler, const vector<string> &args,
     string &loc)
 {
@@ -270,7 +270,7 @@ enum cResult util_rm(struct FsHandle *handler, const vector<string> &args,
 }
 #endif
 //---------------------------------------------------------------------------
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
 enum cResult util_mv(struct FsHandle *handler, const vector<string> &args,
     string &loc)
 {
@@ -307,7 +307,7 @@ enum cResult util_mv(struct FsHandle *handler, const vector<string> &args,
 #endif
 //---------------------------------------------------------------------------
 //Write file from host filesystem to opened volume
-#ifdef FS_WRITE_ENABLED
+#ifdef FAT_WRITE_ENABLED
 enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
     string &loc)
 {
@@ -462,7 +462,7 @@ int util_io(struct FsHandle *handler)
 //------------------------------------------------------------------------------
 int util_info(struct FsHandle *handler)
 {
-#if defined (FS_WRITE_ENABLED) && defined (DEBUG)
+#if defined (FAT_WRITE_ENABLED) && defined (DEBUG)
   uint32_t sz;
   sz = countFree(handler);
 #endif
@@ -470,7 +470,7 @@ int util_info(struct FsHandle *handler)
 //   cout << "FAT sector:         " << handler->tableSector << endl;
 //   cout << "Data sector:        " << handler->dataSector << endl;
 //   cout << "Root cluster:       " << handler->rootCluster << endl;
-// #ifdef FS_WRITE_ENABLED
+// #ifdef FAT_WRITE_ENABLED
 //   cout << "FAT records count:  " << (int)handler->tableCount << endl;
 //   cout << "Sectors in FAT:     " << handler->tableSize << endl;
 //   cout << "Info sector:        " << handler->infoSector << endl;
@@ -709,8 +709,6 @@ enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
   return C_OK;
 }
 //------------------------------------------------------------------------------
-volatile char internalBuf[FS_BUFFER];
-//------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
   if (argc < 2)
@@ -720,7 +718,6 @@ int main(int argc, char *argv[])
   BlockDevice dev;
   FsHandle handler;
 
-  fat32Init(&handler);
   struct MmiConfig mmapedConf = {
     .path = (const char *)argv[1]
   };
@@ -730,9 +727,9 @@ int main(int argc, char *argv[])
     printf("Error opening file\n");
     return 0;
   }
-  if (mmdOpen(&dev, &mmaped, (uint8_t *)internalBuf) != IF_OK)
+  if (mmdInit(&dev, &mmaped) != IF_OK)
   {
-    printf("Error connecting interface with partiotion device\n");
+    printf("Error connecting interface with partition device\n");
     return 0;
   }
   if (mmdReadTable(&dev, 0, 0) == IF_OK)
@@ -752,7 +749,7 @@ int main(int argc, char *argv[])
   else
     printf("No partitions found, selected raw partition at 0\n");
 
-  if (fsMount(&handler, &dev) != FS_OK)
+  if (fat32Mount(&handler, &dev) != FS_OK)
   {
     printf("Error loading partition\n");
     return 0;

@@ -3,8 +3,6 @@ CFLAGS=-c -Wall -Wextra -Winline
 CC=gcc
 CXX=g++
 
-CFLAGS+=-DSECTOR_POW=9
-
 ifneq ($(DEBUG), 0)
 	CFLAGS+=-DDEBUG
 endif

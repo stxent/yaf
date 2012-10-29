@@ -4,11 +4,14 @@
 #include "bdev.h"
 #include "mmi.h"
 /*----------------------------------------------------------------------------*/
-/* TODO add buffering */
-#define FS_BUFFER (SECTOR_SIZE * 1)
+// #define MMD_STATIC_ALLOC
 /*----------------------------------------------------------------------------*/
-enum ifResult mmdOpen(struct BlockDevice *, struct Interface *, uint8_t *);
-void mmdClose(struct BlockDevice *);
+/* struct MmdConfig
+{
+  char *buffer;
+}; */
+/*----------------------------------------------------------------------------*/
+enum ifResult mmdInit(struct BlockDevice *, struct Interface *);
 /*----------------------------------------------------------------------------*/
 enum ifResult mmdReadTable(struct BlockDevice *, uint32_t, uint8_t);
 uint8_t mmdGetType(struct BlockDevice *);

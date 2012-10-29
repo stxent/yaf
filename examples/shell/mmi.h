@@ -11,6 +11,5 @@ struct MmiConfig
 };
 /*----------------------------------------------------------------------------*/
 enum ifResult mmiInit(struct Interface *, const void *);
-void mmiDeinit(struct Interface *);
 /*----------------------------------------------------------------------------*/
 #endif /* MMD_H_ */

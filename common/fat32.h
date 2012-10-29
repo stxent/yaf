@@ -12,18 +12,11 @@
 /*----------------------------------------------------------------------------*/
 #include "fs.h"
 /*----------------------------------------------------------------------------*/
-//#define FS_WRITE_BUFFERED
-#define FS_WRITE_ENABLED
-#define FS_RTC_ENABLED
+// #define FAT_STATIC_ALLOC
+#define FAT_WRITE_ENABLED
+#define FAT_RTC_ENABLED
 /*----------------------------------------------------------------------------*/
-/* Cluster size may be 1, 2, 4, 8, 16, 32, 64, 128 sectors                    */
-/* Sector size may be 512, 1024, 2048, 4096 bytes, default is 512             */
-/*----------------------------------------------------------------------------*/
-#define SECTOR_POW      9 /* Sector size in power of 2 */
-#define SECTOR_SIZE     (1 << SECTOR_POW) /* Sector size in bytes */
-#define FS_BUFFER       (SECTOR_SIZE * 1) /* TODO add buffering */
-/*----------------------------------------------------------------------------*/
-void fat32Init(struct FsHandle *);
+enum fsResult fat32Mount(struct FsHandle *, struct BlockDevice *);
 /*----------------------------------------------------------------------------*/
 #ifdef DEBUG
 uint32_t countFree(struct FsHandle *);

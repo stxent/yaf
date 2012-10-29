@@ -6,14 +6,10 @@
 
 #include "fs.h"
 /*------------------------------------------------------------------------------*/
-enum fsResult fsMount(struct FsHandle *sys, struct BlockDevice *dev)
-{
-  return sys->mount(sys, dev);
-}
-/*------------------------------------------------------------------------------*/
 void fsUmount(struct FsHandle *sys)
 {
-  sys->umount(sys);
+  if (sys->umount)
+    sys->umount(sys);
 }
 /*------------------------------------------------------------------------------*/
 enum fsResult fsStat(struct FsHandle *sys, const char *path,

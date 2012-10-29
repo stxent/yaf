@@ -24,6 +24,7 @@ struct MemMapedInterface
 /*----------------------------------------------------------------------------*/
 unsigned int mmiRead(struct Interface *, uint8_t *, unsigned int);
 unsigned int mmiWrite(struct Interface *, const uint8_t *, unsigned int);
+void mmiDeinit(struct Interface *);
 /*----------------------------------------------------------------------------*/
 enum ifResult mmiInit(struct Interface *iface, const void *cdata)
 {
@@ -37,6 +38,7 @@ enum ifResult mmiInit(struct Interface *iface, const void *cdata)
   iface->write = mmiWrite;
   iface->getopt = 0;
   iface->setopt = 0;
+  iface->deinit = mmiDeinit;
 
   dev->position = 0;
   dev->file = open(config->path, O_RDWR);

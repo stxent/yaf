@@ -40,6 +40,8 @@ struct Interface
   enum ifResult (*getopt)(struct Interface *, enum ifOption, void *);
   /* Set interface option, arguments: option id, pointer to new value */
   enum ifResult (*setopt)(struct Interface *, enum ifOption, const void *);
+  /* Release hardware */
+  void (*deinit)(struct Interface *);
 //   /* Data transmitted handler */
 //   void (*txhandler)(void *);
 //   /* Data received handler */
@@ -52,5 +54,6 @@ unsigned int ifRead(struct Interface *, uint8_t *, unsigned int);
 unsigned int ifWrite(struct Interface *, const uint8_t *, unsigned int);
 enum ifResult ifGetOpt(struct Interface *, enum ifOption, void *);
 enum ifResult ifSetOpt(struct Interface *, enum ifOption, const void *);
+void ifDeinit(struct Interface *);
 /*------------------------------------------------------------------------------*/
 #endif /* INTERFACE_H_ */

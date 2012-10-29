@@ -95,7 +95,6 @@ struct FsHandle
   /* Filesystem-specific data */
   void *data;
 
-  enum fsResult (*mount)(struct FsHandle *, struct BlockDevice *);
   void (*umount)(struct FsHandle *);
   enum fsResult (*stat)(struct FsHandle *, const char *, struct FsStat *);
   enum fsResult (*open)(struct FsHandle *, struct FsFile *, const char *,

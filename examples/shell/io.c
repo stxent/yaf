@@ -23,19 +23,31 @@ enum ifResult mmdRead(struct BlockDevice *, uint32_t, uint8_t *, uint8_t,
     enum blockPriority);
 enum ifResult mmdWrite(struct BlockDevice *, uint32_t, const uint8_t *, uint8_t,
     enum blockPriority);
+void mmdDeinit(struct BlockDevice *);
 /*----------------------------------------------------------------------------*/
-enum ifResult mmdOpen(struct BlockDevice *dev, struct Interface *iface,
-    uint8_t *buffer)
+enum ifResult mmdInit(struct BlockDevice *dev, struct Interface *iface)
 {
   struct mmdHandle *pdata;
   dev->iface = iface;
   dev->read = mmdRead;
   dev->write = mmdWrite;
-  dev->buffer = buffer;
+  dev->deinit = mmdDeinit;
+#ifndef MMD_STATIC_ALLOC
+  dev->buffer = malloc(SECTOR_SIZE);
+#ifdef DEBUG
+  printf("mmaped_dev: dynamically allocated buffer, size %u, address %08X\n",
+      SECTOR_SIZE, (unsigned int)dev->buffer);
+#endif /* DEBUG */
+#endif /* MMD_STATIC_ALLOC */
+  if (!dev->buffer)
+    return IF_ERROR;
 
   pdata = malloc(sizeof(struct mmdHandle));
   if (!pdata)
+  {
+    free(dev->buffer);
     return IF_ERROR;
+  }
   pdata->current = (uint32_t)-1;
   pdata->offset = 0;
   pdata->type = 0;
@@ -48,7 +60,7 @@ enum ifResult mmdOpen(struct BlockDevice *dev, struct Interface *iface,
   return IF_OK;
 }
 /*----------------------------------------------------------------------------*/
-void mmdClose(struct BlockDevice *dev)
+void mmdDeinit(struct BlockDevice *dev)
 {
   free(dev->data);
   dev->iface = 0;
@@ -71,9 +83,9 @@ enum ifResult mmdRead(struct BlockDevice *dev, uint32_t pos, uint8_t *data,
   memPtr = (pos + pdata->offset) << SECTOR_POW;
   ifWrite(dev->iface, (const uint8_t *)&memPtr, sizeof(ptrSize));
   ifRead(dev->iface, data, SECTOR_SIZE * cnt);
-  #ifdef DEBUG
-    printf("mmaped_dev: fetched sector: %u\n", pos);
-  #endif
+#ifdef DEBUG
+  printf("mmaped_dev: fetched sector: %u\n", pos);
+#endif
   if (cnt == 1)
     pdata->current = pos;
   pdata->readCount++;
@@ -91,9 +103,9 @@ enum ifResult mmdWrite(struct BlockDevice *dev, uint32_t pos,
   memPtr = (pos + pdata->offset) << SECTOR_POW;
   ifWrite(dev->iface, (uint8_t *)&memPtr, sizeof(ptrSize));
   ifWrite(dev->iface, data, SECTOR_SIZE * cnt);
-  #ifdef DEBUG
-    printf("mmaped_dev: written sector: %u\n", pos);
-  #endif
+#ifdef DEBUG
+  printf("mmaped_dev: written sector: %u\n", pos);
+#endif
   pdata->writeCount++;
   return IF_OK;
 }

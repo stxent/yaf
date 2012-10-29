@@ -11,12 +11,12 @@
 /*----------------------------------------------------------------------------*/
 #include "interface.h"
 /*----------------------------------------------------------------------------*/
-/* Sector size in power of 2 */
+/* Sector size may be 512, 1024, 2048, 4096 bytes, default is 512 */
 #ifndef SECTOR_POW
-#warning "SECTOR_POW not defined, used default value of 9"
-#define SECTOR_POW 9
+#define SECTOR_POW      (9) /* Sector size in power of 2 */
 #endif /* SECTOR_POW */
-#define SECTOR_SIZE (1 << SECTOR_POW) /* Sector size in bytes */
+/*----------------------------------------------------------------------------*/
+#define SECTOR_SIZE     (1 << SECTOR_POW) /* Sector size in bytes */
 /*----------------------------------------------------------------------------*/
 enum blockPriority
 {
@@ -34,6 +34,7 @@ struct BlockDevice
       enum blockPriority);
   enum ifResult (*write)(struct BlockDevice *, uint32_t, const uint8_t *,
       uint8_t, enum blockPriority);
+  void (*deinit)(struct BlockDevice *);
   uint8_t *buffer;
   /* Device-specific data */
   void *data;
@@ -43,5 +44,6 @@ enum ifResult blockRead(struct BlockDevice *, uint32_t, uint8_t *, uint8_t,
     enum blockPriority);
 enum ifResult blockWrite(struct BlockDevice *, uint32_t, const uint8_t *, uint8_t,
     enum blockPriority);
+void blockDeinit(struct BlockDevice *);
 /*------------------------------------------------------------------------------*/
 #endif /* BDEV_H_ */
