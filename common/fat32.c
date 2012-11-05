@@ -223,7 +223,7 @@ enum fsResult fat32Mount(struct FsHandle *sys, struct BlockDevice *dev)
   sys->data = 0;
   sys->dev = 0;
 #ifndef FAT_STATIC_ALLOC
-  handle = malloc(sizeof(struct FatHandle)); //FIXME move
+  handle = malloc(sizeof(struct FatHandle));
 #endif
   if (!handle)
     return FS_ERROR; /* Memory allocation problem */
@@ -718,7 +718,7 @@ enum fsResult fatOpen(struct FsHandle *sys, struct FsFile *file,
 /*----------------------------------------------------------------------------*/
 bool fatEof(struct FsFile *file)
 {
-  return (file->position >= file->size);
+  return file->position >= file->size;
 }
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE_ENABLED

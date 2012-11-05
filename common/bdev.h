@@ -30,9 +30,9 @@ enum blockPriority
 struct BlockDevice
 {
   struct Interface *iface;
-  enum ifResult (*read)(struct BlockDevice *, uint32_t, uint8_t *, uint8_t,
+  enum result (*read)(struct BlockDevice *, uint32_t, uint8_t *, uint8_t,
       enum blockPriority);
-  enum ifResult (*write)(struct BlockDevice *, uint32_t, const uint8_t *,
+  enum result (*write)(struct BlockDevice *, uint32_t, const uint8_t *,
       uint8_t, enum blockPriority);
   void (*deinit)(struct BlockDevice *);
   uint8_t *buffer;
@@ -40,9 +40,9 @@ struct BlockDevice
   void *data;
 };
 /*------------------------------------------------------------------------------*/
-enum ifResult blockRead(struct BlockDevice *, uint32_t, uint8_t *, uint8_t,
+enum result blockRead(struct BlockDevice *, uint32_t, uint8_t *, uint8_t,
     enum blockPriority);
-enum ifResult blockWrite(struct BlockDevice *, uint32_t, const uint8_t *, uint8_t,
+enum result blockWrite(struct BlockDevice *, uint32_t, const uint8_t *, uint8_t,
     enum blockPriority);
 void blockDeinit(struct BlockDevice *);
 /*------------------------------------------------------------------------------*/

@@ -714,7 +714,7 @@ int main(int argc, char *argv[])
   if (argc < 2)
     return 0;
 
-  Interface mmaped;
+  Interface *mmaped;
   BlockDevice dev;
   FsHandle handler;
 
@@ -722,17 +722,18 @@ int main(int argc, char *argv[])
     .path = (const char *)argv[1]
   };
 
-  if (mmiInit(&mmaped, (void *)&mmapedConf) != IF_OK)
+  mmaped = ifInit(Mmi, (void *)&mmapedConf);
+  if (!mmaped)
   {
     printf("Error opening file\n");
     return 0;
   }
-  if (mmdInit(&dev, &mmaped) != IF_OK)
+  if (mmdInit(&dev, mmaped) != E_OK)
   {
     printf("Error connecting interface with partition device\n");
     return 0;
   }
-  if (mmdReadTable(&dev, 0, 0) == IF_OK)
+  if (mmdReadTable(&dev, 0, 0) == E_OK)
   {
     /*
      * 0x0B: 32-bit FAT

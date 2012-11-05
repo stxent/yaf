@@ -11,9 +11,9 @@
   char *buffer;
 }; */
 /*----------------------------------------------------------------------------*/
-enum ifResult mmdInit(struct BlockDevice *, struct Interface *);
+enum result mmdInit(struct BlockDevice *, struct Interface *);
 /*----------------------------------------------------------------------------*/
-enum ifResult mmdReadTable(struct BlockDevice *, uint32_t, uint8_t);
+enum result mmdReadTable(struct BlockDevice *, uint32_t, uint8_t);
 uint8_t mmdGetType(struct BlockDevice *);
 /*----------------------------------------------------------------------------*/
 #endif

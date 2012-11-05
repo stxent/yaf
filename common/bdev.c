@@ -6,24 +6,24 @@
 
 #include "bdev.h"
 /*------------------------------------------------------------------------------*/
-enum ifResult blockRead(struct BlockDevice *dev, uint32_t pos, uint8_t *buf,
+enum result blockRead(struct BlockDevice *dev, uint32_t pos, uint8_t *buf,
     uint8_t cnt, enum blockPriority priority)
 {
 //   buf = (!buf) ? dev->buffer : buf;
   if (dev->read)
     return dev->read(dev, pos, buf, cnt, priority);
   else
-    return IF_ERROR;
+    return E_ERROR;
 }
 /*------------------------------------------------------------------------------*/
-enum ifResult blockWrite(struct BlockDevice *dev, uint32_t pos,
+enum result blockWrite(struct BlockDevice *dev, uint32_t pos,
     const uint8_t *buf, uint8_t cnt, enum blockPriority priority)
 {
 //   buf = (!buf) ? dev->buffer : buf;
   if (dev->write)
     return dev->write(dev, pos, buf, cnt, priority);
   else
-    return IF_ERROR;
+    return E_ERROR;
 }
 /*------------------------------------------------------------------------------*/
 void blockDeinit(struct BlockDevice *dev)
