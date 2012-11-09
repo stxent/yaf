@@ -113,18 +113,17 @@ string hexdigest(const unsigned char *src)
 enum cResult util_cd(struct FsHandle *handler, const vector<string> &args,
     string &loc)
 {
-  struct FsDir dir;
-  enum fsResult fsres;
+  struct FsDir *dir;
   string newloc;
 
   if (args.size() < 2)
     return C_SYNTAX;
   newloc = parsePath(loc, args[1]);
 
-  fsres = fsOpenDir(handler, &dir, newloc.c_str());
-  if (fsres == FS_OK)
+  dir = fsOpenDir(handler, newloc.c_str());
+  if (dir)
   {
-    fsCloseDir(&dir);
+    fsCloseDir(dir);
     loc = newloc;
     return C_OK;
   }
@@ -139,7 +138,7 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
     const vector<string> &args, const string &loc)
 {
   vector< map<string, string> > entries;
-  struct FsDir dir;
+  struct FsDir *dir;
   struct FsStat stat;
   bool details = false;
   enum fsResult fsres;
@@ -157,12 +156,12 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
   }
 
   dirPath = parsePath(loc, dirPath);
-  fsres = fsOpenDir(handler, &dir, dirPath.c_str());
-  if (fsres == FS_OK)
+  dir = fsOpenDir(handler, dirPath.c_str());
+  if (dir)
   {
     char fname[13];
     int pos;
-    for (pos = 1; (fsres = fsReadDir(&dir, fname)) == FS_OK; pos++)
+    for (pos = 1; (fsres = fsReadDir(dir, fname)) == FS_OK; pos++)
     {
       map<string, string> retval;
       stringstream estream;
@@ -196,7 +195,11 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
           estream << access;
 #endif
           estream.width(10);
+#ifdef DEBUG
           estream << str_size << ' ';
+#else
+          estream << left << str_size << right << ' ';
+#endif
           estream << str_atime << ' ';
           estream << fname;
 
@@ -218,7 +221,7 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
     }
     if (!details && ((pos - 1) % 4))
       cout << endl;
-    fsCloseDir(&dir);
+    fsCloseDir(dir);
   }
   else
   {
@@ -287,16 +290,16 @@ enum cResult util_mv(struct FsHandle *handler, const vector<string> &args,
   }
   else
   {
-    struct FsFile file;
-    if (fsOpen(handler, &file, src.c_str(), FS_READ) != FS_OK)
+    struct FsFile *file;
+    if (!(file = fsOpen(handler, src.c_str(), FS_READ)))
       cout << "mv: " << src << ": No such file" << endl;
     else
     {
-      fsClose(&file);
-      if (fsOpen(handler, &file, dst.c_str(), FS_READ) == FS_OK)
+      fsClose(file);
+      if ((file = fsOpen(handler, dst.c_str(), FS_READ)))
       {
         cout << "mv: " << dst << ": File exists" << endl;
-        fsClose(&file);
+        fsClose(file);
       }
       else
         cout << "mv: Error moving file" << endl;
@@ -320,7 +323,7 @@ enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
 
   int bufSize = 512;
 
-  struct FsFile file;
+  struct FsFile *file;
   ifstream datafile;
   datafile.open(host.c_str());
   if (!datafile)
@@ -328,7 +331,7 @@ enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
     cout << "put: " << host << ": No such file" << endl;
     return C_ERROR;
   }
-  if (fsOpen(handler, &file, target.c_str(), FS_WRITE) == FS_OK)
+  if ((file = fsOpen(handler, target.c_str(), FS_WRITE)))
   {
     fsResult ecode;
     uint16_t cnt;
@@ -338,7 +341,7 @@ enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
     {
       char *ibuf = new char[bufSize];
       datafile.read(ibuf, bufSize); //FIXME rewrite
-      ecode = fsWrite(&file, (uint8_t *)ibuf, datafile.gcount(), &cnt);
+      ecode = fsWrite(file, (uint8_t *)ibuf, datafile.gcount(), &cnt);
       total += cnt;
       delete ibuf;
       if ((ecode != FS_OK) || (cnt != datafile.gcount()))
@@ -349,7 +352,7 @@ enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
       if (!datafile.gcount())
         break;
     }
-    fsClose(&file);
+    fsClose(file);
   }
   else
   {
@@ -368,33 +371,33 @@ enum cResult util_cp(struct FsHandle *handler, const vector<string> &args,
   //TODO add argument parsing
   string src = parsePath(loc, args[1]);
   string dst = parsePath(loc, args[2]);
-  
-  struct FsFile srcFile, dstFile;
-  if (fsOpen(handler, &srcFile, src.c_str(), FS_READ) != FS_OK)
+
+  struct FsFile *srcFile, *dstFile;
+  if (!(srcFile = fsOpen(handler, src.c_str(), FS_READ)))
   {
     return C_ERROR;
   }
-  if (fsOpen(handler, &dstFile, dst.c_str(), FS_WRITE) != FS_OK)
+  if (!(dstFile = fsOpen(handler, dst.c_str(), FS_WRITE)))
   {
-    fsClose(&srcFile);
+    fsClose(srcFile);
     return C_ERROR;
   }
 
   const int bufSize = 5000;
   char buf[bufSize];
   enum fsResult fsres;
-  while (!fsEof(&srcFile))
+  while (!fsEof(srcFile))
   {
     uint16_t cnt, wcnt;
 
-    fsres = fsRead(&srcFile, (uint8_t *)buf, bufSize, &cnt);
+    fsres = fsRead(srcFile, (uint8_t *)buf, bufSize, &cnt);
     if (fsres != FS_OK)
     {
       cout << "cp: Error" << endl;
       return C_ERROR;
     }
     wcnt = cnt;
-    fsres = fsWrite(&dstFile, (uint8_t *)buf, wcnt, &cnt);
+    fsres = fsWrite(dstFile, (uint8_t *)buf, wcnt, &cnt);
     if (fsres != FS_OK)
     {
       cout << "cp: Error" << endl;
@@ -402,8 +405,8 @@ enum cResult util_cp(struct FsHandle *handler, const vector<string> &args,
     }
   }
 
-  fsClose(&dstFile);
-  fsClose(&srcFile);
+  fsClose(dstFile);
+  fsClose(srcFile);
   return C_OK;
 }
 //------------------------------------------------------------------------------
@@ -412,15 +415,15 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handler,
 {
   const int bufSize = 64;
   vector< map<string, string> > entries;
-  struct FsFile file;
+  struct FsFile *file;
   enum fsResult fsres;
 
   for (unsigned int i = 1; i < args.size(); i++)
   {
     map<string, string> retval;
     string newloc = parsePath(loc, args[i]);
-    fsres = fsOpen(handler, &file, newloc.c_str(), FS_READ);
-    if (fsres == FS_OK)
+    file = fsOpen(handler, newloc.c_str(), FS_READ);
+    if (file)
     {
       uint16_t cnt;
       char buf[bufSize];
@@ -428,12 +431,12 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handler,
       unsigned char md5str[16];
 
       MD5_Init(&md5result);
-      while ((fsres = fsRead(&file, (uint8_t *)buf, bufSize, &cnt)) == FS_OK)
+      while ((fsres = fsRead(file, (uint8_t *)buf, bufSize, &cnt)) == FS_OK)
       {
         if (cnt)
           MD5_Update(&md5result, (const void *)buf, cnt);
       }
-      fsClose(&file);
+      fsClose(file);
       MD5_Final(md5str, &md5result);
 
       string digest = hexdigest(md5str);
@@ -453,7 +456,7 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handler,
   return entries;
 }
 //------------------------------------------------------------------------------
-int util_io(struct FsHandle *handler)
+int util_io(struct FsHandle *handler __attribute__((unused)))
 {
 //   cout << "Sectors read:    " << readCount << endl;
 //   cout << "Sectors written: " << writeCount << endl;
@@ -716,7 +719,7 @@ int main(int argc, char *argv[])
 
   Interface *mmaped;
   BlockDevice dev;
-  FsHandle handler;
+  FsHandle *handler;
 
   struct MmiConfig mmapedConf = {
     .path = (const char *)argv[1]
@@ -750,7 +753,13 @@ int main(int argc, char *argv[])
   else
     printf("No partitions found, selected raw partition at 0\n");
 
-  if (fat32Mount(&handler, &dev) != FS_OK)
+  handler = (FsHandle *)init(FatHandle, 0);
+  if (!handler)
+  {
+    printf("Error creating FAT32 handler\n");
+    return 0;
+  }
+  if (fsMount(handler, &dev) != FS_OK)
   {
     printf("Error loading partition\n");
     return 0;
@@ -766,7 +775,7 @@ int main(int argc, char *argv[])
     string path;
     cout << location << "> ";
     getline(cin, command);
-    res = commandParser(&handler, location, command);
+    res = commandParser(handler, location, command);
     switch (res)
     {
       case C_TERMINATE:
@@ -785,6 +794,6 @@ int main(int argc, char *argv[])
   }
 
   printf("Unloading\n");
-  fsUmount(&handler);
+  fsUmount(handler);
   return 0;
 }

@@ -9,11 +9,17 @@ endif
 
 all: project
 
-project: main.o bdev.o fs.o fat32.o io.o rtc.o mutex.o interface.o mmi.o
-	$(CXX) main.o bdev.o fs.o fat32.o io.o rtc.o mutex.o interface.o mmi.o -lrt -lcrypto -lboost_regex -o $(PROJECT)
+project: main.o entity.o bdev.o fs.o fat32.o io.o rtc.o mutex.o interface.o mmi.o
+	$(CXX) main.o entity.o interface.o bdev.o fs.o fat32.o io.o rtc.o mutex.o mmi.o -lrt -lcrypto -lboost_regex -o $(PROJECT)
 
 main.o: main.cpp
 	$(CXX) $(CFLAGS) main.cpp
+
+entity.o: entity.c entity.h
+	$(CC) $(CFLAGS) entity.c
+
+interface.o: interface.c interface.h
+	$(CC) $(CFLAGS) interface.c
 
 bdev.o: bdev.c bdev.h
 	$(CC) $(CFLAGS) bdev.c
@@ -32,9 +38,6 @@ rtc.o: rtc.c rtc.h
 
 mutex.o: mutex.c mutex.h
 	$(CC) $(CFLAGS) mutex.c
-
-interface.o: interface.c interface.h
-	$(CC) $(CFLAGS) interface.c
 
 mmi.o: mmi.c mmi.h
 	$(CC) $(CFLAGS) mmi.c

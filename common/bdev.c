@@ -5,7 +5,7 @@
  */
 
 #include "bdev.h"
-/*------------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
 enum result blockRead(struct BlockDevice *dev, uint32_t pos, uint8_t *buf,
     uint8_t cnt, enum blockPriority priority)
 {
@@ -15,7 +15,7 @@ enum result blockRead(struct BlockDevice *dev, uint32_t pos, uint8_t *buf,
   else
     return E_ERROR;
 }
-/*------------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
 enum result blockWrite(struct BlockDevice *dev, uint32_t pos,
     const uint8_t *buf, uint8_t cnt, enum blockPriority priority)
 {
@@ -25,7 +25,7 @@ enum result blockWrite(struct BlockDevice *dev, uint32_t pos,
   else
     return E_ERROR;
 }
-/*------------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
 void blockDeinit(struct BlockDevice *dev)
 {
   if (dev->deinit)

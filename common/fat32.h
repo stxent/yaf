@@ -16,7 +16,9 @@
 #define FAT_WRITE_ENABLED
 #define FAT_RTC_ENABLED
 /*----------------------------------------------------------------------------*/
-enum fsResult fat32Mount(struct FsHandle *, struct BlockDevice *);
+// enum fsResult fat32Mount(struct FsHandle *, struct BlockDevice *);
+/*----------------------------------------------------------------------------*/
+extern const void *FatHandle;
 /*----------------------------------------------------------------------------*/
 #ifdef DEBUG
 uint32_t countFree(struct FsHandle *);
