@@ -222,53 +222,53 @@ struct InfoSectorImage
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 static const struct FsFileClass fatFileTable = {
-  .size = sizeof(struct FatFile),
-  .init = 0,
-  .deinit = 0,
+    .size = sizeof(struct FatFile),
+    .init = 0,
+    .deinit = 0,
 
-  .close = fatClose,
-  .eof = fatEof,
-  .seek = fatSeek,
-  .read = fatRead,
+    .close = fatClose,
+    .eof = fatEof,
+    .seek = fatSeek,
+    .read = fatRead,
 
 #ifdef FAT_WRITE_ENABLED
-  .write = fatWrite,
+    .write = fatWrite,
 #else
-  .write = 0,
+    .write = 0,
 #endif
 };
 /*----------------------------------------------------------------------------*/
 static const struct FsDirClass fatDirTable = {
-  .size = sizeof(struct FatDir),
-  .init = 0,
-  .deinit = 0,
+    .size = sizeof(struct FatDir),
+    .init = 0,
+    .deinit = 0,
 
-  .close = fatCloseDir,
-  .read = fatReadDir,
+    .close = fatCloseDir,
+    .read = fatReadDir,
 };
 /*----------------------------------------------------------------------------*/
 static const struct FsHandleClass fatHandleTable = {
-  .size = sizeof(struct FatHandle),
-  .init = 0,
-  .deinit = 0,
+    .size = sizeof(struct FatHandle),
+    .init = 0,
+    .deinit = 0,
 
-  .File = (void *)&fatFileTable,
-  .Dir = (void *)&fatDirTable,
+    .File = (void *)&fatFileTable,
+    .Dir = (void *)&fatDirTable,
 
-  .mount = fatMount,
-  .umount = fatUmount,
-  .open = fatOpen,
-  .openDir = fatOpenDir,
-  .stat = fatStat,
+    .mount = fatMount,
+    .umount = fatUmount,
+    .open = fatOpen,
+    .openDir = fatOpenDir,
+    .stat = fatStat,
 
 #ifdef FAT_WRITE_ENABLED
-  .makeDir = fatMakeDir,
-  .move = fatMove,
-  .remove = fatRemove,
+    .makeDir = fatMakeDir,
+    .move = fatMove,
+    .remove = fatRemove,
 #else
-  .makeDir = 0,
-  .move = 0,
-  .remove = 0,
+    .makeDir = 0,
+    .move = 0,
+    .remove = 0,
 #endif
 };
 /*----------------------------------------------------------------------------*/

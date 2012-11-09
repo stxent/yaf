@@ -8,30 +8,6 @@
 /*----------------------------------------------------------------------------*/
 #include "interface.h"
 /*----------------------------------------------------------------------------*/
-struct Interface *ifInit(const struct InterfaceClass *type, const void *args)
-{
-  /* Actually entity is an instance of another class */
-  struct Interface *iface;
-
-  iface = (struct Interface *)malloc(type->size);
-  if (!iface)
-    return 0;
-  if (type->init && type->init(iface, args) != E_OK)
-  {
-    free(iface);
-    return 0;
-  }
-  iface->type = type;
-  return iface;
-}
-/*----------------------------------------------------------------------------*/
-void ifDeinit(struct Interface *iface)
-{
-  if (iface->type->deinit)
-    iface->type->deinit(iface);
-  free(iface);
-}
-/*----------------------------------------------------------------------------*/
 enum result ifStart(struct Interface *iface, uint8_t *address)
 {
   return iface->type->start ? iface->type->start(iface, address) : E_ERROR;

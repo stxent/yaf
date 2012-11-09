@@ -23,7 +23,7 @@ struct MemMapedInterface
   ptrSize position;
 };
 /*----------------------------------------------------------------------------*/
-static enum result mmiInit(struct Interface *, const void *);
+static enum result mmiInit(const struct Interface *, const void *);
 static void mmiDeinit(struct Interface *);
 static unsigned int mmiRead(struct Interface *, uint8_t *, unsigned int);
 static unsigned int mmiWrite(struct Interface *, const uint8_t *, unsigned int);
@@ -32,6 +32,7 @@ static const struct InterfaceClass mmiTable = {
     .size = sizeof(struct MemMapedInterface),
     .init = mmiInit,
     .deinit = mmiDeinit,
+
     .start = 0,
     .stop = 0,
     .read = mmiRead,
@@ -42,15 +43,15 @@ static const struct InterfaceClass mmiTable = {
 /*----------------------------------------------------------------------------*/
 const struct InterfaceClass *Mmi = &mmiTable;
 /*----------------------------------------------------------------------------*/
-static enum result mmiInit(struct Interface *iface, const void *cdata)
+static enum result mmiInit(const struct Interface *iface, const void *cdata)
 {
-  struct MmiConfig *config = (struct MmiConfig *)cdata;
+  const char *path = (const char *)cdata;
   struct MemMapedInterface *dev = (struct MemMapedInterface *)iface;
 
   dev->position = 0;
-  dev->file = open(config->path, O_RDWR);
+  dev->file = open(path, O_RDWR);
 #ifdef DEBUG
-  printf("mmaped_io: opening file: %s\n", config->path);
+  printf("mmaped_io: opening file: %s\n", path);
 #endif
   if (!dev->file)
     return E_ERROR;

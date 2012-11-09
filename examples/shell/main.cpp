@@ -456,7 +456,7 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handler,
   return entries;
 }
 //------------------------------------------------------------------------------
-int util_io(struct FsHandle *handler __attribute__((unused)))
+int util_io(struct FsHandle *handler)
 {
 //   cout << "Sectors read:    " << readCount << endl;
 //   cout << "Sectors written: " << writeCount << endl;
@@ -721,11 +721,7 @@ int main(int argc, char *argv[])
   BlockDevice dev;
   FsHandle *handler;
 
-  struct MmiConfig mmapedConf = {
-    .path = (const char *)argv[1]
-  };
-
-  mmaped = ifInit(Mmi, (void *)&mmapedConf);
+  mmaped = (Interface *)init(Mmi, (const void *)argv[1]);
   if (!mmaped)
   {
     printf("Error opening file\n");
