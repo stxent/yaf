@@ -717,11 +717,11 @@ int main(int argc, char *argv[])
   if (argc < 2)
     return 0;
 
-  Interface *mmaped;
+  struct Interface *mmaped;
   BlockDevice dev;
-  FsHandle *handler;
+  struct FsHandle *handler;
 
-  mmaped = (Interface *)init(Mmi, (const void *)argv[1]);
+  mmaped = (struct Interface *)init(Mmi, (const void *)argv[1]);
   if (!mmaped)
   {
     printf("Error opening file\n");
@@ -749,7 +749,7 @@ int main(int argc, char *argv[])
   else
     printf("No partitions found, selected raw partition at 0\n");
 
-  handler = (FsHandle *)init(FatHandle, 0);
+  handler = (struct FsHandle *)init(FatHandle, 0);
   if (!handler)
   {
     printf("Error creating FAT32 handler\n");

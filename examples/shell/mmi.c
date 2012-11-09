@@ -23,7 +23,7 @@ struct MemMapedInterface
   ptrSize position;
 };
 /*----------------------------------------------------------------------------*/
-static enum result mmiInit(const struct Interface *, const void *);
+static enum result mmiInit(struct Interface *, const void *);
 static void mmiDeinit(struct Interface *);
 static unsigned int mmiRead(struct Interface *, uint8_t *, unsigned int);
 static unsigned int mmiWrite(struct Interface *, const uint8_t *, unsigned int);
@@ -43,7 +43,7 @@ static const struct InterfaceClass mmiTable = {
 /*----------------------------------------------------------------------------*/
 const struct InterfaceClass *Mmi = &mmiTable;
 /*----------------------------------------------------------------------------*/
-static enum result mmiInit(const struct Interface *iface, const void *cdata)
+static enum result mmiInit(struct Interface *iface, const void *cdata)
 {
   const char *path = (const char *)cdata;
   struct MemMapedInterface *dev = (struct MemMapedInterface *)iface;
