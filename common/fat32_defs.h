@@ -1,5 +1,5 @@
 /*
- * fat32.h
+ * fat32_defs.h
  * Copyright (C) 2012 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
@@ -7,6 +7,16 @@
 #ifndef FAT32_DEFS_H_
 #define FAT32_DEFS_H_
 /*----------------------------------------------------------------------------*/
+#include <stdint.h>
+#include <stdbool.h>
+/*----------------------------------------------------------------------------*/
+#include "fs.h"
+/*----------------------------------------------------------------------------*/
+/* FIXME Settings moved to project makefile */
+/* #define FAT_WRITE */
+/* #define FAT_RTC_ENABLED */
+/*----------------------------------------------------------------------------*/
+/*------------------Defines---------------------------------------------------*/
 #define FLAG_RO                 (uint8_t)0x01 /* Read only */
 #define FLAG_HIDDEN             (uint8_t)0x02
 #define FLAG_SYSTEM             (uint8_t)0x0C /* System or volume label */
@@ -38,7 +48,7 @@ struct FatFile
   uint32_t cluster; /* First cluster of file data */
   uint8_t currentSector; /* Sector in current cluster */
   uint32_t currentCluster;
-#ifdef FAT_WRITE_ENABLED
+#ifdef FAT_WRITE
   uint16_t parentIndex; /* Entry position in parent cluster */
   uint32_t parentCluster; /* Directory cluster where entry located */
 #endif
@@ -62,7 +72,7 @@ struct FatHandle
   /* Cluster size may be 1, 2, 4, 8, 16, 32, 64, 128 sectors */
   uint8_t clusterSize; /* Sectors per cluster power */
   uint32_t currentSector, rootCluster, dataSector, tableSector;
-#ifdef FAT_WRITE_ENABLED
+#ifdef FAT_WRITE
   uint8_t tableCount; /* FAT tables count */
   uint32_t tableSize; /* Size in sectors of each FAT table */
   uint16_t infoSector;
@@ -145,39 +155,39 @@ static inline uint16_t entryCount(struct FatHandle *sys);
 static enum fsResult fetchEntry(struct FsHandle *, struct FatObject *);
 static const char *followPath(struct FsHandle *, struct FatObject *,
     const char *);
-static enum fsResult getNextCluster(struct FsHandle *, uint32_t *);
 static const char *getChunk(const char *, char *);
+static enum fsResult getNextCluster(struct FsHandle *, uint32_t *);
 /*----------------------------------------------------------------------------*/
-#ifdef FAT_WRITE_ENABLED
-static enum fsResult truncate(struct FsFile *);
-static enum fsResult freeChain(struct FsHandle *, uint32_t);
+#ifdef FAT_WRITE
 static enum fsResult allocateCluster(struct FsHandle *, uint32_t *);
 static enum fsResult createEntry(struct FsHandle *, struct FatObject *,
     const char *);
+static enum fsResult freeChain(struct FsHandle *, uint32_t);
+static enum fsResult truncate(struct FsFile *);
 static enum fsResult updateTable(struct FsHandle *, uint32_t);
 #endif
 /*----------------------------------------------------------------------------*/
-/*------------------Implemented virtual methods-------------------------------*/
+/*------------------Implemented filesystem methods----------------------------*/
 static enum fsResult fatMount(struct FsHandle *, struct BlockDevice *);
 static void fatUmount(struct FsHandle *);
 static enum fsResult fatStat(struct FsHandle *, const char *, struct FsStat *);
 static enum fsResult fatOpen(struct FsHandle *, struct FsFile *, const char *,
     enum fsMode);
-static enum fsResult fatOpenDir(struct FsHandle *, struct FsDir *,
-    const char *);
 static void fatClose(struct FsFile *);
 static bool fatEof(struct FsFile *);
-static enum fsResult fatSeek(struct FsFile *, uint32_t);
 static enum fsResult fatRead(struct FsFile *, uint8_t *, uint16_t, uint16_t *);
+static enum fsResult fatSeek(struct FsFile *, uint32_t);
+static enum fsResult fatOpenDir(struct FsHandle *, struct FsDir *,
+    const char *);
 static void fatCloseDir(struct FsDir *);
 static enum fsResult fatReadDir(struct FsDir *, char *);
 /*----------------------------------------------------------------------------*/
-#ifdef FAT_WRITE_ENABLED
-static enum fsResult fatRemove(struct FsHandle *, const char *);
+#ifdef FAT_WRITE
 static enum fsResult fatMove(struct FsHandle *, const char *, const char *);
-static enum fsResult fatMakeDir(struct FsHandle *, const char *);
 static enum fsResult fatWrite(struct FsFile *, const uint8_t *, uint16_t,
     uint16_t *);
+static enum fsResult fatRemove(struct FsHandle *, const char *);
+static enum fsResult fatMakeDir(struct FsHandle *, const char *);
 #endif
 /*----------------------------------------------------------------------------*/
 #endif /* FAT32_DEFS_H_ */

@@ -231,7 +231,7 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
 }
 
 //------------------------------------------------------------------------------
-#ifdef FAT_WRITE_ENABLED
+#ifdef FAT_WRITE
 enum cResult util_mkdir(struct FsHandle *handler, const vector<string> &args,
     string &loc)
 {
@@ -252,7 +252,7 @@ enum cResult util_mkdir(struct FsHandle *handler, const vector<string> &args,
 }
 #endif
 //------------------------------------------------------------------------------
-#ifdef FAT_WRITE_ENABLED
+#ifdef FAT_WRITE
 enum cResult util_rm(struct FsHandle *handler, const vector<string> &args,
     string &loc)
 {
@@ -273,7 +273,7 @@ enum cResult util_rm(struct FsHandle *handler, const vector<string> &args,
 }
 #endif
 //---------------------------------------------------------------------------
-#ifdef FAT_WRITE_ENABLED
+#ifdef FAT_WRITE
 enum cResult util_mv(struct FsHandle *handler, const vector<string> &args,
     string &loc)
 {
@@ -310,7 +310,7 @@ enum cResult util_mv(struct FsHandle *handler, const vector<string> &args,
 #endif
 //---------------------------------------------------------------------------
 //Write file from host filesystem to opened volume
-#ifdef FAT_WRITE_ENABLED
+#ifdef FAT_WRITE
 enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
     string &loc)
 {
@@ -365,6 +365,7 @@ enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
 }
 #endif
 //------------------------------------------------------------------------------
+#ifdef FAT_WRITE
 enum cResult util_cp(struct FsHandle *handler, const vector<string> &args,
     const string &loc)
 {
@@ -409,6 +410,7 @@ enum cResult util_cp(struct FsHandle *handler, const vector<string> &args,
   fsClose(srcFile);
   return C_OK;
 }
+#endif
 //------------------------------------------------------------------------------
 vector< map<string, string> > util_md5sum(struct FsHandle *handler,
     const vector<string> &args, const string &loc)
@@ -465,7 +467,7 @@ int util_io(struct FsHandle *handler)
 //------------------------------------------------------------------------------
 int util_info(struct FsHandle *handler)
 {
-#if defined (FAT_WRITE_ENABLED) && defined (DEBUG)
+#if defined (FAT_WRITE) && defined (DEBUG)
   uint32_t sz;
   sz = countFree(handler);
 #endif
@@ -473,13 +475,13 @@ int util_info(struct FsHandle *handler)
 //   cout << "FAT sector:         " << handler->tableSector << endl;
 //   cout << "Data sector:        " << handler->dataSector << endl;
 //   cout << "Root cluster:       " << handler->rootCluster << endl;
-// #ifdef FAT_WRITE_ENABLED
+// #ifdef FAT_WRITE
 //   cout << "FAT records count:  " << (int)handler->tableCount << endl;
 //   cout << "Sectors in FAT:     " << handler->tableSize << endl;
 //   cout << "Info sector:        " << handler->infoSector << endl;
 //   cout << "Data clusters:      " << handler->clusterCount << endl;
 //   cout << "Last allocated:     " << handler->lastAllocated << endl;
-#ifdef DEBUG
+#if defined (FAT_WRITE) && defined (DEBUG)
   cout << "Free clusters:      " << sz << endl;
 #endif
 // #endif
@@ -626,6 +628,7 @@ enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
       }
     }
   }
+#ifdef FAT_WRITE
   if (args[0] == "mkdir")
   {
     enum cResult retval;
@@ -661,6 +664,7 @@ enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
     if (retval != C_OK)
       cout << "Error" << endl;
   }
+#endif
   if (args[0] == "md5sum")
   {
     vector< map<string, string> > result;
