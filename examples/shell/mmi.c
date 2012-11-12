@@ -20,13 +20,15 @@ struct MemMapedInterface
   void *data;
   int file;
   struct stat info;
-  ptrSize position;
+  uint64_t position;
 };
 /*----------------------------------------------------------------------------*/
 static enum result mmiInit(struct Interface *, const void *);
 static void mmiDeinit(struct Interface *);
 static unsigned int mmiRead(struct Interface *, uint8_t *, unsigned int);
 static unsigned int mmiWrite(struct Interface *, const uint8_t *, unsigned int);
+static enum result mmiGetOpt(struct Interface *, enum ifOption, void *);
+static enum result mmiSetOpt(struct Interface *, enum ifOption, const void *);
 /*----------------------------------------------------------------------------*/
 static const struct InterfaceClass mmiTable = {
     .size = sizeof(struct MemMapedInterface),
@@ -37,8 +39,8 @@ static const struct InterfaceClass mmiTable = {
     .stop = 0,
     .read = mmiRead,
     .write = mmiWrite,
-    .getopt = 0,
-    .setopt = 0
+    .getopt = mmiGetOpt,
+    .setopt = mmiSetOpt
 };
 /*----------------------------------------------------------------------------*/
 const struct InterfaceClass *Mmi = &mmiTable;
@@ -68,6 +70,7 @@ static unsigned int mmiRead(struct Interface *iface, uint8_t *buffer,
     unsigned int length)
 {
   struct MemMapedInterface *dev = (struct MemMapedInterface *)iface;
+
   memcpy(buffer, (uint8_t *)dev->data + dev->position, length);
   return length;
 }
@@ -76,18 +79,42 @@ static unsigned int mmiWrite(struct Interface *iface, const uint8_t *buffer,
     unsigned int length)
 {
   struct MemMapedInterface *dev = (struct MemMapedInterface *)iface;
-  if (length == sizeof(ptrSize))
+
+  memcpy((uint8_t *)dev->data + dev->position, buffer, length);
+  return length;
+}
+/*----------------------------------------------------------------------------*/
+static enum result mmiGetOpt(struct Interface *iface, enum ifOption option,
+    void *data)
+{
+  struct MemMapedInterface *dev = (struct MemMapedInterface *)iface;
+
+  switch (option)
   {
-    dev->position = *(ptrSize *)buffer;
-#ifdef DEBUG
-    printf("mmaped_io: position set to 0x%08X\n", (unsigned int)dev->position);
-#endif
-    return sizeof(ptrSize);
+    case IF_ADDRESS:
+      *(uint64_t *)data = dev->position;
+      return E_OK;
+    default:
+      return E_ERROR;
   }
-  else
+}
+/*----------------------------------------------------------------------------*/
+static enum result mmiSetOpt(struct Interface *iface, enum ifOption option,
+    const void *data)
+{
+  struct MemMapedInterface *dev = (struct MemMapedInterface *)iface;
+
+  switch (option)
   {
-    memcpy((uint8_t *)dev->data + dev->position, buffer, length);
-    return length;
+    case IF_ADDRESS:
+      dev->position = *(uint64_t *)data;
+#ifdef DEBUG
+      printf("mmaped_io: position set to 0x%08X\n",
+          (unsigned int)dev->position);
+#endif
+      return E_OK;
+    default:
+      return E_ERROR;
   }
 }
 /*----------------------------------------------------------------------------*/

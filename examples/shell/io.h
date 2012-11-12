@@ -4,13 +4,6 @@
 #include "bdev.h"
 #include "mmi.h"
 /*----------------------------------------------------------------------------*/
-// #define MMD_STATIC_ALLOC
-/*----------------------------------------------------------------------------*/
-/* struct MmdConfig
-{
-  char *buffer;
-}; */
-/*----------------------------------------------------------------------------*/
 enum result mmdInit(struct BlockDevice *, struct Interface *);
 /*----------------------------------------------------------------------------*/
 enum result mmdReadTable(struct BlockDevice *, uint32_t, uint8_t);

@@ -68,7 +68,7 @@ enum result mmdRead(struct BlockDevice *dev, uint32_t pos, uint8_t *data,
     uint8_t cnt)
 {
   struct mmdHandle *pdata = (struct mmdHandle *)dev->data;
-  ptrSize memPtr;
+  uint64_t memPtr;
 
   if (pdata->current == pos && cnt == 1)
   {
@@ -78,7 +78,7 @@ enum result mmdRead(struct BlockDevice *dev, uint32_t pos, uint8_t *data,
   if (pos + cnt > pdata->size)
     return E_ERROR;
   memPtr = (pos + pdata->offset) << SECTOR_POW;
-  ifWrite(dev->iface, (const uint8_t *)&memPtr, sizeof(ptrSize));
+  ifSetOpt(dev->iface, IF_ADDRESS, &memPtr);
   ifRead(dev->iface, data, SECTOR_SIZE * cnt);
 #ifdef DEBUG
   printf("mmaped_dev: fetched sector: %u\n", pos);
@@ -93,12 +93,12 @@ enum result mmdWrite(struct BlockDevice *dev, uint32_t pos,
     const uint8_t *data, uint8_t cnt)
 {
   struct mmdHandle *pdata = (struct mmdHandle *)dev->data;
-  ptrSize memPtr;
+  uint64_t memPtr;
 
   if (pos + cnt > pdata->size)
     return E_ERROR;
   memPtr = (pos + pdata->offset) << SECTOR_POW;
-  ifWrite(dev->iface, (uint8_t *)&memPtr, sizeof(ptrSize));
+  ifSetOpt(dev->iface, IF_ADDRESS, &memPtr);
   ifWrite(dev->iface, data, SECTOR_SIZE * cnt);
 #ifdef DEBUG
   printf("mmaped_dev: written sector: %u\n", pos);
