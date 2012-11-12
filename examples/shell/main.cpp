@@ -497,6 +497,7 @@ void util_autotest(FsHandle *handler, const vector<string> &args)
   if (args.size() < 2)
     return;
 
+  unsigned int passed = 0, failed = 0, total = 0;
   string loc = "/";
   ifstream testbench;
   testbench.open(args[1].c_str());
@@ -535,10 +536,18 @@ void util_autotest(FsHandle *handler, const vector<string> &args)
     if (comStr != "")
     {
       cout << "> " << comStr << endl;
-      commandParser(handler, loc, comStr, &argStr);
+      total++;
+      if (commandParser(handler, loc, comStr, &argStr) == C_OK)
+        passed++;
+      else
+        failed++;
     }
   }
   testbench.close();
+  cout << "/*--------------------------------------";
+  cout << "--------------------------------------*/" << endl;
+  cout << "Test result: total " << total << ", passed " << passed <<
+      ", failed " << failed << endl;
 }
 //------------------------------------------------------------------------------
 enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
@@ -591,7 +600,10 @@ enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
     enum cResult retval;
     retval = util_cd(handler, args, loc);
     if (retval != C_OK)
+    {
       cout << "Error" << endl;
+      return C_ERROR;
+    }
   }
   if (args[0] == "ls")
   {
@@ -616,16 +628,13 @@ enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
           cout << "ls: " << retvals[pos] << ": No such file or directory" << endl;
       }
 
-      if (found == retvals.size())
-      {
-        cout << "OK" << endl;
-        return C_OK;
-      }
-      else
+      if (found != retvals.size())
       {
         cout << "Error" << endl;
         return C_ERROR;
       }
+      else
+        cout << "ls: completed successfully" << endl;
     }
   }
 #ifdef FAT_WRITE
@@ -634,35 +643,50 @@ enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
     enum cResult retval;
     retval = util_mkdir(handler, args, loc);
     if (retval != C_OK)
+    {
       cout << "Error" << endl;
+      return C_ERROR;
+    }
   }
   if (args[0] == "rm")
   {
     enum cResult retval;
     retval = util_rm(handler, args, loc);
     if (retval != C_OK)
+    {
       cout << "Error" << endl;
+      return C_ERROR;
+    }
   }
   if (args[0] == "mv")
   {
     enum cResult retval;
     retval = util_mv(handler, args, loc);
     if (retval != C_OK)
+    {
       cout << "Error" << endl;
+      return C_ERROR;
+    }
   }
   if (args[0] == "put")
   {
     enum cResult retval;
     retval = util_put(handler, args, loc);
     if (retval != C_OK)
+    {
       cout << "Error" << endl;
+      return C_ERROR;
+    }
   }
   if (args[0] == "cp")
   {
     enum cResult retval;
     retval = util_cp(handler, args, loc);
     if (retval != C_OK)
+    {
       cout << "Error" << endl;
+      return C_ERROR;
+    }
   }
 #endif
   if (args[0] == "md5sum")
@@ -693,16 +717,13 @@ enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
         }
       }
 
-      if (found == retvals.size())
-      {
-        cout << "OK" << endl;
-        return C_OK;
-      }
-      else
+      if (found != retvals.size())
       {
         cout << "Error" << endl;
         return C_ERROR;
       }
+      else
+        cout << "md5sum: completed successfully" << endl;
     }
 //     vector<string> required;
 //     required.push_back(args[i]);
