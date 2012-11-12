@@ -12,11 +12,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fs.h"
 /*----------------------------------------------------------------------------*/
-/* FIXME Settings moved to project makefile */
-/* #define FAT_WRITE */
-/* #define FAT_RTC_ENABLED */
 /*----------------------------------------------------------------------------*/
-/*------------------Defines---------------------------------------------------*/
 #define FLAG_RO                 (uint8_t)0x01 /* Read only */
 #define FLAG_HIDDEN             (uint8_t)0x02
 #define FLAG_SYSTEM             (uint8_t)0x0C /* System or volume label */

@@ -18,32 +18,20 @@
 /*----------------------------------------------------------------------------*/
 #define SECTOR_SIZE     (1 << SECTOR_POW) /* Sector size in bytes */
 /*----------------------------------------------------------------------------*/
-enum blockPriority
-{
-    B_PRIORITY_LOWEST = 0,
-    B_PRIORITY_LOW,
-    B_PRIORITY_MEDIUM,
-    B_PRIORITY_HIGH,
-    B_PRIORITY_HIGHEST
-} __attribute__((packed));
-/*----------------------------------------------------------------------------*/
 struct BlockDevice
 {
   struct Interface *iface;
-  enum result (*read)(struct BlockDevice *, uint32_t, uint8_t *, uint8_t,
-      enum blockPriority);
+  enum result (*read)(struct BlockDevice *, uint32_t, uint8_t *, uint8_t);
   enum result (*write)(struct BlockDevice *, uint32_t, const uint8_t *,
-      uint8_t, enum blockPriority);
+      uint8_t);
   void (*deinit)(struct BlockDevice *);
   uint8_t *buffer;
   /* Device-specific data */
   void *data;
 };
 /*------------------------------------------------------------------------------*/
-enum result blockRead(struct BlockDevice *, uint32_t, uint8_t *, uint8_t,
-    enum blockPriority);
-enum result blockWrite(struct BlockDevice *, uint32_t, const uint8_t *, uint8_t,
-    enum blockPriority);
+enum result blockRead(struct BlockDevice *, uint32_t, uint8_t *, uint8_t);
+enum result blockWrite(struct BlockDevice *, uint32_t, const uint8_t *, uint8_t);
 void blockDeinit(struct BlockDevice *);
 /*------------------------------------------------------------------------------*/
 #endif /* BDEV_H_ */

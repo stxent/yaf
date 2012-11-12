@@ -19,10 +19,8 @@ struct mmdHandle
   long readCount, writeCount, readExcess;
 };
 /*----------------------------------------------------------------------------*/
-enum result mmdRead(struct BlockDevice *, uint32_t, uint8_t *, uint8_t,
-    enum blockPriority);
-enum result mmdWrite(struct BlockDevice *, uint32_t, const uint8_t *, uint8_t,
-    enum blockPriority);
+enum result mmdRead(struct BlockDevice *, uint32_t, uint8_t *, uint8_t);
+enum result mmdWrite(struct BlockDevice *, uint32_t, const uint8_t *, uint8_t);
 void mmdDeinit(struct BlockDevice *);
 /*----------------------------------------------------------------------------*/
 enum result mmdInit(struct BlockDevice *dev, struct Interface *iface)
@@ -67,7 +65,7 @@ void mmdDeinit(struct BlockDevice *dev)
 }
 /*----------------------------------------------------------------------------*/
 enum result mmdRead(struct BlockDevice *dev, uint32_t pos, uint8_t *data,
-    uint8_t cnt, enum blockPriority priority)
+    uint8_t cnt)
 {
   struct mmdHandle *pdata = (struct mmdHandle *)dev->data;
   ptrSize memPtr;
@@ -92,7 +90,7 @@ enum result mmdRead(struct BlockDevice *dev, uint32_t pos, uint8_t *data,
 }
 /*----------------------------------------------------------------------------*/
 enum result mmdWrite(struct BlockDevice *dev, uint32_t pos,
-    const uint8_t *data, uint8_t cnt, enum blockPriority priority)
+    const uint8_t *data, uint8_t cnt)
 {
   struct mmdHandle *pdata = (struct mmdHandle *)dev->data;
   ptrSize memPtr;
@@ -117,7 +115,7 @@ enum result mmdReadTable(struct BlockDevice *dev, uint32_t sector,
 //   uint32_t prevOffset = pdata->offset; /* Save previous value */
 
   pdata->offset = 0;
-  if (dev->read(dev, sector, dev->buffer, 1, B_PRIORITY_LOW))
+  if (dev->read(dev, sector, dev->buffer, 1))
     return E_ERROR;
   if (*(uint16_t *)(dev->buffer + 0x01FE) != 0xAA55)
   {
