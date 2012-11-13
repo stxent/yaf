@@ -6,7 +6,7 @@
 
 #include "fs.h"
 /*----------------------------------------------------------------------------*/
-enum fsResult fsMount(struct FsHandle *sys, struct BlockDevice *dev)
+enum fsResult fsMount(struct FsHandle *sys, struct BlockInterface *dev)
 {
   return sys->type->mount ? sys->type->mount(sys, dev) : FS_ERROR;
 }

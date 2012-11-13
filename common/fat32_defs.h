@@ -75,6 +75,7 @@ struct FatHandle
   uint32_t clusterCount; /* Number of clusters */
   uint32_t lastAllocated; /* Last allocated cluster */
 #endif
+  uint8_t buffer[512];
 };
 /*----------------------------------------------------------------------------*/
 /*------------------Directory entry structure---------------------------------*/
@@ -164,7 +165,7 @@ static enum fsResult updateTable(struct FsHandle *, uint32_t);
 #endif
 /*----------------------------------------------------------------------------*/
 /*------------------Implemented filesystem methods----------------------------*/
-static enum fsResult fatMount(struct FsHandle *, struct BlockDevice *);
+static enum fsResult fatMount(struct FsHandle *, struct BlockInterface *);
 static void fatUmount(struct FsHandle *);
 static enum fsResult fatStat(struct FsHandle *, const char *, struct FsStat *);
 static enum fsResult fatOpen(struct FsHandle *, struct FsFile *, const char *,

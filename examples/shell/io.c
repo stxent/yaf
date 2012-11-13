@@ -7,11 +7,14 @@
 #include <stdio.h>
 #endif
 /*----------------------------------------------------------------------------*/
-#undef DEBUG
+// #undef DEBUG
 /*----------------------------------------------------------------------------*/
 /* Memory mapped device handle */
-struct mmdHandle
+struct Mmd
 {
+  struct BlockInterface parent;
+
+  struct Interface *stream;
   uint8_t type; /* Partition type */
   uint32_t offset; /* Partition offset from start */
   uint32_t size; /* Number of blocks in partition */
@@ -19,32 +22,37 @@ struct mmdHandle
   long readCount, writeCount, readExcess;
 };
 /*----------------------------------------------------------------------------*/
-enum result mmdRead(struct BlockDevice *, uint32_t, uint8_t *, uint8_t);
-enum result mmdWrite(struct BlockDevice *, uint32_t, const uint8_t *, uint8_t);
-void mmdDeinit(struct BlockDevice *);
+enum result mmdInit(struct Interface *, const void *);
+void mmdDeinit(struct Interface *);
+enum result mmdRead(struct BlockInterface *, uint32_t, uint8_t *, uint8_t);
+enum result mmdWrite(struct BlockInterface *, uint32_t, const uint8_t *, uint8_t);
 /*----------------------------------------------------------------------------*/
-enum result mmdInit(struct BlockDevice *dev, struct Interface *iface)
-{
-  struct mmdHandle *pdata;
-  dev->iface = iface;
-  dev->read = mmdRead;
-  dev->write = mmdWrite;
-  dev->deinit = mmdDeinit;
-#ifndef MMD_STATIC_ALLOC
-  dev->buffer = malloc(SECTOR_SIZE);
-#ifdef DEBUG
-  printf("mmaped_dev: dynamically allocated buffer, size %u\n", SECTOR_SIZE);
-#endif /* DEBUG */
-#endif /* MMD_STATIC_ALLOC */
-  if (!dev->buffer)
-    return E_ERROR;
+static const struct BlockInterfaceClass mmdTable = {
+    .parent = {
+        .size = sizeof(struct Mmd),
+        .init = mmdInit,
+        .deinit = mmdDeinit,
 
-  pdata = malloc(sizeof(struct mmdHandle));
-  if (!pdata)
-  {
-    free(dev->buffer);
-    return E_ERROR;
-  }
+        .start = 0,
+        .stop = 0,
+        .read = 0,
+        .write = 0,
+        .getopt = 0,
+        .setopt = 0
+    },
+    .blockRead = mmdRead,
+    .blockWrite = mmdWrite
+};
+/*----------------------------------------------------------------------------*/
+const struct BlockInterfaceClass *Mmd = &mmdTable;
+/*----------------------------------------------------------------------------*/
+enum result mmdInit(struct Interface *iface, const void *data)
+{
+  const struct mmdConfig *config = (const struct mmdConfig *)data;
+  struct Mmd *pdata = (struct Mmd *)iface;
+
+  pdata->stream = config->stream;
+
   pdata->current = (uint32_t)-1;
   pdata->offset = 0;
   pdata->type = 0;
@@ -53,21 +61,18 @@ enum result mmdInit(struct BlockDevice *dev, struct Interface *iface)
   pdata->writeCount = 0;
   pdata->readExcess = 0;
 
-  dev->data = (void *)pdata;
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-void mmdDeinit(struct BlockDevice *dev)
+void mmdDeinit(struct Interface *iface)
 {
-  free(dev->data);
-  dev->iface = 0;
-  dev->buffer = 0;
+//   iface->iface = 0;
 }
 /*----------------------------------------------------------------------------*/
-enum result mmdRead(struct BlockDevice *dev, uint32_t pos, uint8_t *data,
+enum result mmdRead(struct BlockInterface *iface, uint32_t pos, uint8_t *data,
     uint8_t cnt)
 {
-  struct mmdHandle *pdata = (struct mmdHandle *)dev->data;
+  struct Mmd *pdata = (struct Mmd *)iface;
   uint64_t memPtr;
 
   if (pdata->current == pos && cnt == 1)
@@ -78,10 +83,10 @@ enum result mmdRead(struct BlockDevice *dev, uint32_t pos, uint8_t *data,
   if (pos + cnt > pdata->size)
     return E_ERROR;
   memPtr = (pos + pdata->offset) << SECTOR_POW;
-  ifSetOpt(dev->iface, IF_ADDRESS, &memPtr);
-  ifRead(dev->iface, data, SECTOR_SIZE * cnt);
+  ifSetOpt(pdata->stream, IF_ADDRESS, &memPtr);
+  ifRead(pdata->stream, data, SECTOR_SIZE * cnt);
 #ifdef DEBUG
-  printf("mmaped_dev: fetched sector: %u\n", pos);
+  printf("mmaped_dev: read sector: %u\n", pos);
 #endif
   if (cnt == 1)
     pdata->current = pos;
@@ -89,64 +94,66 @@ enum result mmdRead(struct BlockDevice *dev, uint32_t pos, uint8_t *data,
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-enum result mmdWrite(struct BlockDevice *dev, uint32_t pos,
+enum result mmdWrite(struct BlockInterface *iface, uint32_t pos,
     const uint8_t *data, uint8_t cnt)
 {
-  struct mmdHandle *pdata = (struct mmdHandle *)dev->data;
+  struct Mmd *pdata = (struct Mmd *)iface;
   uint64_t memPtr;
 
   if (pos + cnt > pdata->size)
     return E_ERROR;
   memPtr = (pos + pdata->offset) << SECTOR_POW;
-  ifSetOpt(dev->iface, IF_ADDRESS, &memPtr);
-  ifWrite(dev->iface, data, SECTOR_SIZE * cnt);
+  ifSetOpt(pdata->stream, IF_ADDRESS, &memPtr);
+  ifWrite(pdata->stream, data, SECTOR_SIZE * cnt);
 #ifdef DEBUG
-  printf("mmaped_dev: written sector: %u\n", pos);
+  printf("mmaped_dev: write sector: %u\n", pos);
 #endif
   pdata->writeCount++;
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-enum result mmdReadTable(struct BlockDevice *dev, uint32_t sector,
+enum result mmdReadTable(struct BlockInterface *iface, uint32_t sector,
     uint8_t index)
 {
-  struct mmdHandle *pdata = (struct mmdHandle *)dev->data;
-  uint8_t *ptr;
-//   uint32_t prevOffset = pdata->offset; /* Save previous value */
-
-  pdata->offset = 0;
-  if (dev->read(dev, sector, dev->buffer, 1))
-    return E_ERROR;
-  if (*(uint16_t *)(dev->buffer + 0x01FE) != 0xAA55)
-  {
-#ifdef DEBUG
-    printf("mmaped_dev: sector is not MBR\n");
-#endif
-    return E_ERROR;
-  }
-
-  ptr = dev->buffer + 0x01BE + (index << 4); /* Pointer to partition entry */
-  if (!*(uint8_t *)(ptr + 0x04)) /* Empty entry */
-  {
-#ifdef DEBUG
-    printf("mmaped_dev: MBR entry on position %u is empty\n",
-        (unsigned int)index);
-#endif
-    return E_ERROR;
-  }
-  pdata->type = *(uint8_t *)(ptr + 0x04); /* File system descriptor */
-  pdata->offset = *(uint32_t *)(ptr + 0x08);
-  pdata->size = *(uint32_t *)(ptr + 0x0C);
-  pdata->current = (uint32_t)-1;
-#ifdef DEBUG
-  printf("mmaped_dev: MBR entry found: type 0x%02X, offset %u, size %u\n",
-      (unsigned int)pdata->type, pdata->offset, pdata->size);
-#endif
-  return E_OK;
+  struct Mmd *pdata = (struct Mmd *)iface;
+  return E_ERROR;
+//   uint8_t *ptr;
+// //   uint32_t prevOffset = pdata->offset; /* Save previous value */
+// 
+//   pdata->offset = 0;
+//   if (dev->read(dev, sector, dev->buffer, 1))
+//     return E_ERROR;
+//   if (*(uint16_t *)(dev->buffer + 0x01FE) != 0xAA55)
+//   {
+// #ifdef DEBUG
+//     printf("mmaped_dev: sector is not MBR\n");
+// #endif
+//     return E_ERROR;
+//   }
+// 
+//   ptr = dev->buffer + 0x01BE + (index << 4); /* Pointer to partition entry */
+//   if (!*(uint8_t *)(ptr + 0x04)) /* Empty entry */
+//   {
+// #ifdef DEBUG
+//     printf("mmaped_dev: MBR entry on position %u is empty\n",
+//         (unsigned int)index);
+// #endif
+//     return E_ERROR;
+//   }
+//   pdata->type = *(uint8_t *)(ptr + 0x04); /* File system descriptor */
+//   pdata->offset = *(uint32_t *)(ptr + 0x08);
+//   pdata->size = *(uint32_t *)(ptr + 0x0C);
+//   pdata->current = (uint32_t)-1;
+// #ifdef DEBUG
+//   printf("mmaped_dev: MBR entry found: type 0x%02X, offset %u, size %u\n",
+//       (unsigned int)pdata->type, pdata->offset, pdata->size);
+// #endif
+//   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-uint8_t mmdGetType(struct BlockDevice *dev)
+uint8_t mmdGetType(struct BlockInterface *dev)
 {
-  struct mmdHandle *pdata = (struct mmdHandle *)dev->data;
-  return pdata->type;
+//   struct Mmd *pdata = (struct Mmd *)dev->data;
+//   return pdata->type;
+  return 0x00;
 }

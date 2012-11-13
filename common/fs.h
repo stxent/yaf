@@ -119,7 +119,7 @@ struct FsHandleClass
   const void *Dir;
 
   /* Virtual methods */
-  enum fsResult (*mount)(struct FsHandle *, struct BlockDevice *);
+  enum fsResult (*mount)(struct FsHandle *, struct BlockInterface *);
   void (*umount)(struct FsHandle *);
   enum fsResult (*open)(struct FsHandle *, struct FsFile *, const char *,
       enum fsMode);
@@ -134,12 +134,12 @@ struct FsHandle
 {
   const struct FsHandleClass *type;
 
-  struct BlockDevice *dev;
+  struct BlockInterface *dev;
 };
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 /* Filesystem handle functions */
-enum fsResult fsMount(struct FsHandle *, struct BlockDevice *);
+enum fsResult fsMount(struct FsHandle *, struct BlockInterface *);
 void fsUmount(struct FsHandle *);
 struct FsFile *fsOpen(struct FsHandle *, const char *, enum fsMode);
 enum fsResult fsRemove(struct FsHandle *, const char *);

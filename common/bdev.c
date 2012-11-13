@@ -6,28 +6,16 @@
 
 #include "bdev.h"
 /*----------------------------------------------------------------------------*/
-enum result blockRead(struct BlockDevice *dev, uint32_t pos, uint8_t *buf,
-    uint8_t cnt)
+enum result ifBlockRead(struct BlockInterface *iface, uint32_t pos,
+    uint8_t *buf, uint8_t cnt)
 {
-//   buf = (!buf) ? dev->buffer : buf;
-  if (dev->read)
-    return dev->read(dev, pos, buf, cnt);
-  else
-    return E_ERROR;
+  return iface->type->blockRead ?
+      iface->type->blockRead(iface, pos, buf, cnt) : E_ERROR;
 }
 /*----------------------------------------------------------------------------*/
-enum result blockWrite(struct BlockDevice *dev, uint32_t pos,
+enum result ifBlockWrite(struct BlockInterface *iface, uint32_t pos,
     const uint8_t *buf, uint8_t cnt)
 {
-//   buf = (!buf) ? dev->buffer : buf;
-  if (dev->write)
-    return dev->write(dev, pos, buf, cnt);
-  else
-    return E_ERROR;
-}
-/*----------------------------------------------------------------------------*/
-void blockDeinit(struct BlockDevice *dev)
-{
-  if (dev->deinit)
-    dev->deinit(dev);
+  return iface->type->blockWrite ?
+      iface->type->blockWrite(iface, pos, buf, cnt) : E_ERROR;
 }

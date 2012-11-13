@@ -485,10 +485,10 @@ int util_info(struct FsHandle *handler)
   cout << "Free clusters:      " << sz << endl;
 #endif
 // #endif
-  cout << "Size of BlockDevice: " << sizeof(BlockDevice) << endl;
-  cout << "Size of FsHandle:    " << sizeof(FsHandle) << endl;
-  cout << "Size of FsFile:      " << sizeof(FsFile) << endl;
-  cout << "Size of FsDir:       " << sizeof(FsDir) << endl;
+  cout << "Size of BlockDevice: " << sizeof(struct BlockInterface) << endl;
+  cout << "Size of FsHandle:    " << sizeof(struct FsHandle) << endl;
+  cout << "Size of FsFile:      " << sizeof(struct FsFile) << endl;
+  cout << "Size of FsDir:       " << sizeof(struct FsDir) << endl;
   return FS_OK;
 }
 //------------------------------------------------------------------------------
@@ -743,21 +743,26 @@ int main(int argc, char *argv[])
     return 0;
 
   struct Interface *mmaped;
-  BlockDevice dev;
+  struct BlockInterface *dev;
   struct FsHandle *handler;
 
-  mmaped = (struct Interface *)init(Mmi, (const void *)argv[1]);
+  mmaped = (struct Interface *)init(Mmi, argv[1]);
   if (!mmaped)
   {
     printf("Error opening file\n");
     return 0;
   }
-  if (mmdInit(&dev, mmaped) != E_OK)
+
+  struct mmdConfig mmdConf = {
+      .stream = mmaped
+  };
+  dev = (struct BlockInterface *)init(Mmd, &mmdConf);
+  if (!dev)
   {
-    printf("Error connecting interface with partition device\n");
+    printf("Error creating block device\n");
     return 0;
   }
-  if (mmdReadTable(&dev, 0, 0) == E_OK)
+  if (mmdReadTable(dev, 0, 0) == E_OK)
   {
     /*
      * 0x0B: 32-bit FAT
@@ -765,10 +770,10 @@ int main(int argc, char *argv[])
      * 0x1B: Hidden 32-bit FAT
      * 0x1C: Hidden 32-bit FAT, using INT 13 Extensions
      */
-    if (mmdGetType(&dev) != 0x0B)
+    if (mmdGetType(dev) != 0x0B)
     {
       printf("Wrong partition type, expected: 0x0B, got: 0x%02X\n",
-          mmdGetType(&dev));
+          mmdGetType(dev));
     }
   }
   else
@@ -780,7 +785,7 @@ int main(int argc, char *argv[])
     printf("Error creating FAT32 handler\n");
     return 0;
   }
-  if (fsMount(handler, &dev) != FS_OK)
+  if (fsMount(handler, dev) != FS_OK)
   {
     printf("Error loading partition\n");
     return 0;

@@ -18,20 +18,25 @@
 /*----------------------------------------------------------------------------*/
 #define SECTOR_SIZE     (1 << SECTOR_POW) /* Sector size in bytes */
 /*----------------------------------------------------------------------------*/
-struct BlockDevice
+struct BlockInterface;
+/*----------------------------------------------------------------------------*/
+struct BlockInterfaceClass
 {
-  struct Interface *iface;
-  enum result (*read)(struct BlockDevice *, uint32_t, uint8_t *, uint8_t);
-  enum result (*write)(struct BlockDevice *, uint32_t, const uint8_t *,
+  struct InterfaceClass parent;
+
+  enum result (*blockRead)(struct BlockInterface *, uint32_t, uint8_t *,
       uint8_t);
-  void (*deinit)(struct BlockDevice *);
-  uint8_t *buffer;
-  /* Device-specific data */
-  void *data;
+  enum result (*blockWrite)(struct BlockInterface *, uint32_t, const uint8_t *,
+      uint8_t);
 };
 /*------------------------------------------------------------------------------*/
-enum result blockRead(struct BlockDevice *, uint32_t, uint8_t *, uint8_t);
-enum result blockWrite(struct BlockDevice *, uint32_t, const uint8_t *, uint8_t);
-void blockDeinit(struct BlockDevice *);
+struct BlockInterface
+{
+  const struct BlockInterfaceClass *type;
+};
+/*------------------------------------------------------------------------------*/
+enum result ifBlockRead(struct BlockInterface *, uint32_t, uint8_t *, uint8_t);
+enum result ifBlockWrite(struct BlockInterface *, uint32_t, const uint8_t *,
+    uint8_t);
 /*------------------------------------------------------------------------------*/
 #endif /* BDEV_H_ */

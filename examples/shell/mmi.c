@@ -14,7 +14,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mmi.h"
 /*----------------------------------------------------------------------------*/
-struct MemMapedInterface
+struct Mmi
 {
   struct Interface parent;
   void *data;
@@ -31,7 +31,7 @@ static enum result mmiGetOpt(struct Interface *, enum ifOption, void *);
 static enum result mmiSetOpt(struct Interface *, enum ifOption, const void *);
 /*----------------------------------------------------------------------------*/
 static const struct InterfaceClass mmiTable = {
-    .size = sizeof(struct MemMapedInterface),
+    .size = sizeof(struct Mmi),
     .init = mmiInit,
     .deinit = mmiDeinit,
 
@@ -48,7 +48,7 @@ const struct InterfaceClass *Mmi = &mmiTable;
 static enum result mmiInit(struct Interface *iface, const void *cdata)
 {
   const char *path = (const char *)cdata;
-  struct MemMapedInterface *dev = (struct MemMapedInterface *)iface;
+  struct Mmi *dev = (struct Mmi *)iface;
 
   dev->position = 0;
   dev->file = open(path, O_RDWR);
@@ -69,7 +69,7 @@ static enum result mmiInit(struct Interface *iface, const void *cdata)
 static unsigned int mmiRead(struct Interface *iface, uint8_t *buffer,
     unsigned int length)
 {
-  struct MemMapedInterface *dev = (struct MemMapedInterface *)iface;
+  struct Mmi *dev = (struct Mmi *)iface;
 
   memcpy(buffer, (uint8_t *)dev->data + dev->position, length);
   return length;
@@ -78,7 +78,7 @@ static unsigned int mmiRead(struct Interface *iface, uint8_t *buffer,
 static unsigned int mmiWrite(struct Interface *iface, const uint8_t *buffer,
     unsigned int length)
 {
-  struct MemMapedInterface *dev = (struct MemMapedInterface *)iface;
+  struct Mmi *dev = (struct Mmi *)iface;
 
   memcpy((uint8_t *)dev->data + dev->position, buffer, length);
   return length;
@@ -87,7 +87,7 @@ static unsigned int mmiWrite(struct Interface *iface, const uint8_t *buffer,
 static enum result mmiGetOpt(struct Interface *iface, enum ifOption option,
     void *data)
 {
-  struct MemMapedInterface *dev = (struct MemMapedInterface *)iface;
+  struct Mmi *dev = (struct Mmi *)iface;
 
   switch (option)
   {
@@ -102,7 +102,7 @@ static enum result mmiGetOpt(struct Interface *iface, enum ifOption option,
 static enum result mmiSetOpt(struct Interface *iface, enum ifOption option,
     const void *data)
 {
-  struct MemMapedInterface *dev = (struct MemMapedInterface *)iface;
+  struct Mmi *dev = (struct Mmi *)iface;
 
   switch (option)
   {
@@ -120,7 +120,7 @@ static enum result mmiSetOpt(struct Interface *iface, enum ifOption option,
 /*----------------------------------------------------------------------------*/
 static void mmiDeinit(struct Interface *iface)
 {
-  struct MemMapedInterface *dev = (struct MemMapedInterface *)iface;
+  struct Mmi *dev = (struct Mmi *)iface;
   munmap(dev->data, dev->info.st_size);
   close(dev->file);
 }
