@@ -5,6 +5,7 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
 /*----------------------------------------------------------------------------*/
 #include "fat32.h"
 #include "fat32_defs.h"
@@ -45,6 +46,24 @@ static inline uint32_t getSector(struct FatHandle *handle, uint32_t cluster)
 static inline uint16_t entryCount(struct FatHandle *handle)
 {
   return 1 << E_POW << handle->clusterSize;
+}
+/*----------------------------------------------------------------------------*/
+static inline enum fsResult readSector(struct FatHandle *handle,
+    uint32_t address, uint8_t *buffer, uint8_t count)
+{
+  /* FIXME */
+  if (handle->bufferedSector == address)
+    return FS_OK;
+  return fsBlockRead(handle->parent.dev, address << SECTOR_POW, buffer,
+      count << SECTOR_POW) == E_OK ? FS_OK : FS_ERROR;
+}
+/*----------------------------------------------------------------------------*/
+static inline enum fsResult writeSector(struct FatHandle *handle,
+    uint32_t address, const uint8_t *buffer, uint8_t count)
+{
+  /* FIXME */
+  return fsBlockWrite(handle->parent.dev, address << SECTOR_POW, buffer,
+      count << SECTOR_POW) == E_OK ? FS_OK : FS_ERROR;
 }
 /*----------------------------------------------------------------------------*/
 /*------------------Class descriptors-----------------------------------------*/
@@ -123,7 +142,7 @@ static enum fsResult fetchEntry(struct FsHandle *sys, struct FatObject *entry)
     }
     sector = handle->dataSector + E_SECTOR(entry->index) +
         ((entry->parent - 2) << handle->clusterSize);
-    if (ifBlockRead(sys->dev, sector, handle->buffer, 1))
+    if (readSector(handle, sector, handle->buffer, 1))
       return FS_READ_ERROR;
     ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
     if (!ptr->name[0]) /* No more entries */
@@ -217,7 +236,7 @@ static enum fsResult getNextCluster(struct FsHandle *sys, uint32_t *cluster)
   struct FatHandle *handle = (struct FatHandle *)sys;
   uint32_t nextCluster;
 
-  if (ifBlockRead(sys->dev, handle->tableSector + (*cluster >> TE_COUNT),
+  if (readSector(handle, handle->tableSector + (*cluster >> TE_COUNT),
       handle->buffer, 1))
   {
     return FS_READ_ERROR;
@@ -251,7 +270,7 @@ static enum fsResult allocateCluster(struct FsHandle *sys,
 #endif
     if (current >= handle->clusterCount)
       current = 2;
-    if (ifBlockRead(sys->dev, handle->tableSector + (current >> TE_COUNT),
+    if (readSector(handle, handle->tableSector + (current >> TE_COUNT),
         handle->buffer, 1))
     {
       return FS_READ_ERROR;
@@ -268,7 +287,7 @@ static enum fsResult allocateCluster(struct FsHandle *sys,
       }
       if (*cluster)
       {
-        if (ifBlockRead(sys->dev, handle->tableSector + (*cluster >> TE_COUNT),
+        if (readSector(handle, handle->tableSector + (*cluster >> TE_COUNT),
             handle->buffer, 1))
         {
           return FS_READ_ERROR;
@@ -282,7 +301,7 @@ static enum fsResult allocateCluster(struct FsHandle *sys,
 #endif
       *cluster = current;
       /* Update information sector */
-      if (ifBlockRead(sys->dev, handle->infoSector, handle->buffer, 1))
+      if (readSector(handle, handle->infoSector, handle->buffer, 1))
         return FS_READ_ERROR;
       info = (struct InfoSectorImage *)handle->buffer;
       /* Set last allocated cluster */
@@ -290,7 +309,7 @@ static enum fsResult allocateCluster(struct FsHandle *sys,
       handle->lastAllocated = current;
       /* Update free clusters count */
       info->freeClusters--;
-      if (ifBlockWrite(sys->dev, handle->infoSector, handle->buffer, 1))
+      if (writeSector(handle, handle->infoSector, handle->buffer, 1))
         return FS_WRITE_ERROR;
       return FS_OK;
     }
@@ -340,7 +359,7 @@ static enum fsResult createEntry(struct FsHandle *sys,
           memset(handle->buffer, 0, SECTOR_SIZE);
           for (pos = 0; pos < (1 << handle->clusterSize); pos++)
           {
-            if (ifBlockWrite(sys->dev, sector + pos, handle->buffer, 1))
+            if (writeSector(handle, sector + pos, handle->buffer, 1))
               return FS_WRITE_ERROR;
           }
         }
@@ -352,7 +371,7 @@ static enum fsResult createEntry(struct FsHandle *sys,
     }
     sector = handle->dataSector + E_SECTOR(entry->index) +
         ((entry->parent - 2) << handle->clusterSize);
-    if (ifBlockRead(sys->dev, sector, handle->buffer, 1))
+    if (readSector(handle, sector, handle->buffer, 1))
       return FS_ERROR;
     ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
     /* Empty or removed entry */
@@ -381,7 +400,7 @@ static enum fsResult createEntry(struct FsHandle *sys,
   ptr->time = rtcGetTime();
   ptr->date = rtcGetDate();
 #endif
-  if (ifBlockWrite(sys->dev, sector, handle->buffer, 1))
+  if (writeSector(handle, sector, handle->buffer, 1))
     return FS_WRITE_ERROR;
   return FS_OK;
 }
@@ -402,7 +421,7 @@ static enum fsResult freeChain(struct FsHandle *sys, uint32_t cluster)
   while (clusterUsed(current))
   {
     /* Get FAT sector with next cluster value */
-    if (ifBlockRead(sys->dev, handle->tableSector + (current >> TE_COUNT),
+    if (readSector(handle, handle->tableSector + (current >> TE_COUNT),
         handle->buffer, 1))
     {
       return FS_READ_ERROR;
@@ -427,12 +446,12 @@ static enum fsResult freeChain(struct FsHandle *sys, uint32_t cluster)
     current = next;
   }
   /* Update information sector */
-  if (ifBlockRead(sys->dev, handle->infoSector, handle->buffer, 1))
+  if (readSector(handle, handle->infoSector, handle->buffer, 1))
     return FS_READ_ERROR;
   info = (struct InfoSectorImage *)dbuf;
   /* Set free clusters count */
   info->freeClusters += freeCount;
-  if (ifBlockWrite(sys->dev, handle->infoSector, handle->buffer, 1))
+  if (writeSector(handle, handle->infoSector, handle->buffer, 1))
     return FS_WRITE_ERROR;
   return FS_OK;
 }
@@ -441,20 +460,18 @@ static enum fsResult freeChain(struct FsHandle *sys, uint32_t cluster)
 #ifdef FAT_WRITE
 static enum fsResult truncate(struct FsFile *file)
 {
-  /* TODO optimize */
-  struct FsHandle *sys = file->descriptor;
-  struct FatHandle *handle = (struct FatHandle *)sys;
+  struct FatHandle *handle = (struct FatHandle *)file->descriptor;
   struct FatFile *fh = (struct FatFile *)file;
   struct DirEntryImage *ptr;
   uint32_t sector;
 
   if (file->mode != FS_WRITE && file->mode != FS_APPEND)
     return FS_ERROR;
-  if (freeChain(sys, fh->cluster) != FS_OK)
+  if (freeChain(&handle->parent, fh->cluster) != FS_OK)
     return FS_ERROR;
   sector = getSector(handle, fh->parentCluster) +
       E_SECTOR(fh->parentIndex);
-  if (ifBlockRead(sys->dev, sector, handle->buffer, 1))
+  if (readSector(handle, sector, handle->buffer, 1))
     return FS_READ_ERROR;
   /* Pointer to entry position in sector */
   ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(fh->parentIndex));
@@ -467,7 +484,7 @@ static enum fsResult truncate(struct FsFile *file)
   ptr->time = rtcGetTime();
   ptr->date = rtcGetDate();
 #endif
-  if (ifBlockWrite(sys->dev, sector, handle->buffer, 1))
+  if (writeSector(handle, sector, handle->buffer, 1))
     return FS_WRITE_ERROR;
   fh->cluster = 0;
   fh->currentCluster = 0;
@@ -487,7 +504,7 @@ static enum fsResult updateTable(struct FsHandle *sys, uint32_t offset)
 
   for (fat = 0; fat < handle->tableCount; fat++)
   {
-    if (ifBlockWrite(sys->dev, handle->tableSector + (uint32_t)fat *
+    if (writeSector(handle, handle->tableSector + (uint32_t)fat *
         handle->tableSize + offset, handle->buffer, 1))
     {
       return FS_WRITE_ERROR;
@@ -498,7 +515,7 @@ static enum fsResult updateTable(struct FsHandle *sys, uint32_t offset)
 #endif
 /*----------------------------------------------------------------------------*/
 /*------------------Implemented filesystem methods----------------------------*/
-static enum fsResult fatMount(struct FsHandle *sys, struct BlockInterface *dev)
+static enum fsResult fatMount(struct FsHandle *sys, struct Interface *dev)
 {
   struct FatHandle *handle = (struct FatHandle *)sys;
   struct BootSectorImage *boot;
@@ -507,16 +524,23 @@ static enum fsResult fatMount(struct FsHandle *sys, struct BlockInterface *dev)
 #endif
   uint16_t tmp;
 
-  sys->dev = 0;
+  /* Initialize buffer variables */
+  /* FIXME move to constructor */
+  handle->buffer = malloc(SECTOR_SIZE);
+  if (!handle->buffer)
+    return FS_ERROR; /* FIXME E_MEMORY */
+  handle->bufferedSector = (uint32_t)(-1);
+
+  sys->dev = dev;
   /* Read first sector */
-  if (ifBlockRead(dev, 0, handle->buffer, 1))
+  if (readSector(handle, 0, handle->buffer, 1))
     return FS_READ_ERROR;
   boot = (struct BootSectorImage *)handle->buffer;
   /* Check boot sector signature (55AA at 0x01FE) */
   /* TODO move signatures to macro */
   if (boot->bootSignature != 0xAA55)
     return FS_DEVICE_ERROR;
-  /* Check sector size, fixed size of 2^SECTOR_POW allowed */
+  /* Check sector size, fixed size of 2 ^ SECTOR_POW allowed */
   if (boot->bytesPerSector != SECTOR_SIZE)
     return FS_DEVICE_ERROR;
   /* Calculate sectors per cluster count */
@@ -539,7 +563,7 @@ static enum fsResult fatMount(struct FsHandle *sys, struct BlockInterface *dev)
   printf("Sectors count:        %u\n", boot->partitionSize);
 #endif /* DEBUG */
 
-  if (ifBlockRead(dev, handle->infoSector, handle->buffer, 1))
+  if (readSector(handle, handle->infoSector, handle->buffer, 1))
     return FS_READ_ERROR;
   info = (struct InfoSectorImage *)handle->buffer;
   /* Check info sector signatures (RRaA at 0x0000 and rrAa at 0x01E4) */
@@ -550,8 +574,6 @@ static enum fsResult fatMount(struct FsHandle *sys, struct BlockInterface *dev)
   printf("Free clusters:        %u\n", info->freeClusters);
 #endif /* DEBUG */
 #endif /* FAT_WRITE */
-
-  sys->dev = dev;
 
 #ifdef DEBUG
   printf("Size of FatHandle:    %u\n", (unsigned int)sizeof(struct FatHandle));
@@ -564,7 +586,10 @@ static enum fsResult fatMount(struct FsHandle *sys, struct BlockInterface *dev)
 /*----------------------------------------------------------------------------*/
 static void fatUmount(struct FsHandle *sys)
 {
-  sys->dev = 0;
+  struct FatHandle *handle = (struct FatHandle *)sys;
+
+  //FIXME move to destructor
+  free(handle->buffer);
 }
 /*----------------------------------------------------------------------------*/
 static enum fsResult fatStat(struct FsHandle *sys, const char *path,
@@ -587,7 +612,7 @@ static enum fsResult fatStat(struct FsHandle *sys, const char *path,
 
   sector = getSector((struct FatHandle *)sys, item.parent) +
       E_SECTOR(item.index);
-  if (ifBlockRead(sys->dev, sector, handle->buffer, 1))
+  if (readSector(handle, sector, handle->buffer, 1))
     return FS_READ_ERROR;
 #ifdef FAT_TIME
   ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(item.index));
@@ -692,8 +717,7 @@ static bool fatEof(struct FsFile *file)
 static enum fsResult fatRead(struct FsFile *file, uint8_t *buffer,
     uint16_t count, uint16_t *result)
 {
-  struct FsHandle *sys = file->descriptor;
-  struct FatHandle *handle = (struct FatHandle *)sys;
+  struct FatHandle *handle = (struct FatHandle *)file->descriptor;
   struct FatFile *fh = (struct FatFile *)file;
   uint16_t chunk, offset, read = 0;
 
@@ -708,7 +732,7 @@ static enum fsResult fatRead(struct FsFile *file, uint8_t *buffer,
   {
     if (fh->currentSector >= (1 << handle->clusterSize))
     {
-      if (getNextCluster(sys, &fh->currentCluster))
+      if (getNextCluster(&handle->parent, &fh->currentCluster))
         return FS_READ_ERROR;
       fh->currentSector = 0;
     }
@@ -720,7 +744,7 @@ static enum fsResult fatRead(struct FsFile *file, uint8_t *buffer,
       /* Length of remaining sector space */
       chunk = SECTOR_SIZE - offset;
       chunk = count < chunk ? count : chunk;
-      if (ifBlockRead(sys->dev, getSector(handle, fh->currentCluster) +
+      if (readSector(handle, getSector(handle, fh->currentCluster) +
           fh->currentSector, handle->buffer, 1))
       {
         return FS_READ_ERROR;
@@ -740,7 +764,7 @@ static enum fsResult fatRead(struct FsFile *file, uint8_t *buffer,
       printf("Burst read position %u, chunk size %u, sector count %u\n",
           read, chunk, chunk >> SECTOR_POW);
 #endif
-      if (ifBlockRead(sys->dev, getSector(handle, fh->currentCluster) +
+      if (readSector(handle, getSector(handle, fh->currentCluster) +
           fh->currentSector, buffer + read, chunk >> SECTOR_POW))
       {
         return FS_READ_ERROR;
@@ -761,8 +785,7 @@ static enum fsResult fatRead(struct FsFile *file, uint8_t *buffer,
 static enum fsResult fatWrite(struct FsFile *file, const uint8_t *buffer,
     uint16_t count, uint16_t *result)
 {
-  struct FsHandle *sys = file->descriptor;
-  struct FatHandle *handle = (struct FatHandle *)sys;
+  struct FatHandle *handle = (struct FatHandle *)file->descriptor;
   struct FatFile *fh = (struct FatFile *)file;
   struct DirEntryImage *ptr;
   uint16_t chunk, offset, written = 0;
@@ -772,11 +795,11 @@ static enum fsResult fatWrite(struct FsFile *file, const uint8_t *buffer,
     return FS_ERROR;
   if (!file->size)
   {
-    if (allocateCluster(sys, &fh->cluster))
+    if (allocateCluster(&handle->parent, &fh->cluster))
       return FS_ERROR;
     fh->currentCluster = fh->cluster;
   }
-  /* Checking file size limit (2 GiB) */
+  /* Checking file size limit (4 GiB - 1) */
   if (file->size + count > FILE_SIZE_MAX)
     count = FILE_SIZE_MAX - file->size;
 
@@ -784,7 +807,7 @@ static enum fsResult fatWrite(struct FsFile *file, const uint8_t *buffer,
   {
     if (fh->currentSector >= (1 << handle->clusterSize))
     {
-      if (allocateCluster(sys, &fh->currentCluster))
+      if (allocateCluster(&handle->parent, &fh->currentCluster))
         return FS_WRITE_ERROR;
       fh->currentSector = 0;
     }
@@ -797,11 +820,11 @@ static enum fsResult fatWrite(struct FsFile *file, const uint8_t *buffer,
       chunk = SECTOR_SIZE - offset;
       chunk = (count < chunk) ? count : chunk;
       sector = getSector(handle, fh->currentCluster) + fh->currentSector;
-      if (ifBlockRead(sys->dev, sector, handle->buffer, 1))
+      if (readSector(handle, sector, handle->buffer, 1))
         return FS_READ_ERROR;
       memcpy(handle->buffer + offset,
           buffer + written, chunk);
-      if (ifBlockWrite(sys->dev, sector, handle->buffer, 1))
+      if (writeSector(handle, sector, handle->buffer, 1))
         return FS_WRITE_ERROR;
       if (chunk + offset >= SECTOR_SIZE)
         fh->currentSector++;
@@ -817,7 +840,7 @@ static enum fsResult fatWrite(struct FsFile *file, const uint8_t *buffer,
           written, chunk, chunk >> SECTOR_POW);
 #endif
       //TODO rename file
-      if (ifBlockWrite(sys->dev, getSector(handle, fh->currentCluster) +
+      if (writeSector(handle, getSector(handle, fh->currentCluster) +
           fh->currentSector, buffer + written, chunk >> SECTOR_POW))
         return FS_READ_ERROR;
       fh->currentSector += chunk >> SECTOR_POW;
@@ -828,7 +851,7 @@ static enum fsResult fatWrite(struct FsFile *file, const uint8_t *buffer,
   }
 
   sector = getSector(handle, fh->parentCluster) + E_SECTOR(fh->parentIndex);
-  if (ifBlockRead(sys->dev, sector, handle->buffer, 1))
+  if (readSector(handle, sector, handle->buffer, 1))
     return FS_READ_ERROR;
   /* Pointer to entry position in sector */
   ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(fh->parentIndex));
@@ -848,7 +871,7 @@ static enum fsResult fatWrite(struct FsFile *file, const uint8_t *buffer,
   ptr->time = rtcGetTime();
   ptr->date = rtcGetDate();
 #endif
-  if (ifBlockWrite(sys->dev, sector, handle->buffer, 1))
+  if (writeSector(handle, sector, handle->buffer, 1))
     return FS_WRITE_ERROR;
   *result = written;
   return FS_OK;
@@ -932,7 +955,7 @@ static enum fsResult fatMove(struct FsHandle *sys, const char *src,
       for (counter = 8, name++; *dest && (counter < 11); counter++)
         *(char *)(ptr + counter) = *dest++;
     }
-    if (ifBlockWrite(sys->dev, sector, handle->buffer, 1))
+    if (writeSector(handle, sector, handle->buffer, 1))
       return FS_WRITE_ERROR;
 
     return FS_OK;
@@ -949,21 +972,21 @@ static enum fsResult fatMove(struct FsHandle *sys, const char *src,
     return FS_WRITE_ERROR;
 
   sector = getSector(handle, parent) + E_SECTOR(index);
-  if (ifBlockRead(sys->dev, sector, handle->buffer, 1))
+  if (readSector(handle, sector, handle->buffer, 1))
     return FS_READ_ERROR;
   /* Set old entry as removed */
   *(uint8_t *)(handle->buffer + E_OFFSET(index)) = E_FLAG_EMPTY;
-  if (ifBlockWrite(sys->dev, sector, handle->buffer, 1))
+  if (writeSector(handle, sector, handle->buffer, 1))
     return FS_WRITE_ERROR;
 
   sector = getSector(handle, item.parent) + E_SECTOR(item.index);
-  if (ifBlockRead(sys->dev, sector, handle->buffer, 1))
+  if (readSector(handle, sector, handle->buffer, 1))
     return FS_READ_ERROR;
   ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(item.index));
   ptr->clusterHigh = cluster >> 16;
   ptr->clusterLow = cluster;
   ptr->size = size;
-  if (ifBlockWrite(sys->dev, sector, handle->buffer, 1))
+  if (writeSector(handle, sector, handle->buffer, 1))
     return FS_WRITE_ERROR;
 
   return FS_OK;
@@ -1001,12 +1024,12 @@ static enum fsResult fatRemove(struct FsHandle *sys, const char *path)
 
   /* Sector in directory with entry description */
   tmp = getSector((struct FatHandle *)sys, parent) + E_SECTOR(index);
-  if (ifBlockRead(sys->dev, tmp, handle->buffer, 1))
+  if (readSector(handle, tmp, handle->buffer, 1))
     return FS_READ_ERROR;
   /* Mark entry as free */
   ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(index));
   ptr->name[0] = E_FLAG_EMPTY;
-  if (ifBlockWrite(sys->dev, tmp, handle->buffer, 1))
+  if (writeSector(handle, tmp, handle->buffer, 1))
     return FS_WRITE_ERROR;
   return FS_OK;
 }
@@ -1099,6 +1122,7 @@ static enum fsResult fatReadDir(struct FsDir *dir, char *name)
 #ifdef FAT_WRITE
 static enum fsResult fatMakeDir(struct FsHandle *sys, const char *path)
 {
+  //FIXME
   struct FatHandle *handle = (struct FatHandle *)sys;
   struct DirEntryImage *ptr;
   struct FatObject item;
@@ -1117,12 +1141,12 @@ static enum fsResult fatMakeDir(struct FsHandle *sys, const char *path)
   if (createEntry(sys, &item, path) || allocateCluster(sys, &item.cluster))
     return FS_WRITE_ERROR;
   sector = getSector(handle, item.parent) + E_SECTOR(item.index);
-  if (ifBlockRead(sys->dev, sector, handle->buffer, 1))
+  if (readSector(handle, sector, handle->buffer, 1))
     return FS_READ_ERROR;
   ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(item.index));
   ptr->clusterHigh = item.cluster >> 16;
   ptr->clusterLow = item.cluster;
-  if (ifBlockWrite(sys->dev, sector, handle->buffer, 1))
+  if (writeSector(handle, sector, handle->buffer, 1))
     return FS_WRITE_ERROR;
   sector = getSector(handle, item.cluster);
 
@@ -1130,7 +1154,7 @@ static enum fsResult fatMakeDir(struct FsHandle *sys, const char *path)
   memset(handle->buffer, 0, SECTOR_SIZE);
   for (pos = (1 << handle->clusterSize) - 1; pos > 0; pos--)
   {
-    if (ifBlockWrite(sys->dev, sector + pos, handle->buffer, 1))
+    if (writeSector(handle, sector + pos, handle->buffer, 1))
       return FS_WRITE_ERROR;
   }
 
@@ -1164,7 +1188,7 @@ static enum fsResult fatMakeDir(struct FsHandle *sys, const char *path)
   ptr->date = (ptr - 1)->date;
 #endif
 
-  if (ifBlockWrite(sys->dev, sector, handle->buffer, 1))
+  if (writeSector(handle, sector, handle->buffer, 1))
     return FS_WRITE_ERROR;
   return FS_OK;
 }
@@ -1186,7 +1210,7 @@ uint32_t countFree(struct FsHandle *sys)
     count[fat] = 0;
     for (current = 0; current < handle->clusterCount; current++)
     {
-      if (ifBlockRead(sys->dev, handle->tableSector + (current >> TE_COUNT),
+      if (readSector(handle, handle->tableSector + (current >> TE_COUNT),
           handle->buffer, 1))
       {
         return FS_READ_ERROR;

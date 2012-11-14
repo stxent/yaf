@@ -50,6 +50,8 @@ static enum result mmiInit(struct Interface *iface, const void *cdata)
   const char *path = (const char *)cdata;
   struct Mmi *dev = (struct Mmi *)iface;
 
+  if (!path)
+    return E_ERROR;
   dev->position = 0;
   dev->file = open(path, O_RDWR);
 #ifdef DEBUG

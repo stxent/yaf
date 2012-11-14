@@ -11,7 +11,7 @@
 #include <stdbool.h>
 /*----------------------------------------------------------------------------*/
 #include "entity.h"
-#include "bdev.h"
+#include "interface.h"
 /*----------------------------------------------------------------------------*/
 enum fsMode
 {
@@ -21,6 +21,7 @@ enum fsMode
     FS_APPEND
 } __attribute__((packed));
 /*----------------------------------------------------------------------------*/
+/* TODO remove fsResult and use standard result */
 enum fsResult
 {
     FS_OK = 0,
@@ -119,7 +120,7 @@ struct FsHandleClass
   const void *Dir;
 
   /* Virtual methods */
-  enum fsResult (*mount)(struct FsHandle *, struct BlockInterface *);
+  enum fsResult (*mount)(struct FsHandle *, struct Interface *);
   void (*umount)(struct FsHandle *);
   enum fsResult (*open)(struct FsHandle *, struct FsFile *, const char *,
       enum fsMode);
@@ -134,12 +135,18 @@ struct FsHandle
 {
   const struct FsHandleClass *type;
 
-  struct BlockInterface *dev;
+  struct Interface *dev;
 };
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
+/* Block access functions, 64-bit address space with 2 GiB buffers */
+/* FIXME Typedef address pointer? */
+enum result fsBlockRead(struct Interface *, uint64_t, uint8_t *, uint32_t);
+enum result fsBlockWrite(struct Interface *, uint64_t, const uint8_t *,
+    uint32_t);
+/*----------------------------------------------------------------------------*/
 /* Filesystem handle functions */
-enum fsResult fsMount(struct FsHandle *, struct BlockInterface *);
+enum fsResult fsMount(struct FsHandle *, struct Interface *);
 void fsUmount(struct FsHandle *);
 struct FsFile *fsOpen(struct FsHandle *, const char *, enum fsMode);
 enum fsResult fsRemove(struct FsHandle *, const char *);

@@ -13,6 +13,15 @@
 #include "fs.h"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
+/* Sector size may be 512, 1024, 2048, 4096 bytes, default is 512 */
+/* FIXME */
+#ifndef SECTOR_POW
+#define SECTOR_POW              (9) /* Sector size in power of 2 */
+#endif /* SECTOR_POW */
+/*----------------------------------------------------------------------------*/
+#define SECTOR_SIZE             (1 << SECTOR_POW) /* Sector size in bytes */
+/*----------------------------------------------------------------------------*/
 #define FLAG_RO                 (uint8_t)0x01 /* Read only */
 #define FLAG_HIDDEN             (uint8_t)0x02
 #define FLAG_SYSTEM             (uint8_t)0x0C /* System or volume label */
@@ -60,6 +69,12 @@ struct FatDir
   uint32_t currentCluster;
 };
 /*----------------------------------------------------------------------------*/
+struct FatConfig
+{
+  struct Interface *interface;
+  uint8_t *buffer;
+};
+/*----------------------------------------------------------------------------*/
 struct FatHandle
 {
   struct FsHandle parent;
@@ -75,7 +90,10 @@ struct FatHandle
   uint32_t clusterCount; /* Number of clusters */
   uint32_t lastAllocated; /* Last allocated cluster */
 #endif
-  uint8_t buffer[512];
+  /* Buffer variables */
+  uint8_t *buffer;
+  uint32_t bufferedSector;
+  /* bool staticAlloc; *//* TODO Add */
 };
 /*----------------------------------------------------------------------------*/
 /*------------------Directory entry structure---------------------------------*/
@@ -145,8 +163,12 @@ struct InfoSectorImage
 static inline bool clusterFree(uint32_t);
 static inline bool clusterEOC(uint32_t);
 static inline bool clusterUsed(uint32_t);
-static inline uint32_t getSector(struct FatHandle *sys, uint32_t);
-static inline uint16_t entryCount(struct FatHandle *sys);
+static inline uint32_t getSector(struct FatHandle *, uint32_t);
+static inline uint16_t entryCount(struct FatHandle *);
+static inline enum fsResult readSector(struct FatHandle *, uint32_t, uint8_t *,
+    uint8_t);
+static inline enum fsResult writeSector(struct FatHandle *, uint32_t,
+    const uint8_t *, uint8_t);
 /*----------------------------------------------------------------------------*/
 /*------------------Specific FAT32 functions----------------------------------*/
 static enum fsResult fetchEntry(struct FsHandle *, struct FatObject *);
@@ -165,7 +187,7 @@ static enum fsResult updateTable(struct FsHandle *, uint32_t);
 #endif
 /*----------------------------------------------------------------------------*/
 /*------------------Implemented filesystem methods----------------------------*/
-static enum fsResult fatMount(struct FsHandle *, struct BlockInterface *);
+static enum fsResult fatMount(struct FsHandle *, struct Interface *);
 static void fatUmount(struct FsHandle *);
 static enum fsResult fatStat(struct FsHandle *, const char *, struct FsStat *);
 static enum fsResult fatOpen(struct FsHandle *, struct FsFile *, const char *,
