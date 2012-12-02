@@ -56,10 +56,14 @@ string extractName(const string &path)
 string parsePath(const string &folder, const string &path)
 {
   string res;
-  if (path[0] != '/')
+  if (path == "")
   {
     res = folder;
-    if (folder.size() > 1)
+  }
+  else if (path[0] != '/')
+  {
+    res = folder;
+    if (folder.size() > 1 && *(res.end() - 1) != '/')
       res += "/";
     res += path;
   }
@@ -155,6 +159,7 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
     dirPath = args[i];
   }
 
+  cout << "Src dir: " << loc << " and " << dirPath << endl;
   dirPath = parsePath(loc, dirPath);
   dir = fsOpenDir(handler, dirPath.c_str());
   if (dir)

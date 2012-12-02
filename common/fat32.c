@@ -48,17 +48,18 @@ static inline uint16_t entryCount(struct FatHandle *handle)
   return 1 << E_POW << handle->clusterSize;
 }
 /*----------------------------------------------------------------------------*/
-static inline enum fsResult readSector(struct FatHandle *handle,
+static /*inline */enum fsResult readSector(struct FatHandle *handle,
     uint32_t address, uint8_t *buffer, uint8_t count)
 {
   /* FIXME */
   if (handle->bufferedSector == address)
     return FS_OK;
+  handle->bufferedSector = address;
   return fsBlockRead(handle->parent.dev, address << SECTOR_POW, buffer,
       count << SECTOR_POW) == E_OK ? FS_OK : FS_ERROR;
 }
 /*----------------------------------------------------------------------------*/
-static inline enum fsResult writeSector(struct FatHandle *handle,
+static /*inline */enum fsResult writeSector(struct FatHandle *handle,
     uint32_t address, const uint8_t *buffer, uint8_t count)
 {
   /* FIXME */

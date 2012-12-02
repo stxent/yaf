@@ -9,6 +9,7 @@
 /*------------------------------------------------------------------------------*/
 #include <stdint.h>
 /*------------------------------------------------------------------------------*/
+#include "error.h"
 #include "entity.h"
 /*------------------------------------------------------------------------------*/
 enum ifOption {
@@ -27,10 +28,6 @@ struct InterfaceClass
 {
   CLASS_GENERATOR(Interface)
 
-  /* Start transmission, arguments: device address */
-  enum result (*start)(struct Interface *, uint8_t *);
-  /* Stop transmission */
-  void (*stop)(struct Interface *);
   /* Receive data, arguments: data buffer, message size */
   unsigned int (*read)(struct Interface *, uint8_t *, unsigned int);
   /* Send data, arguments: data buffer, message size */
@@ -43,11 +40,9 @@ struct InterfaceClass
 /*----------------------------------------------------------------------------*/
 struct Interface
 {
-  const struct InterfaceClass *type;
+  struct Entity parent;
 };
 /*----------------------------------------------------------------------------*/
-enum result ifStart(struct Interface *, uint8_t *);
-void ifStop(struct Interface *);
 unsigned int ifRead(struct Interface *, uint8_t *, unsigned int);
 unsigned int ifWrite(struct Interface *, const uint8_t *, unsigned int);
 enum result ifGetOpt(struct Interface *, enum ifOption, void *);

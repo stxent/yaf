@@ -35,8 +35,6 @@ static const struct InterfaceClass mmiTable = {
     .init = mmiInit,
     .deinit = mmiDeinit,
 
-    .start = 0,
-    .stop = 0,
     .read = mmiRead,
     .write = mmiWrite,
     .getopt = mmiGetOpt,

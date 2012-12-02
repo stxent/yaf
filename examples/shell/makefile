@@ -1,6 +1,6 @@
 PROJECT=fatshell
 FATCONFIG=-DFAT_WRITE -DFAT_TIME
-CFLAGS=-c -Wall -Wextra -Winline $(FATCONFIG)
+CFLAGS=-c -Os -Wall -Wextra -Winline $(FATCONFIG)
 CC=gcc
 CXX=g++
 

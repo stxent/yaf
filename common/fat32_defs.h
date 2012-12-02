@@ -165,9 +165,10 @@ static inline bool clusterEOC(uint32_t);
 static inline bool clusterUsed(uint32_t);
 static inline uint32_t getSector(struct FatHandle *, uint32_t);
 static inline uint16_t entryCount(struct FatHandle *);
-static inline enum fsResult readSector(struct FatHandle *, uint32_t, uint8_t *,
-    uint8_t);
-static inline enum fsResult writeSector(struct FatHandle *, uint32_t,
+/* FIXME */
+static /*inline */enum fsResult readSector(struct FatHandle *, uint32_t,
+    uint8_t *, uint8_t);
+static /*inline */enum fsResult writeSector(struct FatHandle *, uint32_t,
     const uint8_t *, uint8_t);
 /*----------------------------------------------------------------------------*/
 /*------------------Specific FAT32 functions----------------------------------*/

@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 /*----------------------------------------------------------------------------*/
+#include "error.h"
 #include "entity.h"
 #include "interface.h"
 /*----------------------------------------------------------------------------*/
@@ -82,7 +83,7 @@ struct FsFileClass
 /*----------------------------------------------------------------------------*/
 struct FsFile
 {
-  const struct FsFileClass *type;
+  struct Entity parent;
 
   struct FsHandle *descriptor;
   enum fsMode mode; /* Access mode: read, write or append */
@@ -105,7 +106,7 @@ struct FsDirClass
 /*----------------------------------------------------------------------------*/
 struct FsDir
 {
-  const struct FsDirClass *type;
+  struct Entity parent;
 
   struct FsHandle *descriptor;
   /* uint16_t position; TODO */
@@ -133,7 +134,7 @@ struct FsHandleClass
 /*----------------------------------------------------------------------------*/
 struct FsHandle
 {
-  const struct FsHandleClass *type;
+  struct Entity parent;
 
   struct Interface *dev;
 };
