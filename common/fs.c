@@ -8,17 +8,14 @@
 /*----------------------------------------------------------------------------*/
 #ifdef DEBUG
 #include <stdio.h>
+uint64_t readCount = 0, writeCount = 0;
 #endif
-/*----------------------------------------------------------------------------*/
-#undef DEBUG
 /*----------------------------------------------------------------------------*/
 /* TODO add constructor, destructor and members initialization */
 /*----------------------------------------------------------------------------*/
 enum result fsBlockRead(struct Interface *iface, uint64_t address,
     uint8_t *buffer, uint32_t length)
 {
-  static uint32_t rcount = 0;
-
   if (ifSetOpt(iface, IF_ADDRESS, &address) != E_OK)
   {
 #ifdef DEBUG
@@ -34,18 +31,14 @@ enum result fsBlockRead(struct Interface *iface, uint64_t address,
     return E_ERROR;
   }
 #ifdef DEBUG
-  printf("block_read: read position: %X (%u), requests: %u\n",
-      (unsigned int)address, (unsigned int)address, rcount);
+  readCount++;
 #endif
-  rcount++;
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
 enum result fsBlockWrite(struct Interface *iface, uint64_t address,
     const uint8_t *buffer, uint32_t length)
 {
-  static uint32_t wcount = 0;
-
   if (ifSetOpt(iface, IF_ADDRESS, &address) != E_OK)
   {
 #ifdef DEBUG
@@ -61,10 +54,8 @@ enum result fsBlockWrite(struct Interface *iface, uint64_t address,
     return E_ERROR;
   }
 #ifdef DEBUG
-  printf("block_read: write position: %X (%u), requests: %u\n",
-      (unsigned int)address, (unsigned int)address, wcount);
+  writeCount++;
 #endif
-  wcount++;
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/

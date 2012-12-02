@@ -25,6 +25,11 @@ extern "C"
 #include "fat32.h"
 }
 //------------------------------------------------------------------------------
+#ifdef DEBUG
+extern uint64_t readCount, writeCount;
+#endif
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 using namespace std;
 //------------------------------------------------------------------------------
 // extern long readCount, writeCount;
@@ -465,8 +470,8 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handler,
 //------------------------------------------------------------------------------
 int util_io(struct FsHandle *handler)
 {
-//   cout << "Sectors read:    " << readCount << endl;
-//   cout << "Sectors written: " << writeCount << endl;
+  cout << "Sectors read:    " << readCount << endl;
+  cout << "Sectors written: " << writeCount << endl;
   return FS_OK;
 }
 //------------------------------------------------------------------------------
@@ -588,13 +593,10 @@ enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
     }
   }
 
-  if (args[0] == "io")
+  if (args[0] == "stat")
   {
     util_io(handler);
   }
-//     case "stat":
-//       util_io(handler);
-//       break;
   if (args[0] == "info")
   {
     util_info(handler);
