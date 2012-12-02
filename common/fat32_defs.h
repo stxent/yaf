@@ -187,9 +187,10 @@ static enum fsResult truncate(struct FsFile *);
 static enum fsResult updateTable(struct FsHandle *, uint32_t);
 #endif
 /*----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
+static enum result fatInit(struct FsHandle *, const void *);
+static void fatDeinit(struct FsHandle *);
 /*------------------Implemented filesystem methods----------------------------*/
-static enum fsResult fatMount(struct FsHandle *, struct Interface *);
-static void fatUmount(struct FsHandle *);
 static enum fsResult fatStat(struct FsHandle *, const char *, struct FsStat *);
 static enum fsResult fatOpen(struct FsHandle *, struct FsFile *, const char *,
     enum fsMode);

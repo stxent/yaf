@@ -96,14 +96,12 @@ static const struct FsDirClass fatDirTable = {
 /*----------------------------------------------------------------------------*/
 static const struct FsHandleClass fatHandleTable = {
     .size = sizeof(struct FatHandle),
-    .init = 0,
-    .deinit = 0,
+    .init = fatInit,
+    .deinit = fatDeinit,
 
     .File = (void *)&fatFileTable,
     .Dir = (void *)&fatDirTable,
 
-    .mount = fatMount,
-    .umount = fatUmount,
     .open = fatOpen,
     .openDir = fatOpenDir,
     .stat = fatStat,
@@ -516,8 +514,9 @@ static enum fsResult updateTable(struct FsHandle *sys, uint32_t offset)
 #endif
 /*----------------------------------------------------------------------------*/
 /*------------------Implemented filesystem methods----------------------------*/
-static enum fsResult fatMount(struct FsHandle *sys, struct Interface *dev)
+static enum result fatInit(struct FsHandle *sys, const void *cdata)
 {
+  const struct Fat32Config *config = (const struct Fat32Config *)cdata;
   struct FatHandle *handle = (struct FatHandle *)sys;
   struct BootSectorImage *boot;
 #ifdef FAT_WRITE
@@ -526,24 +525,23 @@ static enum fsResult fatMount(struct FsHandle *sys, struct Interface *dev)
   uint16_t tmp;
 
   /* Initialize buffer variables */
-  /* FIXME move to constructor */
   handle->buffer = malloc(SECTOR_SIZE);
   if (!handle->buffer)
-    return FS_ERROR; /* FIXME E_MEMORY */
+    return E_MEMORY;
   handle->bufferedSector = (uint32_t)(-1);
 
-  sys->dev = dev;
+  sys->dev = config->interface;
   /* Read first sector */
   if (readSector(handle, 0, handle->buffer, 1))
-    return FS_READ_ERROR;
+    return E_INTERFACE;
   boot = (struct BootSectorImage *)handle->buffer;
   /* Check boot sector signature (55AA at 0x01FE) */
   /* TODO move signatures to macro */
   if (boot->bootSignature != 0xAA55)
-    return FS_DEVICE_ERROR;
+    return E_ERROR;
   /* Check sector size, fixed size of 2 ^ SECTOR_POW allowed */
   if (boot->bytesPerSector != SECTOR_SIZE)
-    return FS_DEVICE_ERROR;
+    return E_ERROR;
   /* Calculate sectors per cluster count */
   tmp = boot->sectorsPerCluster;
   handle->clusterSize = 0;
@@ -565,11 +563,11 @@ static enum fsResult fatMount(struct FsHandle *sys, struct Interface *dev)
 #endif /* DEBUG */
 
   if (readSector(handle, handle->infoSector, handle->buffer, 1))
-    return FS_READ_ERROR;
+    return E_INTERFACE;
   info = (struct InfoSectorImage *)handle->buffer;
   /* Check info sector signatures (RRaA at 0x0000 and rrAa at 0x01E4) */
   if (info->firstSignature != 0x41615252 || info->infoSignature != 0x61417272)
-    return FS_DEVICE_ERROR;
+    return E_ERROR;
   handle->lastAllocated = info->lastAllocated;
 #ifdef DEBUG
   printf("Free clusters:        %u\n", info->freeClusters);
@@ -582,15 +580,12 @@ static enum fsResult fatMount(struct FsHandle *sys, struct Interface *dev)
   printf("Size of FatDir:       %u\n", (unsigned int)sizeof(struct FatDir));
 #endif
 
-  return FS_OK;
+  return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-static void fatUmount(struct FsHandle *sys)
+static void fatDeinit(struct FsHandle *sys)
 {
-  struct FatHandle *handle = (struct FatHandle *)sys;
-
-  //FIXME move to destructor
-  free(handle->buffer);
+  free(((struct FatHandle *)sys)->buffer);
 }
 /*----------------------------------------------------------------------------*/
 static enum fsResult fatStat(struct FsHandle *sys, const char *path,

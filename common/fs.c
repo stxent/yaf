@@ -11,8 +11,6 @@
 uint64_t readCount = 0, writeCount = 0;
 #endif
 /*----------------------------------------------------------------------------*/
-/* TODO add constructor, destructor and members initialization */
-/*----------------------------------------------------------------------------*/
 enum result fsBlockRead(struct Interface *iface, uint64_t address,
     uint8_t *buffer, uint32_t length)
 {
@@ -57,18 +55,6 @@ enum result fsBlockWrite(struct Interface *iface, uint64_t address,
   writeCount++;
 #endif
   return E_OK;
-}
-/*----------------------------------------------------------------------------*/
-enum fsResult fsMount(struct FsHandle *sys, struct Interface *device)
-{
-  return ((struct FsHandleClass *)CLASS(sys))->mount ?
-      ((struct FsHandleClass *)CLASS(sys))->mount(sys, device) : FS_ERROR;
-}
-/*----------------------------------------------------------------------------*/
-void fsUmount(struct FsHandle *sys)
-{
-  if (((struct FsHandleClass *)CLASS(sys))->umount)
-    ((struct FsHandleClass *)CLASS(sys))->umount(sys);
 }
 /*----------------------------------------------------------------------------*/
 enum fsResult fsStat(struct FsHandle *sys, const char *path,

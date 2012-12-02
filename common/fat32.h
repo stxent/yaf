@@ -14,6 +14,11 @@
 /*----------------------------------------------------------------------------*/
 extern const struct FsHandleClass *FatHandle;
 /*----------------------------------------------------------------------------*/
+struct Fat32Config
+{
+  struct Interface *interface;
+};
+/*----------------------------------------------------------------------------*/
 #ifdef DEBUG
 uint32_t countFree(struct FsHandle *);
 #endif

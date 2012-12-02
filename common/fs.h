@@ -121,8 +121,6 @@ struct FsHandleClass
   const void *Dir;
 
   /* Virtual methods */
-  enum fsResult (*mount)(struct FsHandle *, struct Interface *);
-  void (*umount)(struct FsHandle *);
   enum fsResult (*open)(struct FsHandle *, struct FsFile *, const char *,
       enum fsMode);
   enum fsResult (*openDir)(struct FsHandle *, struct FsDir *, const char *);

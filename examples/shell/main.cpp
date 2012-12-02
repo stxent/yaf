@@ -160,11 +160,9 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
       details = true;
       continue;
     }
-    //TODO add miltiple directories
     dirPath = args[i];
   }
 
-  cout << "Src dir: " << loc << " and " << dirPath << endl;
   dirPath = parsePath(loc, dirPath);
   dir = fsOpenDir(handler, dirPath.c_str());
   if (dir)
@@ -492,7 +490,7 @@ int util_info(struct FsHandle *handler)
 //   cout << "Data clusters:      " << handler->clusterCount << endl;
 //   cout << "Last allocated:     " << handler->lastAllocated << endl;
 #if defined (FAT_WRITE) && defined (DEBUG)
-  cout << "Free clusters:      " << sz << endl;
+  cout << "Free clusters:       " << sz << endl;
 #endif
 // #endif
   cout << "Size of FsHandle:    " << sizeof(struct FsHandle) << endl;
@@ -775,15 +773,13 @@ int main(int argc, char *argv[])
 //   else
 //     printf("No partitions found, selected raw partition at 0\n");
 
-  handler = (struct FsHandle *)init(FatHandle, 0);
+  struct Fat32Config fsConf = {
+    .interface = mmaped
+  };
+  handler = (struct FsHandle *)init(FatHandle, &fsConf);
   if (!handler)
   {
     printf("Error creating FAT32 handler\n");
-    return 0;
-  }
-  if (fsMount(handler, mmaped) != FS_OK)
-  {
-    printf("Error loading partition\n");
     return 0;
   }
 
@@ -816,6 +812,6 @@ int main(int argc, char *argv[])
   }
 
   printf("Unloading\n");
-  fsUmount(handler);
+  deinit(handler);
   return 0;
 }
