@@ -7,18 +7,24 @@
 #ifndef ENTITY_H_
 #define ENTITY_H_
 /*----------------------------------------------------------------------------*/
+#include "error.h"
+/*----------------------------------------------------------------------------*/
 #define CLASS_GENERATOR(name) \
   unsigned int size;\
   enum result (*init)(struct name *, const void *);\
   void (*deinit)(struct name *);
+#define CLASS(instance) (((struct Entity *)(instance))->type)
 /*----------------------------------------------------------------------------*/
-enum result
+struct Entity;
+/*----------------------------------------------------------------------------*/
+struct EntityClass
 {
-  E_OK = 0,
-  E_ERROR,
-  E_MEMORY,
-  E_DEVICE,
-  E_INTERFACE
+  CLASS_GENERATOR(Entity);
+};
+/*----------------------------------------------------------------------------*/
+struct Entity
+{
+  const struct EntityClass *type;
 };
 /*----------------------------------------------------------------------------*/
 void *init(const void *, const void *);

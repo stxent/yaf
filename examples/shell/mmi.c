@@ -1,3 +1,9 @@
+/*
+ * mmi.c
+ * Copyright (C) 2012 xent
+ * Project is distributed under the terms of the GNU General Public License v3.0
+ */
+
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>

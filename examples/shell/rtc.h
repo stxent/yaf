@@ -1,3 +1,9 @@
+/*
+ * rtc.h
+ * Copyright (C) 2012 xent
+ * Project is distributed under the terms of the GNU General Public License v3.0
+ */
+
 #ifndef _RTC_H_
 #define _RTC_H_
 /*----------------------------------------------------------------------------*/
