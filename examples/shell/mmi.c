@@ -19,10 +19,12 @@
 #endif
 /*----------------------------------------------------------------------------*/
 #include "mmi.h"
+#include "mutex.h"
 /*----------------------------------------------------------------------------*/
 struct Mmi
 {
   struct Interface parent;
+  Mutex lock;
   void *data;
   int file;
   struct stat info;
@@ -77,7 +79,9 @@ static unsigned int mmiRead(struct Interface *iface, uint8_t *buffer,
 {
   struct Mmi *dev = (struct Mmi *)iface;
 
+  mutexLock(&dev->lock);
   memcpy(buffer, (uint8_t *)dev->data + dev->position, length);
+  mutexUnlock(&dev->lock);
   return length;
 }
 /*----------------------------------------------------------------------------*/
@@ -86,7 +90,9 @@ static unsigned int mmiWrite(struct Interface *iface, const uint8_t *buffer,
 {
   struct Mmi *dev = (struct Mmi *)iface;
 
+  mutexLock(&dev->lock);
   memcpy((uint8_t *)dev->data + dev->position, buffer, length);
+  mutexUnlock(&dev->lock);
   return length;
 }
 /*----------------------------------------------------------------------------*/

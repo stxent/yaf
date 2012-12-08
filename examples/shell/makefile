@@ -13,7 +13,7 @@ endif
 all: project
 
 project: main.o entity.o fs.o fat32.o rtc.o mutex.o interface.o mmi.o
-	$(CXX) main.o entity.o interface.o fs.o fat32.o rtc.o mutex.o mmi.o -lrt -lcrypto -lboost_regex -o $(PROJECT)
+	$(CXX) main.o entity.o interface.o fs.o fat32.o rtc.o mutex.o mmi.o -lrt -lpthread -lcrypto -lboost_regex -o $(PROJECT)
 
 entity.o: $(PATH_COMMON)entity.c $(PATH_COMMON)entity.h
 	$(CC) $(CFLAGS) $(PATH_COMMON)entity.c

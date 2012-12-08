@@ -5,28 +5,21 @@
  */
 
 #include "mutex.h"
-/*------------------------------------------------------------------------------*/
-#define MUTEX_FREE      0
-#define MUTEX_LOCKED    1
-/*------------------------------------------------------------------------------*/
-void mutexLock(struct Mutex *m)
+/*----------------------------------------------------------------------------*/
+void mutexLock(Mutex *m)
 {
-  while (m->state != MUTEX_FREE);
-  m->state = MUTEX_LOCKED;
+  pthread_mutex_lock(m);
 }
-/*------------------------------------------------------------------------------*/
-uint8_t mutexTryLock(struct Mutex *m)
+/*----------------------------------------------------------------------------*/
+bool mutexTryLock(Mutex *m)
 {
-  if (m->state)
-  {
-    m->state = MUTEX_LOCKED;
-    return 0; /* Operation successful */
-  }
+  if (pthread_mutex_trylock(m))
+    return false;
   else
-    return 1; /* Error: mutex already locked */
+    return true;
 }
-/*------------------------------------------------------------------------------*/
-void mutexUnlock(struct Mutex *m)
+/*----------------------------------------------------------------------------*/
+void mutexUnlock(Mutex *m)
 {
-  m->state = MUTEX_FREE;
+  pthread_mutex_unlock(m);
 }
