@@ -13,7 +13,9 @@ enum result
   E_ERROR,
   E_MEMORY,
   E_DEVICE,
-  E_INTERFACE
+  E_INTERFACE,
+  E_EOF, /* TODO */
+  E_NONEXISTENT /* TODO */
 };
 /*----------------------------------------------------------------------------*/
 #endif /* ERROR_H_ */

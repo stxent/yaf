@@ -166,49 +166,49 @@ static inline bool clusterUsed(uint32_t);
 static inline uint32_t getSector(struct FatHandle *, uint32_t);
 static inline uint16_t entryCount(struct FatHandle *);
 /* FIXME */
-static /*inline */enum fsResult readSector(struct FatHandle *, uint32_t,
+static /*inline */enum result readSector(struct FatHandle *, uint32_t,
     uint8_t *, uint8_t);
-static /*inline */enum fsResult writeSector(struct FatHandle *, uint32_t,
+static /*inline */enum result writeSector(struct FatHandle *, uint32_t,
     const uint8_t *, uint8_t);
 /*----------------------------------------------------------------------------*/
 /*------------------Specific FAT32 functions----------------------------------*/
-static enum fsResult fetchEntry(struct FsHandle *, struct FatObject *);
+static enum result fetchEntry(struct FsHandle *, struct FatObject *);
 static const char *followPath(struct FsHandle *, struct FatObject *,
     const char *);
 static const char *getChunk(const char *, char *);
-static enum fsResult getNextCluster(struct FsHandle *, uint32_t *);
+static enum result getNextCluster(struct FsHandle *, uint32_t *);
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
-static enum fsResult allocateCluster(struct FsHandle *, uint32_t *);
-static enum fsResult createEntry(struct FsHandle *, struct FatObject *,
+static enum result allocateCluster(struct FsHandle *, uint32_t *);
+static enum result createEntry(struct FsHandle *, struct FatObject *,
     const char *);
-static enum fsResult freeChain(struct FsHandle *, uint32_t);
-static enum fsResult truncate(struct FsFile *);
-static enum fsResult updateTable(struct FsHandle *, uint32_t);
+static enum result freeChain(struct FsHandle *, uint32_t);
+static enum result truncate(struct FsFile *);
+static enum result updateTable(struct FsHandle *, uint32_t);
 #endif
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 static enum result fatInit(struct FsHandle *, const void *);
 static void fatDeinit(struct FsHandle *);
 /*------------------Implemented filesystem methods----------------------------*/
-static enum fsResult fatStat(struct FsHandle *, const char *, struct FsStat *);
-static enum fsResult fatOpen(struct FsHandle *, struct FsFile *, const char *,
+static enum result fatStat(struct FsHandle *, const char *, struct FsStat *);
+static enum result fatOpen(struct FsHandle *, struct FsFile *, const char *,
     enum fsMode);
 static void fatClose(struct FsFile *);
 static bool fatEof(struct FsFile *);
-static enum fsResult fatRead(struct FsFile *, uint8_t *, uint16_t, uint16_t *);
-static enum fsResult fatSeek(struct FsFile *, uint32_t);
-static enum fsResult fatOpenDir(struct FsHandle *, struct FsDir *,
-    const char *);
+static enum result fatRead(struct FsFile *, uint8_t *, uint16_t, uint16_t *);
+static int64_t fatTell(struct FsFile *);
+static enum result fatSeek(struct FsFile *, int64_t, enum fsSeekOrigin);
+static enum result fatOpenDir(struct FsHandle *, struct FsDir *, const char *);
 static void fatCloseDir(struct FsDir *);
-static enum fsResult fatReadDir(struct FsDir *, char *);
+static enum result fatReadDir(struct FsDir *, char *);
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
-static enum fsResult fatMove(struct FsHandle *, const char *, const char *);
-static enum fsResult fatWrite(struct FsFile *, const uint8_t *, uint16_t,
+static enum result fatMove(struct FsHandle *, const char *, const char *);
+static enum result fatWrite(struct FsFile *, const uint8_t *, uint16_t,
     uint16_t *);
-static enum fsResult fatRemove(struct FsHandle *, const char *);
-static enum fsResult fatMakeDir(struct FsHandle *, const char *);
+static enum result fatRemove(struct FsHandle *, const char *);
+static enum result fatMakeDir(struct FsHandle *, const char *);
 #endif
 /*----------------------------------------------------------------------------*/
 #endif /* FAT32_DEFS_H_ */

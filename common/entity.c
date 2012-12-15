@@ -13,7 +13,7 @@ void *init(const void *typeDesc, const void *args)
   const struct EntityClass *type = (const struct EntityClass *)typeDesc;
   struct Entity *entity;
 
-  if (!type || !(entity = malloc(type->size)))
+  if (!type || !type->size || !(entity = malloc(type->size)))
     return 0;
   if (type->init && type->init(entity, args) != E_OK)
   {
@@ -26,7 +26,7 @@ void *init(const void *typeDesc, const void *args)
 /*----------------------------------------------------------------------------*/
 void deinit(void *entity)
 {
-  const struct EntityClass *type = ((struct Entity *)entity)->type;
+  const struct EntityClass *type = CLASS(entity);
 
   if (type->deinit)
     type->deinit(entity);

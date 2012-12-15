@@ -33,8 +33,8 @@ struct Mmi
 /*----------------------------------------------------------------------------*/
 static enum result mmiInit(struct Interface *, const void *);
 static void mmiDeinit(struct Interface *);
-static unsigned int mmiRead(struct Interface *, uint8_t *, unsigned int);
-static unsigned int mmiWrite(struct Interface *, const uint8_t *, unsigned int);
+static uint32_t mmiRead(struct Interface *, uint8_t *, uint32_t);
+static uint32_t mmiWrite(struct Interface *, const uint8_t *, uint32_t);
 static enum result mmiGetOpt(struct Interface *, enum ifOption, void *);
 static enum result mmiSetOpt(struct Interface *, enum ifOption, const void *);
 /*----------------------------------------------------------------------------*/
@@ -51,10 +51,10 @@ static const struct InterfaceClass mmiTable = {
 /*----------------------------------------------------------------------------*/
 const struct InterfaceClass *Mmi = &mmiTable;
 /*----------------------------------------------------------------------------*/
-static enum result mmiInit(struct Interface *iface, const void *cdata)
+static enum result mmiInit(struct Interface *interface, const void *configPtr)
 {
-  const char *path = (const char *)cdata;
-  struct Mmi *dev = (struct Mmi *)iface;
+  const char *path = (const char *)configPtr;
+  struct Mmi *dev = (struct Mmi *)interface;
 
   if (!path)
     return E_ERROR;
@@ -74,10 +74,10 @@ static enum result mmiInit(struct Interface *iface, const void *cdata)
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-static unsigned int mmiRead(struct Interface *iface, uint8_t *buffer,
-    unsigned int length)
+static uint32_t mmiRead(struct Interface *interface, uint8_t *buffer,
+    uint32_t length)
 {
-  struct Mmi *dev = (struct Mmi *)iface;
+  struct Mmi *dev = (struct Mmi *)interface;
 
   mutexLock(&dev->lock);
   memcpy(buffer, (uint8_t *)dev->data + dev->position, length);
@@ -85,10 +85,10 @@ static unsigned int mmiRead(struct Interface *iface, uint8_t *buffer,
   return length;
 }
 /*----------------------------------------------------------------------------*/
-static unsigned int mmiWrite(struct Interface *iface, const uint8_t *buffer,
-    unsigned int length)
+static uint32_t mmiWrite(struct Interface *interface, const uint8_t *buffer,
+    uint32_t length)
 {
-  struct Mmi *dev = (struct Mmi *)iface;
+  struct Mmi *dev = (struct Mmi *)interface;
 
   mutexLock(&dev->lock);
   memcpy((uint8_t *)dev->data + dev->position, buffer, length);
@@ -96,10 +96,10 @@ static unsigned int mmiWrite(struct Interface *iface, const uint8_t *buffer,
   return length;
 }
 /*----------------------------------------------------------------------------*/
-static enum result mmiGetOpt(struct Interface *iface, enum ifOption option,
+static enum result mmiGetOpt(struct Interface *interface, enum ifOption option,
     void *data)
 {
-  struct Mmi *dev = (struct Mmi *)iface;
+  struct Mmi *dev = (struct Mmi *)interface;
 
   switch (option)
   {
@@ -111,10 +111,10 @@ static enum result mmiGetOpt(struct Interface *iface, enum ifOption option,
   }
 }
 /*----------------------------------------------------------------------------*/
-static enum result mmiSetOpt(struct Interface *iface, enum ifOption option,
+static enum result mmiSetOpt(struct Interface *interface, enum ifOption option,
     const void *data)
 {
-  struct Mmi *dev = (struct Mmi *)iface;
+  struct Mmi *dev = (struct Mmi *)interface;
 
   switch (option)
   {
@@ -130,9 +130,9 @@ static enum result mmiSetOpt(struct Interface *iface, enum ifOption option,
   }
 }
 /*----------------------------------------------------------------------------*/
-static void mmiDeinit(struct Interface *iface)
+static void mmiDeinit(struct Interface *interface)
 {
-  struct Mmi *dev = (struct Mmi *)iface;
+  struct Mmi *dev = (struct Mmi *)interface;
   munmap(dev->data, dev->info.st_size);
   close(dev->file);
 }

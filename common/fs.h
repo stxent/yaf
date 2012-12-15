@@ -20,19 +20,26 @@ enum fsMode
     FS_READ,
     FS_WRITE,
     FS_APPEND
-} __attribute__((packed));
+};
 /*----------------------------------------------------------------------------*/
-/* TODO remove fsResult and use standard result */
-enum fsResult
+// /* TODO remove result and use standard result */
+// enum result
+// {
+//     FS_OK = 0,
+//     FS_ERROR,
+//     FS_DEVICE_ERROR,
+//     FS_WRITE_ERROR,
+//     FS_READ_ERROR,
+//     FS_EOF,
+//     FS_NOT_FOUND
+// } __attribute__((packed));
+/*----------------------------------------------------------------------------*/
+enum fsSeekOrigin
 {
-    FS_OK = 0,
-    FS_ERROR,
-    FS_DEVICE_ERROR,
-    FS_WRITE_ERROR,
-    FS_READ_ERROR,
-    FS_EOF,
-    FS_NOT_FOUND
-} __attribute__((packed));
+    FS_SEEK_SET = 0,
+    FS_SEEK_CUR,
+    FS_SEEK_END
+};
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 /* TODO rewrite */
@@ -45,7 +52,7 @@ enum fsEntryType
     FS_TYPE_REG, /* Regular file */
     FS_TYPE_LNK, /* Symbolic link */
     FS_TYPE_SOCK /* Socket */
-} __attribute__((packed));
+};
 /*----------------------------------------------------------------------------*/
 struct FsFile;
 struct FsDir;
@@ -74,10 +81,10 @@ struct FsFileClass
   /* Virtual methods */
   void (*close)(struct FsFile *);
   bool (*eof)(struct FsFile *);
-  /* enum fsResult (*tell)(struct FsFile *, uint32_t); TODO */
-  enum fsResult (*seek)(struct FsFile *, uint32_t);
-  enum fsResult (*read)(struct FsFile *, uint8_t *, uint16_t, uint16_t *);
-  enum fsResult (*write)(struct FsFile *, const uint8_t *, uint16_t,
+  int64_t (*tell)(struct FsFile *);
+  enum result (*seek)(struct FsFile *, int64_t, enum fsSeekOrigin);
+  enum result (*read)(struct FsFile *, uint8_t *, uint16_t, uint16_t *);
+  enum result (*write)(struct FsFile *, const uint8_t *, uint16_t,
       uint16_t *);
 };
 /*----------------------------------------------------------------------------*/
@@ -98,9 +105,9 @@ struct FsDirClass
   /* Virtual methods */
   void (*close)(struct FsDir *);
   /* bool (*eof)(struct FsFile *); TODO */
-  enum fsResult (*read)(struct FsDir *, char *);
-  /* enum fsResult (*rewind)(struct FsDir *); TODO */
-  /* enum fsResult (*seek)(struct FsDir *, uint16_t); TODO */
+  enum result (*read)(struct FsDir *, char *);
+  /* enum result (*rewind)(struct FsDir *); TODO */
+  /* enum result (*seek)(struct FsDir *, uint16_t); TODO */
   /* uint16_t (*tell)(struct FsDir *); TODO */
 };
 /*----------------------------------------------------------------------------*/
@@ -121,13 +128,13 @@ struct FsHandleClass
   const void *Dir;
 
   /* Virtual methods */
-  enum fsResult (*open)(struct FsHandle *, struct FsFile *, const char *,
+  enum result (*open)(struct FsHandle *, struct FsFile *, const char *,
       enum fsMode);
-  enum fsResult (*openDir)(struct FsHandle *, struct FsDir *, const char *);
-  enum fsResult (*remove)(struct FsHandle *, const char *);
-  enum fsResult (*move)(struct FsHandle *, const char *, const char *);
-  enum fsResult (*makeDir)(struct FsHandle *, const char *);
-  enum fsResult (*stat)(struct FsHandle *, const char *, struct FsStat *);
+  enum result (*openDir)(struct FsHandle *, struct FsDir *, const char *);
+  enum result (*remove)(struct FsHandle *, const char *);
+  enum result (*move)(struct FsHandle *, const char *, const char *);
+  enum result (*makeDir)(struct FsHandle *, const char *);
+  enum result (*stat)(struct FsHandle *, const char *, struct FsStat *);
 };
 /*----------------------------------------------------------------------------*/
 struct FsHandle
@@ -145,29 +152,29 @@ enum result fsBlockWrite(struct Interface *, uint64_t, const uint8_t *,
     uint32_t);
 /*----------------------------------------------------------------------------*/
 /* Filesystem handle functions */
-enum fsResult fsMount(struct FsHandle *, struct Interface *);
+enum result fsMount(struct FsHandle *, struct Interface *);
 void fsUmount(struct FsHandle *);
 struct FsFile *fsOpen(struct FsHandle *, const char *, enum fsMode);
-enum fsResult fsRemove(struct FsHandle *, const char *);
-enum fsResult fsMove(struct FsHandle *, const char *, const char *);
+enum result fsRemove(struct FsHandle *, const char *);
+enum result fsMove(struct FsHandle *, const char *, const char *);
 struct FsDir *fsOpenDir(struct FsHandle *, const char *);
-enum fsResult fsMakeDir(struct FsHandle *, const char *);
-enum fsResult fsStat(struct FsHandle *, const char *, struct FsStat *);
+enum result fsMakeDir(struct FsHandle *, const char *);
+enum result fsStat(struct FsHandle *, const char *, struct FsStat *);
 /*----------------------------------------------------------------------------*/
 /* File functions */
 void fsClose(struct FsFile *);
 bool fsEof(struct FsFile *);
-/* enum fsResult fsTell(struct FsFile *, uint32_t); TODO */
-enum fsResult fsSeek(struct FsFile *, uint32_t);
-enum fsResult fsRead(struct FsFile *, uint8_t *, uint16_t, uint16_t *);
-enum fsResult fsWrite(struct FsFile *, const uint8_t *, uint16_t, uint16_t *);
+int64_t fsTell(struct FsFile *);
+enum result fsSeek(struct FsFile *, int64_t, enum fsSeekOrigin);
+enum result fsRead(struct FsFile *, uint8_t *, uint16_t, uint16_t *);
+enum result fsWrite(struct FsFile *, const uint8_t *, uint16_t, uint16_t *);
 /*----------------------------------------------------------------------------*/
 /* Directory functions */
 void fsCloseDir(struct FsDir *);
 /* bool (*fsEofDir)(struct FsFile *); TODO */
-enum fsResult fsReadDir(struct FsDir *, char *);
-/* enum fsResult fsRewindDir(struct FsDir *); TODO */
-/* enum fsResult fsSeekDir(struct FsDir *, uint16_t); TODO */
+enum result fsReadDir(struct FsDir *, char *);
+/* enum result fsRewindDir(struct FsDir *); TODO */
+/* enum result fsSeekDir(struct FsDir *, uint16_t); TODO */
 /* uint16_t fsTellDir(struct FsDir *); TODO */
 /*----------------------------------------------------------------------------*/
 #endif /* FS_H_ */

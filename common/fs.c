@@ -57,26 +57,19 @@ enum result fsBlockWrite(struct Interface *iface, uint64_t address,
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-enum fsResult fsStat(struct FsHandle *sys, const char *path,
+enum result fsStat(struct FsHandle *sys, const char *path,
     struct FsStat *result)
 {
-  return ((struct FsHandleClass *)CLASS(sys))->stat ?
-      ((struct FsHandleClass *)CLASS(sys))->stat(sys, path, result) : FS_ERROR;
+  return ((struct FsHandleClass *)CLASS(sys))->stat(sys, path, result);
 }
 /*----------------------------------------------------------------------------*/
 struct FsFile *fsOpen(struct FsHandle *sys, const char *path, enum fsMode mode)
 {
   struct FsFile *file;
 
-/*
-  FIXME
-  if (!sys || !sys->type || !sys->type->open || !(file = init(sys->File, 0))) 
- */
-  if (!((struct FsHandleClass *)CLASS(sys))->open ||
-      !(file = init(((struct FsHandleClass *)CLASS(sys))->File, 0)))
+  if (!(file = init(((struct FsHandleClass *)CLASS(sys))->File, 0)))
     return 0;
-  if (((struct FsHandleClass *)CLASS(sys))->open(sys, file, path, mode) !=
-      FS_OK)
+  if (((struct FsHandleClass *)CLASS(sys))->open(sys, file, path, mode) != E_OK)
   {
     deinit(file);
     return 0;
@@ -84,26 +77,23 @@ struct FsFile *fsOpen(struct FsHandle *sys, const char *path, enum fsMode mode)
   return file;
 }
 /*----------------------------------------------------------------------------*/
-enum fsResult fsRemove(struct FsHandle *sys, const char *path)
+enum result fsRemove(struct FsHandle *sys, const char *path)
 {
-  return ((struct FsHandleClass *)CLASS(sys))->remove ?
-      ((struct FsHandleClass *)CLASS(sys))->remove(sys, path) : FS_ERROR;
+  return ((struct FsHandleClass *)CLASS(sys))->remove(sys, path);
 }
 /*----------------------------------------------------------------------------*/
-enum fsResult fsMove(struct FsHandle *sys, const char *src, const char *dest)
+enum result fsMove(struct FsHandle *sys, const char *src, const char *dest)
 {
-  return ((struct FsHandleClass *)CLASS(sys))->move ?
-      ((struct FsHandleClass *)CLASS(sys))->move(sys, src, dest) : FS_ERROR;
+  return ((struct FsHandleClass *)CLASS(sys))->move(sys, src, dest);
 }
 /*----------------------------------------------------------------------------*/
 struct FsDir *fsOpenDir(struct FsHandle *sys, const char *path)
 {
   struct FsDir *dir;
 
-  if (!sys || !((struct FsHandleClass *)CLASS(sys))->openDir ||
-      !(dir = init(((struct FsHandleClass *)CLASS(sys))->Dir, 0)))
+  if (!(dir = init(((struct FsHandleClass *)CLASS(sys))->Dir, 0)))
     return 0;
-  if (((struct FsHandleClass *)CLASS(sys))->openDir(sys, dir, path) != FS_OK)
+  if (((struct FsHandleClass *)CLASS(sys))->openDir(sys, dir, path) != E_OK)
   {
     deinit(dir);
     return 0;
@@ -111,67 +101,64 @@ struct FsDir *fsOpenDir(struct FsHandle *sys, const char *path)
   return dir;
 }
 /*----------------------------------------------------------------------------*/
-enum fsResult fsMakeDir(struct FsHandle *sys, const char *path)
+enum result fsMakeDir(struct FsHandle *sys, const char *path)
 {
-  return ((struct FsHandleClass *)CLASS(sys))->makeDir ?
-      ((struct FsHandleClass *)CLASS(sys))->makeDir(sys, path) : FS_ERROR;
+  return ((struct FsHandleClass *)CLASS(sys))->makeDir(sys, path);
 }
+/*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 void fsClose(struct FsFile *file)
 {
-  if (((struct FsFileClass *)CLASS(file))->close)
-    ((struct FsFileClass *)CLASS(file))->close(file);
+  ((struct FsFileClass *)CLASS(file))->close(file);
   deinit(file);
 }
 /*----------------------------------------------------------------------------*/
 bool fsEof(struct FsFile *file)
 {
-  /* Return EOF when no EOF detection function */
-  return ((struct FsFileClass *)CLASS(file))->eof ?
-      ((struct FsFileClass *)CLASS(file))->eof(file) : true;
+  return ((struct FsFileClass *)CLASS(file))->eof(file);
 }
 /*----------------------------------------------------------------------------*/
-/* enum fsResult fsTell(struct FsFile *, uint32_t); TODO */
-/*----------------------------------------------------------------------------*/
-enum fsResult fsSeek(struct FsFile *file, uint32_t position)
+int64_t fsTell(struct FsFile *file)
 {
-  return ((struct FsFileClass *)CLASS(file))->seek ?
-      ((struct FsFileClass *)CLASS(file))->seek(file, position) : FS_ERROR;
+  return ((struct FsFileClass *)CLASS(file))->tell(file);
 }
 /*----------------------------------------------------------------------------*/
-enum fsResult fsRead(struct FsFile *file, uint8_t *buffer, uint16_t length,
+enum result fsSeek(struct FsFile *file, int64_t offset,
+    enum fsSeekOrigin origin)
+{
+  return ((struct FsFileClass *)CLASS(file))->seek(file, offset, origin);
+}
+/*----------------------------------------------------------------------------*/
+enum result fsRead(struct FsFile *file, uint8_t *buffer, uint16_t length,
     uint16_t *result)
 {
-  return ((struct FsFileClass *)CLASS(file))->read ?
-      ((struct FsFileClass *)CLASS(file))->read(file, buffer, length, result) :
-      FS_ERROR;
+  return ((struct FsFileClass *)CLASS(file))->read(file, buffer, length,
+      result);
 }
 /*----------------------------------------------------------------------------*/
-enum fsResult fsWrite(struct FsFile *file, const uint8_t *buffer,
-    uint16_t length, uint16_t *result)
+enum result fsWrite(struct FsFile *file, const uint8_t *buffer, uint16_t length,
+    uint16_t *result)
 {
-  return ((struct FsFileClass *)CLASS(file))->write ?
-      ((struct FsFileClass *)CLASS(file))->write(file, buffer, length, result) :
-      FS_ERROR;
+  return ((struct FsFileClass *)CLASS(file))->write(file, buffer, length,
+      result);
 }
+/*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 void fsCloseDir(struct FsDir *dir)
 {
-  if (((struct FsDirClass *)CLASS(dir))->close)
-    ((struct FsDirClass *)CLASS(dir))->close(dir);
+  ((struct FsDirClass *)CLASS(dir))->close(dir);
   deinit(dir);
 }
 /*----------------------------------------------------------------------------*/
 /* bool (*fsEofDir)(struct FsFile *); TODO */
 /*----------------------------------------------------------------------------*/
-enum fsResult fsReadDir(struct FsDir *dir, char *buffer)
+enum result fsReadDir(struct FsDir *dir, char *buffer)
 {
-  return ((struct FsDirClass *)CLASS(dir))->read ?
-      ((struct FsDirClass *)CLASS(dir))->read(dir, buffer) : FS_ERROR;
+  return ((struct FsDirClass *)CLASS(dir))->read(dir, buffer);
 }
 /*----------------------------------------------------------------------------*/
-/* enum fsResult fsRewindDir(struct FsDir *); TODO */
+/* enum result fsRewindDir(struct FsDir *); TODO */
 /*----------------------------------------------------------------------------*/
-/* enum fsResult fsSeekDir(struct FsDir *, uint16_t); TODO */
+/* enum result fsSeekDir(struct FsDir *, uint16_t); TODO */
 /*----------------------------------------------------------------------------*/
 /* uint16_t fsTellDir(struct FsDir *); TODO */

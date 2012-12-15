@@ -156,7 +156,7 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
   struct FsDir *dir;
   struct FsStat stat;
   bool details = false;
-  enum fsResult fsres;
+  enum result fsres;
   string path, dirPath;
 
   for (unsigned int i = 1; i < args.size(); i++)
@@ -175,12 +175,12 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
   {
     char fname[13];
     int pos;
-    for (pos = 1; (fsres = fsReadDir(dir, fname)) == FS_OK; pos++)
+    for (pos = 1; (fsres = fsReadDir(dir, fname)) == E_OK; pos++)
     {
       map<string, string> retval;
       stringstream estream;
       path = parsePath(dirPath, (string)fname);
-      if (fsStat(handler, path.c_str(), &stat) == FS_OK)
+      if (fsStat(handler, path.c_str(), &stat) == E_OK)
       {
         string str_size = int2str(stat.size, 10);
         string str_atime = time2str(stat.atime);
@@ -253,8 +253,8 @@ enum cResult util_mkdir(struct FsHandle *handler, const vector<string> &args,
   if (args.size() < 2)
     return C_SYNTAX;
   string newloc = parsePath(loc, args[1]);
-  enum fsResult fsres = fsMakeDir(handler, newloc.c_str());
-  if (fsres != FS_OK)
+  enum result fsres = fsMakeDir(handler, newloc.c_str());
+  if (fsres != E_OK)
   {
     cout << "mkdir: " << newloc << ": Error creating folder" << endl;
     return C_ERROR;
@@ -271,13 +271,13 @@ enum cResult util_rm(struct FsHandle *handler, const vector<string> &args,
     string &loc)
 {
   enum cResult res = C_OK;
-  enum fsResult fsres;
+  enum result fsres;
 
   for (unsigned int i = 1; i < args.size(); i++)
   {
     string newloc = parsePath(loc, args[i]);
     fsres = fsRemove(handler, newloc.c_str());
-    if (fsres != FS_OK)
+    if (fsres != E_OK)
     {
       cout << "rm: " << newloc << ": No such file" << endl;
       res = C_ERROR;
@@ -298,7 +298,7 @@ enum cResult util_mv(struct FsHandle *handler, const vector<string> &args,
   string src = parsePath(loc, args[1]);
   string dst = parsePath(loc, args[2]);
 
-  if (fsMove(handler, src.c_str(), dst.c_str()) == FS_OK)
+  if (fsMove(handler, src.c_str(), dst.c_str()) == E_OK)
   {
     return C_OK;
   }
@@ -347,7 +347,7 @@ enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
   }
   if ((file = fsOpen(handler, target.c_str(), FS_WRITE)))
   {
-    fsResult ecode;
+    result ecode;
     uint16_t cnt;
     uint64_t total = 0;
 
@@ -358,7 +358,7 @@ enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
       ecode = fsWrite(file, (uint8_t *)ibuf, datafile.gcount(), &cnt);
       total += cnt;
       delete ibuf;
-      if ((ecode != FS_OK) || (cnt != datafile.gcount()))
+      if ((ecode != E_OK) || (cnt != datafile.gcount()))
       {
         cout << "put: " << target << ": Write error on " << total << endl;
         break;
@@ -400,20 +400,20 @@ enum cResult util_cp(struct FsHandle *handler, const vector<string> &args,
 
   const int bufSize = 5000;
   char buf[bufSize];
-  enum fsResult fsres;
+  enum result fsres;
   while (!fsEof(srcFile))
   {
     uint16_t cnt, wcnt;
 
     fsres = fsRead(srcFile, (uint8_t *)buf, bufSize, &cnt);
-    if (fsres != FS_OK)
+    if (fsres != E_OK)
     {
       cout << "cp: Error" << endl;
       return C_ERROR;
     }
     wcnt = cnt;
     fsres = fsWrite(dstFile, (uint8_t *)buf, wcnt, &cnt);
-    if (fsres != FS_OK)
+    if (fsres != E_OK)
     {
       cout << "cp: Error" << endl;
       return C_ERROR;
@@ -432,7 +432,7 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handler,
   const int bufSize = 64;
   vector< map<string, string> > entries;
   struct FsFile *file;
-  enum fsResult fsres;
+  enum result fsres;
 
   for (unsigned int i = 1; i < args.size(); i++)
   {
@@ -447,7 +447,7 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handler,
       unsigned char md5str[16];
 
       MD5_Init(&md5result);
-      while ((fsres = fsRead(file, (uint8_t *)buf, bufSize, &cnt)) == FS_OK)
+      while ((fsres = fsRead(file, (uint8_t *)buf, bufSize, &cnt)) == E_OK)
       {
         if (cnt)
           MD5_Update(&md5result, (const void *)buf, cnt);
@@ -476,7 +476,7 @@ int util_io(struct FsHandle *handler)
 {
   cout << "Sectors read:    " << readCount << endl;
   cout << "Sectors written: " << writeCount << endl;
-  return FS_OK;
+  return E_OK;
 }
 //------------------------------------------------------------------------------
 int util_info(struct FsHandle *handler)
@@ -502,7 +502,7 @@ int util_info(struct FsHandle *handler)
   cout << "Size of FsHandle:    " << sizeof(struct FsHandle) << endl;
   cout << "Size of FsFile:      " << sizeof(struct FsFile) << endl;
   cout << "Size of FsDir:       " << sizeof(struct FsDir) << endl;
-  return FS_OK;
+  return E_OK;
 }
 //------------------------------------------------------------------------------
 void util_autotest(FsHandle *handler, const vector<string> &args)
