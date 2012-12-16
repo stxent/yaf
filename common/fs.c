@@ -143,6 +143,11 @@ enum result fsWrite(struct FsFile *file, const uint8_t *buffer, uint32_t length,
       result);
 }
 /*----------------------------------------------------------------------------*/
+enum result fsFlush(struct FsFile *file)
+{
+  return ((struct FsFileClass *)CLASS(file))->flush(file);
+}
+/*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 void fsCloseDir(struct FsDir *dir)
 {

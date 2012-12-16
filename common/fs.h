@@ -77,6 +77,7 @@ struct FsFileClass
   enum result (*seek)(struct FsFile *, asize_t, enum fsSeekOrigin);
   enum result (*read)(struct FsFile *, uint8_t *, uint32_t, uint32_t *);
   enum result (*write)(struct FsFile *, const uint8_t *, uint32_t, uint32_t *);
+  enum result (*flush)(struct FsFile *);
 };
 /*----------------------------------------------------------------------------*/
 struct FsFile
@@ -157,6 +158,7 @@ asize_t fsTell(struct FsFile *);
 enum result fsSeek(struct FsFile *, asize_t, enum fsSeekOrigin);
 enum result fsRead(struct FsFile *, uint8_t *, uint32_t, uint32_t *);
 enum result fsWrite(struct FsFile *, const uint8_t *, uint32_t, uint32_t *);
+enum result fsFlush(struct FsFile *);
 /*----------------------------------------------------------------------------*/
 /* Directory functions */
 void fsCloseDir(struct FsDir *);

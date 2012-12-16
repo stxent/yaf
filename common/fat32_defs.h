@@ -194,23 +194,32 @@ static enum result updateTable(struct FsHandle *, uint32_t);
 static enum result fatInit(struct FsHandle *, const void *);
 static void fatDeinit(struct FsHandle *);
 /*------------------Implemented filesystem methods----------------------------*/
-static enum result fatStat(struct FsHandle *, const char *, struct FsStat *);
+/* Common functions */
 static enum result fatOpen(struct FsHandle *, struct FsFile *, const char *,
     enum fsMode);
+static enum result fatOpenDir(struct FsHandle *, struct FsDir *, const char *);
+static enum result fatStat(struct FsHandle *, const char *, struct FsStat *);
+#ifdef FAT_WRITE
+static enum result fatMove(struct FsHandle *, const char *, const char *);
+static enum result fatRemove(struct FsHandle *, const char *);
+#endif
+/*----------------------------------------------------------------------------*/
+/* File functions */
 static void fatClose(struct FsFile *);
 static bool fatEof(struct FsFile *);
 static enum result fatRead(struct FsFile *, uint8_t *, uint32_t, uint32_t *);
-static asize_t fatTell(struct FsFile *);
 static enum result fatSeek(struct FsFile *, asize_t, enum fsSeekOrigin);
-static enum result fatOpenDir(struct FsHandle *, struct FsDir *, const char *);
-static void fatCloseDir(struct FsDir *);
-static enum result fatReadDir(struct FsDir *, char *);
-/*----------------------------------------------------------------------------*/
+static asize_t fatTell(struct FsFile *);
 #ifdef FAT_WRITE
-static enum result fatMove(struct FsHandle *, const char *, const char *);
+static enum result fatFlush(struct FsFile *);
 static enum result fatWrite(struct FsFile *, const uint8_t *, uint32_t,
     uint32_t *);
-static enum result fatRemove(struct FsHandle *, const char *);
+#endif
+/*----------------------------------------------------------------------------*/
+/* Directory functions */
+static void fatCloseDir(struct FsDir *);
+static enum result fatReadDir(struct FsDir *, char *);
+#ifdef FAT_WRITE
 static enum result fatMakeDir(struct FsHandle *, const char *);
 #endif
 /*----------------------------------------------------------------------------*/
