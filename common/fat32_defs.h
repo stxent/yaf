@@ -50,6 +50,9 @@ struct FatFile
 {
   struct FsFile parent;
 
+  uint32_t size; /* File size */
+  uint32_t position; /* Position in file */
+
   uint32_t cluster; /* First cluster of file data */
   uint8_t currentSector; /* Sector in current cluster */
   uint32_t currentCluster;
@@ -196,17 +199,17 @@ static enum result fatOpen(struct FsHandle *, struct FsFile *, const char *,
     enum fsMode);
 static void fatClose(struct FsFile *);
 static bool fatEof(struct FsFile *);
-static enum result fatRead(struct FsFile *, uint8_t *, uint16_t, uint16_t *);
-static int64_t fatTell(struct FsFile *);
-static enum result fatSeek(struct FsFile *, int64_t, enum fsSeekOrigin);
+static enum result fatRead(struct FsFile *, uint8_t *, bsize_t, bsize_t *);
+static asize_t fatTell(struct FsFile *);
+static enum result fatSeek(struct FsFile *, asize_t, enum fsSeekOrigin);
 static enum result fatOpenDir(struct FsHandle *, struct FsDir *, const char *);
 static void fatCloseDir(struct FsDir *);
 static enum result fatReadDir(struct FsDir *, char *);
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
 static enum result fatMove(struct FsHandle *, const char *, const char *);
-static enum result fatWrite(struct FsFile *, const uint8_t *, uint16_t,
-    uint16_t *);
+static enum result fatWrite(struct FsFile *, const uint8_t *, bsize_t,
+    bsize_t *);
 static enum result fatRemove(struct FsHandle *, const char *);
 static enum result fatMakeDir(struct FsHandle *, const char *);
 #endif

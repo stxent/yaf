@@ -348,7 +348,7 @@ enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
   if ((file = fsOpen(handler, target.c_str(), FS_WRITE)))
   {
     result ecode;
-    uint16_t cnt;
+    bsize_t cnt;
     uint64_t total = 0;
 
     while (!datafile.eof())
@@ -403,7 +403,7 @@ enum cResult util_cp(struct FsHandle *handler, const vector<string> &args,
   enum result fsres;
   while (!fsEof(srcFile))
   {
-    uint16_t cnt, wcnt;
+    bsize_t cnt, wcnt;
 
     fsres = fsRead(srcFile, (uint8_t *)buf, bufSize, &cnt);
     if (fsres != E_OK)
@@ -441,7 +441,7 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handler,
     file = fsOpen(handler, newloc.c_str(), FS_READ);
     if (file)
     {
-      uint16_t cnt;
+      bsize_t cnt;
       char buf[bufSize];
       MD5_CTX md5result;
       unsigned char md5str[16];

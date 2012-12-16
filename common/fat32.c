@@ -489,8 +489,8 @@ static enum result truncate(struct FsFile *file)
   fh->cluster = 0;
   fh->currentCluster = 0;
   fh->currentSector = 0;
-  file->size = 0;
-  file->position = 0;
+  fh->size = 0;
+  fh->position = 0;
   return E_OK;
 }
 #endif
@@ -679,8 +679,8 @@ static enum result fatOpen(struct FsHandle *sys, struct FsFile *file,
   if ((item.attribute & FLAG_RO) && (mode == FS_WRITE || mode == FS_APPEND))
     return E_ERROR;
 #endif
-  file->position = 0;
-  file->size = item.size;
+  fh->position = 0;
+  fh->size = item.size;
 
   fh->cluster = item.cluster;
   fh->currentCluster = item.cluster;
@@ -691,10 +691,11 @@ static enum result fatOpen(struct FsHandle *sys, struct FsFile *file,
   fh->parentIndex = item.index;
 
   file->descriptor = sys;
-  if (mode == FS_WRITE && !*path && file->size && truncate(file) != E_OK)
+  if (mode == FS_WRITE && !*path && fh->size && truncate(file) != E_OK)
     return E_ERROR;
   /* In append mode file pointer moves to end of file */
-  if (mode == FS_APPEND && fsSeek(file, file->size, FS_SEEK_SET) != E_OK)
+  //FIXME Replace with FS_SEEK_END
+  if (mode == FS_APPEND && fsSeek(file, fh->size, FS_SEEK_SET) != E_OK)
     return E_ERROR;
 #endif
 
@@ -708,20 +709,23 @@ static void fatClose(struct FsFile *file)
 /*----------------------------------------------------------------------------*/
 static bool fatEof(struct FsFile *file)
 {
-  return file->position >= file->size;
+  struct FatFile *fh = (struct FatFile *)file;
+
+  return fh->position >= fh->size;
 }
 /*----------------------------------------------------------------------------*/
 static enum result fatRead(struct FsFile *file, uint8_t *buffer,
-    uint16_t count, uint16_t *result)
+    uint32_t count, uint32_t *result)
 {
   struct FatHandle *handle = (struct FatHandle *)file->descriptor;
   struct FatFile *fh = (struct FatFile *)file;
-  uint16_t chunk, offset, read = 0;
+  uint16_t chunk, offset;
+  bsize_t read = 0;
 
   if (file->mode != FS_READ)
     return E_ERROR;
-  if (count > file->size - file->position)
-    count = file->size - file->position;
+  if (count > fh->size - fh->position)
+    count = fh->size - fh->position;
   if (!count)
     return E_EOF;
 
@@ -735,7 +739,7 @@ static enum result fatRead(struct FsFile *file, uint8_t *buffer,
     }
 
     /* Position in sector */
-    offset = (file->position + read) & (SECTOR_SIZE - 1);
+    offset = (fh->position + read) & (SECTOR_SIZE - 1);
     if (offset || count < SECTOR_SIZE) /* Position within sector */
     {
       /* Length of remaining sector space */
@@ -746,8 +750,7 @@ static enum result fatRead(struct FsFile *file, uint8_t *buffer,
       {
         return E_INTERFACE;
       }
-      memcpy(buffer + read, handle->buffer + offset,
-          chunk);
+      memcpy(buffer + read, handle->buffer + offset, chunk);
       if (chunk + offset >= SECTOR_SIZE)
         fh->currentSector++;
     }
@@ -773,32 +776,33 @@ static enum result fatRead(struct FsFile *file, uint8_t *buffer,
     count -= chunk;
   }
 
-  file->position += read;
+  fh->position += read;
   *result = read;
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
 static enum result fatWrite(struct FsFile *file, const uint8_t *buffer,
-    uint16_t count, uint16_t *result)
+    bsize_t count, bsize_t *result)
 {
   struct FatHandle *handle = (struct FatHandle *)file->descriptor;
   struct FatFile *fh = (struct FatFile *)file;
   struct DirEntryImage *ptr;
-  uint16_t chunk, offset, written = 0;
+  uint16_t chunk, offset;
   uint32_t sector;
+  bsize_t written = 0;
 
   if (file->mode != FS_APPEND && file->mode != FS_WRITE)
     return E_ERROR;
-  if (!file->size)
+  if (!fh->size)
   {
     if (allocateCluster(&handle->parent, &fh->cluster))
       return E_ERROR;
     fh->currentCluster = fh->cluster;
   }
   /* Checking file size limit (4 GiB - 1) */
-  if (file->size + count > FILE_SIZE_MAX)
-    count = FILE_SIZE_MAX - file->size;
+  if (fh->size + count > FILE_SIZE_MAX)
+    count = FILE_SIZE_MAX - fh->size;
 
   while (count)
   {
@@ -810,7 +814,7 @@ static enum result fatWrite(struct FsFile *file, const uint8_t *buffer,
     }
 
     /* Position in sector */
-    offset = (file->position + written) & (SECTOR_SIZE - 1);
+    offset = (fh->position + written) & (SECTOR_SIZE - 1);
     if (offset || count < SECTOR_SIZE) /* Position within sector */
     {
       /* Length of remaining sector space */
@@ -819,8 +823,7 @@ static enum result fatWrite(struct FsFile *file, const uint8_t *buffer,
       sector = getSector(handle, fh->currentCluster) + fh->currentSector;
       if (readSector(handle, sector, handle->buffer, 1))
         return E_INTERFACE;
-      memcpy(handle->buffer + offset,
-          buffer + written, chunk);
+      memcpy(handle->buffer + offset, buffer + written, chunk);
       if (writeSector(handle, sector, handle->buffer, 1))
         return E_INTERFACE;
       if (chunk + offset >= SECTOR_SIZE)
@@ -853,15 +856,15 @@ static enum result fatWrite(struct FsFile *file, const uint8_t *buffer,
   /* Pointer to entry position in sector */
   ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(fh->parentIndex));
   /* Update first cluster when writing to empty file */
-  if (!file->size)
+  if (!fh->size)
   {
     ptr->clusterHigh = fh->cluster >> 16;
     ptr->clusterLow = fh->cluster;
   }
-  file->size += written;
-  file->position = file->size;
+  fh->size += written;
+  fh->position = fh->size;
   /* Update file size */
-  ptr->size = file->size;
+  ptr->size = fh->size;
 #ifdef FAT_TIME
   /* Update last modified date */
   //FIXME rewrite
@@ -875,26 +878,28 @@ static enum result fatWrite(struct FsFile *file, const uint8_t *buffer,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-static int64_t fatTell(struct FsFile *file)
+static asize_t fatTell(struct FsFile *file)
 {
-  return (int64_t)file->position;
+  struct FatFile *fh = (struct FatFile *)file;
+
+  return (asize_t)fh->position;
 }
 /*----------------------------------------------------------------------------*/
 //TODO Rewrite
-static enum result fatSeek(struct FsFile *file, int64_t offset,
+static enum result fatSeek(struct FsFile *file, asize_t offset,
     enum fsSeekOrigin origin)
 {
   struct FatHandle *handle = (struct FatHandle *)file->descriptor;
   struct FatFile *fh = (struct FatFile *)file;
   uint32_t clusterCount, current;
 
-  if (offset > file->size)
+  if (offset > fh->size)
     return E_ERROR;
   clusterCount = offset;
-  if (offset > file->position)
+  if (offset > fh->position)
   {
     current = fh->currentCluster;
-    clusterCount -= file->position;
+    clusterCount -= fh->position;
   }
   else
     current = fh->cluster;
@@ -904,7 +909,7 @@ static enum result fatSeek(struct FsFile *file, int64_t offset,
     if (getNextCluster(file->descriptor, &current))
       return E_INTERFACE;
   }
-  file->position = offset;
+  fh->position = offset;
   fh->currentCluster = current;
   /* TODO add macro */
   fh->currentSector = (offset >> SECTOR_POW) & ((1 << handle->clusterSize) - 1);

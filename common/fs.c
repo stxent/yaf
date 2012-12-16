@@ -11,8 +11,8 @@
 uint64_t readCount = 0, writeCount = 0;
 #endif
 /*----------------------------------------------------------------------------*/
-enum result fsBlockRead(struct Interface *iface, uint64_t address,
-    uint8_t *buffer, uint32_t length)
+enum result fsBlockRead(struct Interface *iface, asize_t address,
+    uint8_t *buffer, bsize_t length)
 {
   if (ifSetOpt(iface, IF_ADDRESS, &address) != E_OK)
   {
@@ -34,8 +34,8 @@ enum result fsBlockRead(struct Interface *iface, uint64_t address,
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-enum result fsBlockWrite(struct Interface *iface, uint64_t address,
-    const uint8_t *buffer, uint32_t length)
+enum result fsBlockWrite(struct Interface *iface, asize_t address,
+    const uint8_t *buffer, bsize_t length)
 {
   if (ifSetOpt(iface, IF_ADDRESS, &address) != E_OK)
   {
@@ -118,26 +118,26 @@ bool fsEof(struct FsFile *file)
   return ((struct FsFileClass *)CLASS(file))->eof(file);
 }
 /*----------------------------------------------------------------------------*/
-int64_t fsTell(struct FsFile *file)
+asize_t fsTell(struct FsFile *file)
 {
   return ((struct FsFileClass *)CLASS(file))->tell(file);
 }
 /*----------------------------------------------------------------------------*/
-enum result fsSeek(struct FsFile *file, int64_t offset,
+enum result fsSeek(struct FsFile *file, asize_t offset,
     enum fsSeekOrigin origin)
 {
   return ((struct FsFileClass *)CLASS(file))->seek(file, offset, origin);
 }
 /*----------------------------------------------------------------------------*/
-enum result fsRead(struct FsFile *file, uint8_t *buffer, uint16_t length,
-    uint16_t *result)
+enum result fsRead(struct FsFile *file, uint8_t *buffer, bsize_t length,
+    bsize_t *result)
 {
   return ((struct FsFileClass *)CLASS(file))->read(file, buffer, length,
       result);
 }
 /*----------------------------------------------------------------------------*/
-enum result fsWrite(struct FsFile *file, const uint8_t *buffer, uint16_t length,
-    uint16_t *result)
+enum result fsWrite(struct FsFile *file, const uint8_t *buffer, bsize_t length,
+    bsize_t *result)
 {
   return ((struct FsFileClass *)CLASS(file))->write(file, buffer, length,
       result);
