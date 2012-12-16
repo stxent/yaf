@@ -679,9 +679,10 @@ static enum result fatOpen(struct FsHandle *sys, struct FsFile *file,
   if ((item.attribute & FLAG_RO) && (mode == FS_WRITE || mode == FS_APPEND))
     return E_ERROR;
 #endif
+  file->descriptor = sys;
+
   fh->position = 0;
   fh->size = item.size;
-
   fh->cluster = item.cluster;
   fh->currentCluster = item.cluster;
   fh->currentSector = 0;
@@ -690,7 +691,6 @@ static enum result fatOpen(struct FsHandle *sys, struct FsFile *file,
   fh->parentCluster = item.parent;
   fh->parentIndex = item.index;
 
-  file->descriptor = sys;
   if (mode == FS_WRITE && !*path && fh->size && truncate(file) != E_OK)
     return E_ERROR;
   /* In append mode file pointer moves to end of file */
@@ -720,7 +720,7 @@ static enum result fatRead(struct FsFile *file, uint8_t *buffer,
   struct FatHandle *handle = (struct FatHandle *)file->descriptor;
   struct FatFile *fh = (struct FatFile *)file;
   uint16_t chunk, offset;
-  bsize_t read = 0;
+  uint32_t read = 0;
 
   if (file->mode != FS_READ)
     return E_ERROR;
@@ -783,14 +783,13 @@ static enum result fatRead(struct FsFile *file, uint8_t *buffer,
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
 static enum result fatWrite(struct FsFile *file, const uint8_t *buffer,
-    bsize_t count, bsize_t *result)
+    uint32_t count, uint32_t *result)
 {
   struct FatHandle *handle = (struct FatHandle *)file->descriptor;
   struct FatFile *fh = (struct FatFile *)file;
   struct DirEntryImage *ptr;
   uint16_t chunk, offset;
-  uint32_t sector;
-  bsize_t written = 0;
+  uint32_t sector, written = 0;
 
   if (file->mode != FS_APPEND && file->mode != FS_WRITE)
     return E_ERROR;

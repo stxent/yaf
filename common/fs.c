@@ -12,7 +12,7 @@ uint64_t readCount = 0, writeCount = 0;
 #endif
 /*----------------------------------------------------------------------------*/
 enum result fsBlockRead(struct Interface *iface, asize_t address,
-    uint8_t *buffer, bsize_t length)
+    uint8_t *buffer, uint32_t length)
 {
   if (ifSetOpt(iface, IF_ADDRESS, &address) != E_OK)
   {
@@ -35,7 +35,7 @@ enum result fsBlockRead(struct Interface *iface, asize_t address,
 }
 /*----------------------------------------------------------------------------*/
 enum result fsBlockWrite(struct Interface *iface, asize_t address,
-    const uint8_t *buffer, bsize_t length)
+    const uint8_t *buffer, uint32_t length)
 {
   if (ifSetOpt(iface, IF_ADDRESS, &address) != E_OK)
   {
@@ -129,15 +129,15 @@ enum result fsSeek(struct FsFile *file, asize_t offset,
   return ((struct FsFileClass *)CLASS(file))->seek(file, offset, origin);
 }
 /*----------------------------------------------------------------------------*/
-enum result fsRead(struct FsFile *file, uint8_t *buffer, bsize_t length,
-    bsize_t *result)
+enum result fsRead(struct FsFile *file, uint8_t *buffer, uint32_t length,
+    uint32_t *result)
 {
   return ((struct FsFileClass *)CLASS(file))->read(file, buffer, length,
       result);
 }
 /*----------------------------------------------------------------------------*/
-enum result fsWrite(struct FsFile *file, const uint8_t *buffer, bsize_t length,
-    bsize_t *result)
+enum result fsWrite(struct FsFile *file, const uint8_t *buffer, uint32_t length,
+    uint32_t *result)
 {
   return ((struct FsFileClass *)CLASS(file))->write(file, buffer, length,
       result);

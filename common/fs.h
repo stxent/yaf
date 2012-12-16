@@ -14,8 +14,9 @@
 #include "entity.h"
 #include "interface.h"
 /*----------------------------------------------------------------------------*/
-typedef uint32_t bsize_t; /* Block size for memory operations */
-typedef int64_t asize_t; /* Underlying device address space, signed value */
+/* Type represents address space width */
+/* Must be greater or equal to used underlying device address space */
+typedef int64_t asize_t;
 /*----------------------------------------------------------------------------*/
 enum fsMode
 {
@@ -74,8 +75,8 @@ struct FsFileClass
   bool (*eof)(struct FsFile *);
   asize_t (*tell)(struct FsFile *);
   enum result (*seek)(struct FsFile *, asize_t, enum fsSeekOrigin);
-  enum result (*read)(struct FsFile *, uint8_t *, bsize_t, bsize_t *);
-  enum result (*write)(struct FsFile *, const uint8_t *, bsize_t, bsize_t *);
+  enum result (*read)(struct FsFile *, uint8_t *, uint32_t, uint32_t *);
+  enum result (*write)(struct FsFile *, const uint8_t *, uint32_t, uint32_t *);
 };
 /*----------------------------------------------------------------------------*/
 struct FsFile
@@ -134,9 +135,10 @@ struct FsHandle
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 /* Block access functions */
-/* Address space defined by asize_t, block size defined by bsize_t */
-enum result fsBlockRead(struct Interface *, asize_t, uint8_t *, bsize_t);
-enum result fsBlockWrite(struct Interface *, asize_t, const uint8_t *, bsize_t);
+/* Address space defined by asize_t, block size defined by uint32_t */
+enum result fsBlockRead(struct Interface *, asize_t, uint8_t *, uint32_t);
+enum result fsBlockWrite(struct Interface *, asize_t, const uint8_t *,
+    uint32_t);
 /*----------------------------------------------------------------------------*/
 /* Filesystem handle functions */
 enum result fsMount(struct FsHandle *, struct Interface *);
@@ -153,8 +155,8 @@ void fsClose(struct FsFile *);
 bool fsEof(struct FsFile *);
 asize_t fsTell(struct FsFile *);
 enum result fsSeek(struct FsFile *, asize_t, enum fsSeekOrigin);
-enum result fsRead(struct FsFile *, uint8_t *, bsize_t, bsize_t *);
-enum result fsWrite(struct FsFile *, const uint8_t *, bsize_t, bsize_t *);
+enum result fsRead(struct FsFile *, uint8_t *, uint32_t, uint32_t *);
+enum result fsWrite(struct FsFile *, const uint8_t *, uint32_t, uint32_t *);
 /*----------------------------------------------------------------------------*/
 /* Directory functions */
 void fsCloseDir(struct FsDir *);
