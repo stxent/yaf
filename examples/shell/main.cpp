@@ -19,12 +19,11 @@
 #include <openssl/md5.h>
 //------------------------------------------------------------------------------
 #include <boost/regex.hpp>
+#include <boost/lexical_cast.hpp>
 //------------------------------------------------------------------------------
 extern "C"
 {
-// #include "bdev.h"
 #include "fs.h"
-// #include "io.h"
 #include "rtc.h"
 #include "interface.h"
 #include "mmi.h"
@@ -37,8 +36,7 @@ extern uint64_t readCount, writeCount;
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 using namespace std;
-//------------------------------------------------------------------------------
-// extern long readCount, writeCount;
+using namespace boost;
 //------------------------------------------------------------------------------
 enum cResult {
   C_OK = 0,
@@ -111,7 +109,7 @@ string time2str(uint64_t tm)
 //------------------------------------------------------------------------------
 inline char dec2hex(unsigned char value)
 {
-  return (value < 10) ? ('0' + value) : ('a' + value - 10);
+  return value < 10 ? '0' + value : 'a' + value - 10;
 }
 //------------------------------------------------------------------------------
 string hexdigest(const unsigned char *src)
@@ -472,6 +470,185 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handler,
   return entries;
 }
 //------------------------------------------------------------------------------
+#ifdef FAT_WRITE
+enum cResult util_dd(struct FsHandle *handler, const vector<string> &args,
+    const string &loc)
+{
+  //Test for fsSeek and fsTell
+  const char *originValues[] = {"FS_SEEK_SET", "FS_SEEK_CUR", "FS_SEEK_END"};
+  string src = "", dst = "";
+  uint32_t blockSize = 512;
+  asize_t offset = 0, length = 0, position;
+  enum fsSeekOrigin origin = FS_SEEK_SET;
+  struct FsStat stat;
+
+  for (unsigned int i = 1; i < args.size(); i++)
+  {
+    //Input file
+    if (args[i] == "-i" && i + 1 < args.size())
+    {
+      src = parsePath(loc, args[++i]);
+      continue;
+    }
+    //Output file
+    if (args[i] == "-o" && i + 1 < args.size())
+    {
+      dst = parsePath(loc, args[++i]);
+      continue;
+    }
+    //Block size
+    if (args[i] == "--block" && i + 1 < args.size())
+    {
+      try
+      {
+        blockSize = lexical_cast<uint32_t>(args[++i]);
+      }
+      catch (bad_lexical_cast &)
+      {
+        cout << "dd: Error: unsupported block size" << endl;
+        return C_ERROR;
+      }
+      continue;
+    }
+    //Chunk length
+    if (args[i] == "--length" && i + 1 < args.size())
+    {
+      try
+      {
+        length = lexical_cast<asize_t>(args[++i]);
+      }
+      catch (bad_lexical_cast &)
+      {
+        cout << "dd: Error: unsupported length" << endl;
+        return C_ERROR;
+      }
+      continue;
+    }
+    //Origin
+    if (args[i] == "--origin" && i + 1 < args.size())
+    {
+      i++;
+      if (args[i] == "FS_SEEK_SET")
+        origin = FS_SEEK_SET;
+      else if (args[i] == "FS_SEEK_END")
+        origin = FS_SEEK_END;
+      else
+      {
+        cout << "dd: Error: unsupported origin" << endl;
+        return C_ERROR;
+      }
+      continue;
+    }
+    //Offset from origin
+    if (args[i] == "--offset" && i + 1 < args.size())
+    {
+      try
+      {
+        offset = lexical_cast<asize_t>(args[++i]);
+      }
+      catch (bad_lexical_cast &)
+      {
+        cout << "dd: Error: unsupported block count" << endl;
+        return C_ERROR;
+      }
+      continue;
+    }
+  }
+
+  if (fsStat(handler, src.c_str(), &stat) != E_OK)
+  {
+    cout << "dd: Error: stat failed" << endl;
+    return C_ERROR;
+  }
+  if (length < 0)
+  {
+    cout << "dd: Error: unsupported length" << endl;
+    return C_ERROR;
+  }
+  if (!length)
+    length = stat.size;
+  switch (origin)
+  {
+    case FS_SEEK_SET:
+      position = offset;
+      break;
+    case FS_SEEK_END:
+      position = stat.size + offset;
+      break;
+    default:
+      return C_ERROR; //Never reached there
+  }
+#ifdef DEBUG
+  cout << "dd: input: " << src << ", output: " << dst << endl;
+  cout << "dd: block size: " << blockSize << ", length: " << length << endl;
+  cout << "dd: origin: " << originValues[origin] <<
+      ", offset: " << offset << ", position: " << position << endl;
+#endif
+
+  struct FsFile *srcFile, *dstFile;
+  if (!(srcFile = fsOpen(handler, src.c_str(), FS_READ)))
+  {
+    return C_ERROR;
+  }
+  if (!(dstFile = fsOpen(handler, dst.c_str(), FS_WRITE)))
+  {
+    fsClose(srcFile);
+    return C_ERROR;
+  }
+
+  char *buf = new char[blockSize];
+  cResult res = C_OK;
+  enum result fsres;
+
+  try
+  {
+    asize_t check;
+
+    fsres = fsSeek(srcFile, offset, origin);
+    if (fsres != E_OK)
+      throw "seek failed";
+
+    check = fsTell(srcFile);
+    if (check != position)
+      throw "tell failed";
+
+    uint32_t cnt, wcnt, rcnt, rdone = 0;
+    while (!fsEof(srcFile) && rdone < length)
+    {
+      rcnt = length - rdone;
+      rcnt = rcnt > blockSize ? blockSize : rcnt;
+      fsres = fsRead(srcFile, (uint8_t *)buf, rcnt, &cnt);
+      if (fsres != E_OK)
+        throw "source read failed";
+      rdone += cnt;
+      wcnt = cnt;
+      fsres = fsWrite(dstFile, (uint8_t *)buf, wcnt, &cnt);
+      if (cnt != wcnt)
+        throw "block length and written length differ";
+      if (fsres != E_OK)
+        throw "destination write failed";
+    }
+
+    fsres = fsSeek(srcFile, -length, FS_SEEK_CUR);
+    if (fsres != E_OK)
+      throw "seek failed";
+    check = fsTell(srcFile);
+    if (check != position)
+      throw "tell failed";
+  }
+  catch (const char *err)
+  {
+    cout << "dd: Error: " << err << endl;
+    res = C_ERROR;
+  }
+
+  delete[] buf;
+  fsClose(dstFile);
+  fsClose(srcFile);
+  return res;
+}
+#endif
+//------------------------------------------------------------------------------
 int util_io(struct FsHandle *handler)
 {
   cout << "Sectors read:    " << readCount << endl;
@@ -521,8 +698,8 @@ void util_autotest(FsHandle *handler, const vector<string> &args)
   }
 
   string data;
-  boost::regex parser("\"(.*?)\"");
-  boost::smatch results;
+  regex parser("\"(.*?)\"");
+  smatch results;
 
   while (!testbench.eof())
   {
@@ -533,7 +710,7 @@ void util_autotest(FsHandle *handler, const vector<string> &args)
     string comStr = "";
     string argStr = "";
 
-    while (boost::regex_search(dataStart, dataEnd, results, parser))
+    while (regex_search(dataStart, dataEnd, results, parser))
     {
       if (comStr == "")
       {
@@ -692,6 +869,16 @@ enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
   {
     enum cResult retval;
     retval = util_cp(handler, args, loc);
+    if (retval != C_OK)
+    {
+      cout << "Error" << endl;
+      return C_ERROR;
+    }
+  }
+  if (args[0] == "dd")
+  {
+    enum cResult retval;
+    retval = util_dd(handler, args, loc);
     if (retval != C_OK)
     {
       cout << "Error" << endl;
