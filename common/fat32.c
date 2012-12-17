@@ -689,7 +689,7 @@ static enum result fatOpen(struct FsHandle *sys, struct FsFile *file,
 static enum result fatOpenDir(struct FsHandle *sys, struct FsDir *dir,
     const char *path)
 {
-  struct FatDir *dh = (struct FatDir *)dir;
+  struct FatDir *dirHandler = (struct FatDir *)dir;
   struct FatObject item;
 
   dir->descriptor = 0;
@@ -701,9 +701,9 @@ static enum result fatOpenDir(struct FsHandle *sys, struct FsDir *dir,
   if (!(item.attribute & FLAG_DIR) || item.attribute & FLAG_SYSTEM)
     return E_NONEXISTENT;
 
-  dh->cluster = item.cluster;
-  dh->currentCluster = item.cluster;
-  dh->currentIndex = 0;
+  dirHandler->cluster = item.cluster;
+  dirHandler->currentCluster = item.cluster;
+  dirHandler->currentIndex = 0;
 
   dir->descriptor = sys;
   return E_OK;
@@ -1032,7 +1032,19 @@ static enum result fatSeek(struct FsFile *file, asize_t offset,
   struct FatFile *fileHandle = (struct FatFile *)file;
   uint32_t clusterCount, current;
 
-  if (offset > fileHandle->size)
+  switch (origin)
+  {
+    case FS_SEEK_CUR:
+      offset = fileHandle->position + offset;
+      break;
+    case FS_SEEK_END: /* Offset must be negative */
+      offset = fileHandle->size + offset;
+      break;
+    case FS_SEEK_SET:
+    default:
+      break;
+  }
+  if (offset < 0 || offset > fileHandle->size)
     return E_ERROR;
   clusterCount = offset;
   if (offset > fileHandle->position)
@@ -1071,12 +1083,12 @@ static void fatCloseDir(struct FsDir *dir)
 /*----------------------------------------------------------------------------*/
 static enum result fatReadDir(struct FsDir *dir, char *name)
 {
-  struct FatDir *dh = (struct FatDir *)dir;
+  struct FatDir *dirHandler = (struct FatDir *)dir;
   struct FatObject item;
 
-  item.parent = dh->currentCluster;
+  item.parent = dirHandler->currentCluster;
   /* Fetch next entry */
-  item.index = dh->currentIndex;
+  item.index = dirHandler->currentIndex;
   do
   {
     if (fetchEntry(dir->descriptor, &item))
@@ -1085,8 +1097,8 @@ static enum result fatReadDir(struct FsDir *dir, char *name)
   }
   while (item.attribute & (FLAG_HIDDEN | FLAG_SYSTEM));
   /* Hidden and system entries not shown */
-  dh->currentIndex = item.index; /* Points to next item */
-  dh->currentCluster = item.parent;
+  dirHandler->currentIndex = item.index; /* Points to next item */
+  dirHandler->currentCluster = item.parent;
 
   strcpy(name, item.name);
 
