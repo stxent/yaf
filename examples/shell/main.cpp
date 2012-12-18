@@ -631,10 +631,10 @@ enum cResult util_dd(struct FsHandle *handler, const vector<string> &args,
 
     fsres = fsSeek(srcFile, -length, FS_SEEK_CUR);
     if (fsres != E_OK)
-      throw "seek failed";
+      throw "validation seek failed";
     check = fsTell(srcFile);
     if (check != position)
-      throw "tell failed";
+      throw "validation tell failed";
   }
   catch (const char *err)
   {

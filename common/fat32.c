@@ -498,10 +498,10 @@ static enum result updateTable(struct FsHandle *sys, uint32_t offset)
 #endif
 /*----------------------------------------------------------------------------*/
 /*------------------Implemented filesystem methods----------------------------*/
-static enum result fatInit(struct FsHandle *sys, const void *cdata)
+static enum result fatInit(void *object, const void *cdata)
 {
-  const struct Fat32Config *config = (const struct Fat32Config *)cdata;
-  struct FatHandle *handle = (struct FatHandle *)sys;
+  const struct Fat32Config *config = cdata;
+  struct FatHandle *handle = object;
   struct BootSectorImage *boot;
 #ifdef FAT_WRITE
   struct InfoSectorImage *info;
@@ -514,7 +514,7 @@ static enum result fatInit(struct FsHandle *sys, const void *cdata)
     return E_MEMORY;
   handle->bufferedSector = (uint32_t)(-1);
 
-  sys->dev = config->interface;
+  handle->parent.dev = config->interface;
   /* Read first sector */
   if (readSector(handle, 0, handle->buffer, 1))
     return E_INTERFACE;
@@ -567,9 +567,9 @@ static enum result fatInit(struct FsHandle *sys, const void *cdata)
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-static void fatDeinit(struct FsHandle *sys)
+static void fatDeinit(void *object)
 {
-  free(((struct FatHandle *)sys)->buffer);
+  free(((struct FatHandle *)object)->buffer);
 }
 /*----------------------------------------------------------------------------*/
 /*------------------Common functions------------------------------------------*/

@@ -31,12 +31,12 @@ struct Mmi
   uint64_t position;
 };
 /*----------------------------------------------------------------------------*/
-static enum result mmiInit(struct Interface *, const void *);
-static void mmiDeinit(struct Interface *);
-static uint32_t mmiRead(struct Interface *, uint8_t *, uint32_t);
-static uint32_t mmiWrite(struct Interface *, const uint8_t *, uint32_t);
-static enum result mmiGetOpt(struct Interface *, enum ifOption, void *);
-static enum result mmiSetOpt(struct Interface *, enum ifOption, const void *);
+static enum result mmiInit(void *, const void *);
+static void mmiDeinit(void *);
+static uint32_t mmiRead(void *, uint8_t *, uint32_t);
+static uint32_t mmiWrite(void *, const uint8_t *, uint32_t);
+static enum result mmiGetOpt(void *, enum ifOption, void *);
+static enum result mmiSetOpt(void *, enum ifOption, const void *);
 /*----------------------------------------------------------------------------*/
 static const struct InterfaceClass mmiTable = {
     .size = sizeof(struct Mmi),
@@ -51,10 +51,10 @@ static const struct InterfaceClass mmiTable = {
 /*----------------------------------------------------------------------------*/
 const struct InterfaceClass *Mmi = &mmiTable;
 /*----------------------------------------------------------------------------*/
-static enum result mmiInit(struct Interface *interface, const void *configPtr)
+static enum result mmiInit(void *object, const void *configPtr)
 {
-  const char *path = (const char *)configPtr;
-  struct Mmi *dev = (struct Mmi *)interface;
+  const char *path = configPtr;
+  struct Mmi *dev = object;
 
   if (!path)
     return E_ERROR;
@@ -74,10 +74,9 @@ static enum result mmiInit(struct Interface *interface, const void *configPtr)
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-static uint32_t mmiRead(struct Interface *interface, uint8_t *buffer,
-    uint32_t length)
+static uint32_t mmiRead(void *object, uint8_t *buffer, uint32_t length)
 {
-  struct Mmi *dev = (struct Mmi *)interface;
+  struct Mmi *dev = object;
 
   mutexLock(&dev->lock);
   memcpy(buffer, (uint8_t *)dev->data + dev->position, length);
@@ -85,10 +84,9 @@ static uint32_t mmiRead(struct Interface *interface, uint8_t *buffer,
   return length;
 }
 /*----------------------------------------------------------------------------*/
-static uint32_t mmiWrite(struct Interface *interface, const uint8_t *buffer,
-    uint32_t length)
+static uint32_t mmiWrite(void *object, const uint8_t *buffer, uint32_t length)
 {
-  struct Mmi *dev = (struct Mmi *)interface;
+  struct Mmi *dev = object;
 
   mutexLock(&dev->lock);
   memcpy((uint8_t *)dev->data + dev->position, buffer, length);
@@ -96,10 +94,9 @@ static uint32_t mmiWrite(struct Interface *interface, const uint8_t *buffer,
   return length;
 }
 /*----------------------------------------------------------------------------*/
-static enum result mmiGetOpt(struct Interface *interface, enum ifOption option,
-    void *data)
+static enum result mmiGetOpt(void *object, enum ifOption option, void *data)
 {
-  struct Mmi *dev = (struct Mmi *)interface;
+  struct Mmi *dev = object;
 
   switch (option)
   {
@@ -111,10 +108,10 @@ static enum result mmiGetOpt(struct Interface *interface, enum ifOption option,
   }
 }
 /*----------------------------------------------------------------------------*/
-static enum result mmiSetOpt(struct Interface *interface, enum ifOption option,
+static enum result mmiSetOpt(void *object, enum ifOption option,
     const void *data)
 {
-  struct Mmi *dev = (struct Mmi *)interface;
+  struct Mmi *dev = object;
 
   switch (option)
   {
@@ -130,9 +127,10 @@ static enum result mmiSetOpt(struct Interface *interface, enum ifOption option,
   }
 }
 /*----------------------------------------------------------------------------*/
-static void mmiDeinit(struct Interface *interface)
+static void mmiDeinit(void *object)
 {
-  struct Mmi *dev = (struct Mmi *)interface;
+  struct Mmi *dev = object;
+
   munmap(dev->data, dev->info.st_size);
   close(dev->file);
 }

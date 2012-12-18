@@ -191,8 +191,8 @@ static enum result updateTable(struct FsHandle *, uint32_t);
 #endif
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
-static enum result fatInit(struct FsHandle *, const void *);
-static void fatDeinit(struct FsHandle *);
+static enum result fatInit(void *, const void *);
+static void fatDeinit(void *);
 /*------------------Implemented filesystem methods----------------------------*/
 /* Common functions */
 static enum result fatOpen(struct FsHandle *, struct FsFile *, const char *,
