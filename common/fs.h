@@ -4,6 +4,11 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
+/**
+ *  @file
+ *  Abstract filesystem interface for embedded system applications
+ */
+
 #ifndef FS_H_
 #define FS_H_
 /*----------------------------------------------------------------------------*/
@@ -21,24 +26,34 @@ typedef int64_t asize_t;
 enum fsMode
 {
     FS_NONE = 0,
+    /** File read mode */
     FS_READ,
+    /** File write mode */
     FS_WRITE,
+    /** File append mode */
     FS_APPEND
 };
 /*----------------------------------------------------------------------------*/
 enum fsSeekOrigin
 {
+    /** Beginning of file */
     FS_SEEK_SET = 0,
+    /** Current position of the file pointer */
     FS_SEEK_CUR,
+    /** End of file */
     FS_SEEK_END
 };
 /*----------------------------------------------------------------------------*/
 enum fsEntryType
 {
-    FS_TYPE_NONE = 0, /* Unknown type */
-    FS_TYPE_DIR, /* Directory */
-    FS_TYPE_FILE, /* Regular file */
-    FS_TYPE_LINK /* Symbolic link */
+    /** Unknown type */
+    FS_TYPE_NONE = 0,
+    /** Directory entry */
+    FS_TYPE_DIR,
+    /** Regular file */
+    FS_TYPE_FILE,
+    /** Symbolic link */
+    FS_TYPE_LINK
 };
 /*----------------------------------------------------------------------------*/
 struct FsFile;
@@ -66,13 +81,13 @@ struct FsFileClass
   CLASS_GENERATOR(FsFile)
 
   /* Virtual methods */
-  void (*close)(struct FsFile *);
-  bool (*eof)(struct FsFile *);
-  enum result (*flush)(struct FsFile *);
-  enum result (*read)(struct FsFile *, uint8_t *, uint32_t, uint32_t *);
-  enum result (*seek)(struct FsFile *, asize_t, enum fsSeekOrigin);
-  asize_t (*tell)(struct FsFile *);
-  enum result (*write)(struct FsFile *, const uint8_t *, uint32_t, uint32_t *);
+  void (*close)(void *);
+  bool (*eof)(const void *);
+  enum result (*flush)(void *);
+  enum result (*read)(void *, uint8_t *, uint32_t, uint32_t *);
+  enum result (*seek)(void *, asize_t, enum fsSeekOrigin);
+  asize_t (*tell)(const void *);
+  enum result (*write)(void *, const uint8_t *, uint32_t, uint32_t *);
 };
 /*----------------------------------------------------------------------------*/
 struct FsFile
@@ -88,11 +103,11 @@ struct FsDirClass
   CLASS_GENERATOR(FsDir)
 
   /* Virtual functions */
-  void (*close)(struct FsDir *);
-  /* bool (*eof)(struct FsFile *); TODO */
-  enum result (*read)(struct FsDir *, char *);
-  /* enum result (*seek)(struct FsDir *, uint16_t); TODO */
-  /* uint16_t (*tell)(struct FsDir *); TODO */
+  void (*close)(void *);
+  /* bool (*eof)(void *); TODO */
+  enum result (*read)(void *, char *);
+  /* enum result (*seek)(void *, uint32_t); TODO */
+  /* uint32_t (*tell)(void *); TODO */
 };
 /*----------------------------------------------------------------------------*/
 struct FsDir
@@ -112,14 +127,14 @@ struct FsHandleClass
   const void *Dir;
 
   /* Virtual functions */
-  enum result (*move)(struct FsHandle *, const char *, const char *);
-  enum result (*stat)(struct FsHandle *, struct FsStat *, const char *);
-  enum result (*open)(struct FsHandle *, struct FsFile *, const char *,
+  enum result (*move)(void *, const char *, const char *);
+  enum result (*stat)(void *, struct FsStat *, const char *);
+  enum result (*open)(void *, void *, const char *,
       enum fsMode);
-  enum result (*remove)(struct FsHandle *, const char *);
-  enum result (*openDir)(struct FsHandle *, struct FsDir *, const char *);
-  enum result (*makeDir)(struct FsHandle *, const char *);
-  enum result (*removeDir)(struct FsHandle *, const char *);
+  enum result (*remove)(void *, const char *);
+  enum result (*openDir)(void *, void *, const char *);
+  enum result (*makeDir)(void *, const char *);
+  enum result (*removeDir)(void *, const char *);
 };
 /*----------------------------------------------------------------------------*/
 struct FsHandle
@@ -132,36 +147,36 @@ struct FsHandle
 /*----------------------------------------------------------------------------*/
 /* Block access functions */
 /* Address space defined by asize_t, block size defined by uint32_t */
-enum result fsBlockRead(struct Interface *, asize_t, uint8_t *, uint32_t);
-enum result fsBlockWrite(struct Interface *, asize_t, const uint8_t *,
+enum result fsBlockRead(void *, asize_t, uint8_t *, uint32_t);
+enum result fsBlockWrite(void *, asize_t, const uint8_t *,
     uint32_t);
 /*----------------------------------------------------------------------------*/
 /*------------------Filesystem handle functions-------------------------------*/
 /* Common functions */
-enum result fsMove(struct FsHandle *, const char *, const char *);
-enum result fsStat(struct FsHandle *, struct FsStat *, const char *);
+enum result fsMove(void *, const char *, const char *);
+enum result fsStat(void *, struct FsStat *, const char *);
 /* File functions */
-void *fsOpen(struct FsHandle *, const char *, enum fsMode);
-enum result fsRemove(struct FsHandle *, const char *);
+void *fsOpen(void *, const char *, enum fsMode);
+enum result fsRemove(void *, const char *);
 /* Directory functions */
-void *fsOpenDir(struct FsHandle *, const char *);
-enum result fsMakeDir(struct FsHandle *, const char *);
-enum result fsRemoveDir(struct FsHandle *, const char *);
+void *fsOpenDir(void *, const char *);
+enum result fsMakeDir(void *, const char *);
+enum result fsRemoveDir(void *, const char *);
 /*----------------------------------------------------------------------------*/
 /*------------------File functions--------------------------------------------*/
-void fsClose(struct FsFile *);
-bool fsEof(struct FsFile *);
-enum result fsFlush(struct FsFile *);
-enum result fsRead(struct FsFile *, uint8_t *, uint32_t, uint32_t *);
-enum result fsSeek(struct FsFile *, asize_t, enum fsSeekOrigin);
-asize_t fsTell(struct FsFile *);
-enum result fsWrite(struct FsFile *, const uint8_t *, uint32_t, uint32_t *);
+void fsClose(void *);
+bool fsEof(const void *);
+enum result fsFlush(void *);
+enum result fsRead(void *, uint8_t *, uint32_t, uint32_t *);
+enum result fsSeek(void *, asize_t, enum fsSeekOrigin);
+asize_t fsTell(const void *);
+enum result fsWrite(void *, const uint8_t *, uint32_t, uint32_t *);
 /*----------------------------------------------------------------------------*/
 /*------------------Directory functions---------------------------------------*/
-void fsCloseDir(struct FsDir *);
-/* bool (*fsEofDir)(struct FsFile *); TODO */
-enum result fsReadDir(struct FsDir *, char *);
-/* enum result fsSeekDir(struct FsDir *, uint16_t); TODO */
-/* uint16_t fsTellDir(struct FsDir *); TODO */
+void fsCloseDir(void *);
+/* bool (*fsEofDir)(void *); TODO */
+enum result fsReadDir(void *, char *);
+/* enum result fsSeekDir(void *, uint32_t); TODO */
+/* uint32_t fsTellDir(void *); TODO */
 /*----------------------------------------------------------------------------*/
 #endif /* FS_H_ */
