@@ -198,7 +198,7 @@ static void fatDeinit(void *);
 static enum result fatOpen(struct FsHandle *, struct FsFile *, const char *,
     enum fsMode);
 static enum result fatOpenDir(struct FsHandle *, struct FsDir *, const char *);
-static enum result fatStat(struct FsHandle *, const char *, struct FsStat *);
+static enum result fatStat(struct FsHandle *, struct FsStat *, const char *);
 #ifdef FAT_WRITE
 static enum result fatMove(struct FsHandle *, const char *, const char *);
 static enum result fatRemove(struct FsHandle *, const char *);

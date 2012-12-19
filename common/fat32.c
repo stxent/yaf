@@ -573,8 +573,8 @@ static void fatDeinit(void *object)
 }
 /*----------------------------------------------------------------------------*/
 /*------------------Common functions------------------------------------------*/
-static enum result fatStat(struct FsHandle *sys, const char *path,
-    struct FsStat *result)
+static enum result fatStat(struct FsHandle *sys, struct FsStat *result,
+    const char *path)
 {
   struct FatHandle *handle = (struct FatHandle *)sys;
   struct FatObject item;
@@ -608,7 +608,7 @@ static enum result fatStat(struct FsHandle *sys, const char *path,
   if (item.attribute & FLAG_DIR)
     result->type = FS_TYPE_DIR;
   else
-    result->type = FS_TYPE_REG;
+    result->type = FS_TYPE_FILE;
 
 #ifdef DEBUG
   result->access = 07; /* rwx */

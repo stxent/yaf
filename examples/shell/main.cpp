@@ -133,7 +133,7 @@ enum cResult util_cd(struct FsHandle *handler, const vector<string> &args,
     return C_SYNTAX;
   newloc = parsePath(loc, args[1]);
 
-  dir = fsOpenDir(handler, newloc.c_str());
+  dir = (struct FsDir *)fsOpenDir(handler, newloc.c_str());
   if (dir)
   {
     fsCloseDir(dir);
@@ -168,7 +168,7 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
   }
 
   dirPath = parsePath(loc, dirPath);
-  dir = fsOpenDir(handler, dirPath.c_str());
+  dir = (struct FsDir *)fsOpenDir(handler, dirPath.c_str());
   if (dir)
   {
     char fname[13];
@@ -178,7 +178,7 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
       map<string, string> retval;
       stringstream estream;
       path = parsePath(dirPath, (string)fname);
-      if (fsStat(handler, path.c_str(), &stat) == E_OK)
+      if (fsStat(handler, &stat, path.c_str()) == E_OK)
       {
         string str_size = int2str(stat.size, 10);
         string str_atime = time2str(stat.atime);
@@ -303,12 +303,12 @@ enum cResult util_mv(struct FsHandle *handler, const vector<string> &args,
   else
   {
     struct FsFile *file;
-    if (!(file = fsOpen(handler, src.c_str(), FS_READ)))
+    if (!(file = (struct FsFile *)fsOpen(handler, src.c_str(), FS_READ)))
       cout << "mv: " << src << ": No such file" << endl;
     else
     {
       fsClose(file);
-      if ((file = fsOpen(handler, dst.c_str(), FS_READ)))
+      if ((file = (struct FsFile *)fsOpen(handler, dst.c_str(), FS_READ)))
       {
         cout << "mv: " << dst << ": File exists" << endl;
         fsClose(file);
@@ -343,7 +343,7 @@ enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
     cout << "put: " << host << ": No such file" << endl;
     return C_ERROR;
   }
-  if ((file = fsOpen(handler, target.c_str(), FS_WRITE)))
+  if ((file = (struct FsFile *)fsOpen(handler, target.c_str(), FS_WRITE)))
   {
     result ecode;
     uint32_t cnt;
@@ -386,11 +386,11 @@ enum cResult util_cp(struct FsHandle *handler, const vector<string> &args,
   string dst = parsePath(loc, args[2]);
 
   struct FsFile *srcFile, *dstFile;
-  if (!(srcFile = fsOpen(handler, src.c_str(), FS_READ)))
+  if (!(srcFile = (struct FsFile *)fsOpen(handler, src.c_str(), FS_READ)))
   {
     return C_ERROR;
   }
-  if (!(dstFile = fsOpen(handler, dst.c_str(), FS_WRITE)))
+  if (!(dstFile = (struct FsFile *)fsOpen(handler, dst.c_str(), FS_WRITE)))
   {
     fsClose(srcFile);
     return C_ERROR;
@@ -436,7 +436,7 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handler,
   {
     map<string, string> retval;
     string newloc = parsePath(loc, args[i]);
-    file = fsOpen(handler, newloc.c_str(), FS_READ);
+    file = (struct FsFile *)fsOpen(handler, newloc.c_str(), FS_READ);
     if (file)
     {
       uint32_t cnt;
@@ -555,7 +555,7 @@ enum cResult util_dd(struct FsHandle *handler, const vector<string> &args,
     }
   }
 
-  if (fsStat(handler, src.c_str(), &stat) != E_OK)
+  if (fsStat(handler, &stat, src.c_str()) != E_OK)
   {
     cout << "dd: Error: stat failed" << endl;
     return C_ERROR;
@@ -586,11 +586,11 @@ enum cResult util_dd(struct FsHandle *handler, const vector<string> &args,
 #endif
 
   struct FsFile *srcFile, *dstFile;
-  if (!(srcFile = fsOpen(handler, src.c_str(), FS_READ)))
+  if (!(srcFile = (struct FsFile *)fsOpen(handler, src.c_str(), FS_READ)))
   {
     return C_ERROR;
   }
-  if (!(dstFile = fsOpen(handler, dst.c_str(), FS_WRITE)))
+  if (!(dstFile = (struct FsFile *)fsOpen(handler, dst.c_str(), FS_WRITE)))
   {
     fsClose(srcFile);
     return C_ERROR;

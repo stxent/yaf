@@ -57,13 +57,18 @@ enum result fsBlockWrite(struct Interface *iface, asize_t address,
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-enum result fsStat(struct FsHandle *sys, const char *path,
-    struct FsStat *result)
+enum result fsMove(struct FsHandle *sys, const char *src, const char *dest)
 {
-  return ((struct FsHandleClass *)CLASS(sys))->stat(sys, path, result);
+  return ((struct FsHandleClass *)CLASS(sys))->move(sys, src, dest);
 }
 /*----------------------------------------------------------------------------*/
-struct FsFile *fsOpen(struct FsHandle *sys, const char *path, enum fsMode mode)
+enum result fsStat(struct FsHandle *sys, struct FsStat *result,
+    const char *path)
+{
+  return ((struct FsHandleClass *)CLASS(sys))->stat(sys, result, path);
+}
+/*----------------------------------------------------------------------------*/
+void *fsOpen(struct FsHandle *sys, const char *path, enum fsMode mode)
 {
   struct FsFile *file;
 
@@ -82,12 +87,7 @@ enum result fsRemove(struct FsHandle *sys, const char *path)
   return ((struct FsHandleClass *)CLASS(sys))->remove(sys, path);
 }
 /*----------------------------------------------------------------------------*/
-enum result fsMove(struct FsHandle *sys, const char *src, const char *dest)
-{
-  return ((struct FsHandleClass *)CLASS(sys))->move(sys, src, dest);
-}
-/*----------------------------------------------------------------------------*/
-struct FsDir *fsOpenDir(struct FsHandle *sys, const char *path)
+void *fsOpenDir(struct FsHandle *sys, const char *path)
 {
   struct FsDir *dir;
 
@@ -106,6 +106,11 @@ enum result fsMakeDir(struct FsHandle *sys, const char *path)
   return ((struct FsHandleClass *)CLASS(sys))->makeDir(sys, path);
 }
 /*----------------------------------------------------------------------------*/
+enum result fsRemoveDir(struct FsHandle *sys, const char *path)
+{
+  return ((struct FsHandleClass *)CLASS(sys))->removeDir(sys, path);
+}
+/*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 void fsClose(struct FsFile *file)
 {
@@ -118,15 +123,9 @@ bool fsEof(struct FsFile *file)
   return ((struct FsFileClass *)CLASS(file))->eof(file);
 }
 /*----------------------------------------------------------------------------*/
-asize_t fsTell(struct FsFile *file)
+enum result fsFlush(struct FsFile *file)
 {
-  return ((struct FsFileClass *)CLASS(file))->tell(file);
-}
-/*----------------------------------------------------------------------------*/
-enum result fsSeek(struct FsFile *file, asize_t offset,
-    enum fsSeekOrigin origin)
-{
-  return ((struct FsFileClass *)CLASS(file))->seek(file, offset, origin);
+  return ((struct FsFileClass *)CLASS(file))->flush(file);
 }
 /*----------------------------------------------------------------------------*/
 enum result fsRead(struct FsFile *file, uint8_t *buffer, uint32_t length,
@@ -136,16 +135,22 @@ enum result fsRead(struct FsFile *file, uint8_t *buffer, uint32_t length,
       result);
 }
 /*----------------------------------------------------------------------------*/
+enum result fsSeek(struct FsFile *file, asize_t offset,
+    enum fsSeekOrigin origin)
+{
+  return ((struct FsFileClass *)CLASS(file))->seek(file, offset, origin);
+}
+/*----------------------------------------------------------------------------*/
+asize_t fsTell(struct FsFile *file)
+{
+  return ((struct FsFileClass *)CLASS(file))->tell(file);
+}
+/*----------------------------------------------------------------------------*/
 enum result fsWrite(struct FsFile *file, const uint8_t *buffer, uint32_t length,
     uint32_t *result)
 {
   return ((struct FsFileClass *)CLASS(file))->write(file, buffer, length,
       result);
-}
-/*----------------------------------------------------------------------------*/
-enum result fsFlush(struct FsFile *file)
-{
-  return ((struct FsFileClass *)CLASS(file))->flush(file);
 }
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
@@ -161,8 +166,6 @@ enum result fsReadDir(struct FsDir *dir, char *buffer)
 {
   return ((struct FsDirClass *)CLASS(dir))->read(dir, buffer);
 }
-/*----------------------------------------------------------------------------*/
-/* enum result fsRewindDir(struct FsDir *); TODO */
 /*----------------------------------------------------------------------------*/
 /* enum result fsSeekDir(struct FsDir *, uint16_t); TODO */
 /*----------------------------------------------------------------------------*/
