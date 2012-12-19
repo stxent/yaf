@@ -26,7 +26,7 @@ struct Interface;
 /* Class descriptor */
 struct InterfaceClass
 {
-  CLASS_GENERATOR(Interface)
+  CLASS_GENERATOR
 
   /* Receive data, arguments: data buffer, message size */
   uint32_t (*read)(void *, uint8_t *, uint32_t);

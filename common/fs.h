@@ -78,7 +78,7 @@ struct FsStat
 /*----------------------------------------------------------------------------*/
 struct FsFileClass
 {
-  CLASS_GENERATOR(FsFile)
+  CLASS_GENERATOR
 
   /* Virtual methods */
   void (*close)(void *);
@@ -100,7 +100,7 @@ struct FsFile
 /*----------------------------------------------------------------------------*/
 struct FsDirClass
 {
-  CLASS_GENERATOR(FsDir)
+  CLASS_GENERATOR
 
   /* Virtual functions */
   void (*close)(void *);
@@ -120,7 +120,7 @@ struct FsDir
 /*----------------------------------------------------------------------------*/
 struct FsHandleClass
 {
-  CLASS_GENERATOR(FsHandle)
+  CLASS_GENERATOR
 
   /* Pointers to subclasses */
   const void *File;
