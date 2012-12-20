@@ -672,8 +672,8 @@ static enum result fatOpen(void *handleObject, void *fileObject,
     return E_NONEXISTENT;
 #endif
   }
-  /* Not found if system, volume name or directory */
-  if (item.attribute & (FLAG_SYSTEM | FLAG_DIR))
+  /* Not found if volume name, system or directory entry */
+  if (item.attribute & (FLAG_VOLUME | FLAG_SYSTEM | FLAG_DIR))
     return E_NONEXISTENT;
 #ifdef FAT_WRITE
   /* Attempt to write into read-only file */
@@ -717,9 +717,12 @@ static enum result fatOpenDir(void *handleObject, void *dirObject,
     path = followPath(handle, &item, path);
   if (!path)
     return E_NONEXISTENT;
-  /* Hidden, system, volume name or not directory */
-  if (!(item.attribute & FLAG_DIR) || item.attribute & FLAG_SYSTEM)
+  /* Not directory or volume name, system */
+  if (!(item.attribute & FLAG_DIR) ||
+      item.attribute & (FLAG_VOLUME | FLAG_SYSTEM))
+  {
     return E_NONEXISTENT;
+  }
 
   dirHandle->cluster = item.cluster;
   dirHandle->currentCluster = item.cluster;
@@ -824,8 +827,8 @@ static enum result fatRemove(void *object, const char *path)
     path = followPath(handle, &item, path);
   if (!path)
     return E_NONEXISTENT;
-  /* Hidden, system, volume name or directory */
-  if (item.attribute & (FLAG_HIDDEN | FLAG_SYSTEM | FLAG_DIR))
+  /* Read only, volume name, system or directory */
+  if (item.attribute & (FLAG_RO | FLAG_VOLUME | FLAG_SYSTEM | FLAG_DIR))
     return E_NONEXISTENT;
 
   if (markFree(handle, &item) != E_OK)
@@ -1154,6 +1157,7 @@ static enum result fatMakeDir(void *object, const char *path)
   const char *followedPath;
   uint8_t pos;
 
+  /* TODO Check top folder attributes */
   while (*path && (followedPath = followPath(handle, &item, path)))
   {
     parent = item.cluster;
@@ -1232,9 +1236,9 @@ static enum result fatRemoveDir(void *object, const char *path)
     path = followPath(handle, &item, path);
   if (!path)
     return E_NONEXISTENT;
-  /* Not directory or hidden, system, volume name */
+  /* Not directory or read only, volume name, system */
   if (!(item.attribute & FLAG_DIR) ||
-      item.attribute & (FLAG_HIDDEN | FLAG_SYSTEM))
+      item.attribute & (FLAG_RO | FLAG_VOLUME | FLAG_SYSTEM))
   {
     return E_NONEXISTENT;
   }

@@ -23,7 +23,8 @@
 /*----------------------------------------------------------------------------*/
 #define FLAG_RO                 (uint8_t)0x01 /* Read only */
 #define FLAG_HIDDEN             (uint8_t)0x02
-#define FLAG_SYSTEM             (uint8_t)0x0C /* System or volume label */
+#define FLAG_SYSTEM             (uint8_t)0x04 /* System entry */
+#define FLAG_VOLUME             (uint8_t)0x08 /* Volume name */
 #define FLAG_DIR                (uint8_t)0x10 /* Subdirectory */
 #define FLAG_ARCHIVE            (uint8_t)0x20
 /*----------------------------------------------------------------------------*/
