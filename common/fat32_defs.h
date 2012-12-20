@@ -174,11 +174,11 @@ static /*inline */enum result writeSector(struct FatHandle *, uint32_t,
     const uint8_t *, uint8_t);
 /*----------------------------------------------------------------------------*/
 /*------------------Specific FAT32 functions----------------------------------*/
+static const char *getChunk(const char *, char *);
+static enum result getNextCluster(struct FatHandle *, uint32_t *);
 static enum result fetchEntry(struct FatHandle *, struct FatObject *);
 static const char *followPath(struct FatHandle *, struct FatObject *,
     const char *);
-static const char *getChunk(const char *, char *);
-static enum result getNextCluster(struct FatHandle *, uint32_t *);
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
 static enum result allocateCluster(struct FatHandle *, uint32_t *);

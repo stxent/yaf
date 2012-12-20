@@ -123,6 +123,59 @@ static const struct FsHandleClass fatHandleTable = {
 const struct FsHandleClass *FatHandle = (void *)&fatHandleTable;
 /*----------------------------------------------------------------------------*/
 /*------------------Specific FAT32 functions----------------------------------*/
+//TODO rewrite to support LFN
+/* dest length is 13: 8 name + dot + 3 extension + null */
+static const char *getChunk(const char *src, char *dest)
+{
+  uint8_t counter = 0;
+
+  if (!*src)
+    return src;
+  if (*src == '/')
+  {
+    *dest++ = '/';
+    *dest = '\0';
+    return src + 1;
+  }
+  while (*src && counter++ < FILE_NAME_MAX - 1)
+  {
+    if (*src == '/')
+    {
+      src++;
+      break;
+    }
+    if (*src == ' ')
+    {
+      src++;
+      continue;
+    }
+    *dest++ = *src++;
+  }
+  *dest = '\0';
+  return src;
+}
+/*----------------------------------------------------------------------------*/
+static enum result getNextCluster(struct FatHandle *handle, uint32_t *cluster)
+{
+  uint32_t nextCluster;
+
+  if (readSector(handle, handle->tableSector + (*cluster >> TE_COUNT),
+      handle->buffer, 1))
+  {
+    return E_INTERFACE;
+  }
+  nextCluster = *(uint32_t *)(handle->buffer + TE_OFFSET(*cluster));
+  if (clusterUsed(nextCluster))
+  {
+    *cluster = nextCluster;
+    return E_OK;
+  }
+  else
+  {
+    return E_EOF;
+  }
+}
+/*----------------------------------------------------------------------------*/
 static enum result fetchEntry(struct FatHandle *handle, struct FatObject *entry)
 {
   /* Members entry->index and entry->parent have to be initialized */
@@ -198,59 +251,6 @@ static const char *followPath(struct FatHandle *handle, struct FatObject *item,
     item->index++;
   }
   return 0;
-}
-/*----------------------------------------------------------------------------*/
-//TODO rewrite to support LFN
-/* dest length is 13: 8 name + dot + 3 extension + null */
-static const char *getChunk(const char *src, char *dest)
-{
-  uint8_t counter = 0;
-
-  if (!*src)
-    return src;
-  if (*src == '/')
-  {
-    *dest++ = '/';
-    *dest = '\0';
-    return src + 1;
-  }
-  while (*src && (counter++ < 12))
-  {
-    if (*src == '/')
-    {
-      src++;
-      break;
-    }
-    if (*src == ' ')
-    {
-      src++;
-      continue;
-    }
-    *dest++ = *src++;
-  }
-  *dest = '\0';
-  return src;
-}
-/*----------------------------------------------------------------------------*/
-static enum result getNextCluster(struct FatHandle *handle, uint32_t *cluster)
-{
-  uint32_t nextCluster;
-
-  if (readSector(handle, handle->tableSector + (*cluster >> TE_COUNT),
-      handle->buffer, 1))
-  {
-    return E_INTERFACE;
-  }
-  nextCluster = *(uint32_t *)(handle->buffer + TE_OFFSET(*cluster));
-  if (clusterUsed(nextCluster))
-  {
-    *cluster = nextCluster;
-    return E_OK;
-  }
-  else
-  {
-    return E_EOF;
-  }
 }
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
