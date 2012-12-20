@@ -15,8 +15,6 @@
   void (*deinit)(void *);
 #define CLASS(instance) (((struct Entity *)(instance))->type)
 /*----------------------------------------------------------------------------*/
-struct Entity;
-/*----------------------------------------------------------------------------*/
 struct EntityClass
 {
   CLASS_GENERATOR

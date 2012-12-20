@@ -453,6 +453,28 @@ static enum result freeChain(struct FatHandle *handle, uint32_t cluster)
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
+static enum result markFree(struct FatHandle *handle, struct FatObject *entry)
+{
+  struct DirEntryImage *ptr;
+  uint32_t sector; /* Directory sector containing entry description */
+
+  /* Mark file table clusters as free */
+  if (freeChain(handle, entry->cluster) != E_OK)
+    return E_ERROR;
+
+  sector = getSector(handle, entry->parent) + E_SECTOR(entry->index);
+  if (readSector(handle, sector, handle->buffer, 1))
+    return E_INTERFACE;
+  /* Mark directory entry as free */
+  ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
+  ptr->name[0] = E_FLAG_EMPTY;
+  if (writeSector(handle, sector, handle->buffer, 1))
+    return E_INTERFACE;
+  return E_OK;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_WRITE
 static enum result truncate(struct FatFile *fileHandle)
 {
   /* FIXME */
@@ -793,44 +815,21 @@ static enum result fatMove(void *object, const char *src,
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
-//FIXME Remove directory support
 static enum result fatRemove(void *object, const char *path)
 {
   struct FatHandle *handle = object;
-  struct DirEntryImage *ptr;
-  uint16_t index;
-  uint32_t tmp; /* Stores first cluster of entry or entry sector */
-  uint32_t parent;
   struct FatObject item;
 
   while (path && *path)
     path = followPath(handle, &item, path);
   if (!path)
     return E_NONEXISTENT;
-  /* Hidden, system, volume name */
-  if (item.attribute & (FLAG_HIDDEN | FLAG_SYSTEM))
+  /* Hidden, system, volume name or directory */
+  if (item.attribute & (FLAG_HIDDEN | FLAG_SYSTEM | FLAG_DIR))
     return E_NONEXISTENT;
 
-  index = item.index;
-  tmp = item.cluster; /* First cluster of entry */
-  parent = item.parent;
-  item.index = 2; /* Exclude . and .. */
-  item.parent = item.cluster;
-  /* Check if directory not empty */
-  if ((item.attribute & FLAG_DIR) && !fetchEntry(handle, &item))
+  if (markFree(handle, &item) != E_OK)
     return E_ERROR;
-  if (freeChain(handle, tmp) != E_OK)
-    return E_ERROR;
-
-  /* Sector in directory with entry description */
-  tmp = getSector(handle, parent) + E_SECTOR(index);
-  if (readSector(handle, tmp, handle->buffer, 1))
-    return E_INTERFACE;
-  /* Mark entry as free */
-  ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(index));
-  ptr->name[0] = E_FLAG_EMPTY;
-  if (writeSector(handle, tmp, handle->buffer, 1))
-    return E_INTERFACE;
   return E_OK;
 }
 #endif
@@ -1226,7 +1225,30 @@ static enum result fatMakeDir(void *object, const char *path)
 #ifdef FAT_WRITE
 static enum result fatRemoveDir(void *object, const char *path)
 {
-  return fatRemove(object, path);
+  struct FatHandle *handle = object;
+  struct FatObject item, dirItem;
+
+  while (path && *path)
+    path = followPath(handle, &item, path);
+  if (!path)
+    return E_NONEXISTENT;
+  /* Not directory or hidden, system, volume name */
+  if (!(item.attribute & FLAG_DIR) ||
+      item.attribute & (FLAG_HIDDEN | FLAG_SYSTEM))
+  {
+    return E_NONEXISTENT;
+  }
+
+  /* Check if directory not empty */
+  dirItem = item;
+  dirItem.index = 2; /* Exclude . and .. */
+  dirItem.parent = item.cluster;
+  if (!fetchEntry(handle, &dirItem))
+    return E_ERROR;
+
+  if (markFree(handle, &item) != E_OK)
+    return E_ERROR;
+  return E_OK;
 }
 #endif
 /*----------------------------------------------------------------------------*/

@@ -284,6 +284,27 @@ enum cResult util_rm(struct FsHandle *handler, const vector<string> &args,
   return res;
 }
 #endif
+//------------------------------------------------------------------------------
+#ifdef FAT_WRITE
+enum cResult util_rmdir(struct FsHandle *handler, const vector<string> &args,
+    string &loc)
+{
+  enum cResult res = C_OK;
+  enum result fsres;
+
+  for (unsigned int i = 1; i < args.size(); i++)
+  {
+    string newloc = parsePath(loc, args[i]);
+    fsres = fsRemoveDir(handler, newloc.c_str());
+    if (fsres != E_OK)
+    {
+      cout << "rmdir: " << newloc << ": No such directory or not empty" << endl;
+      res = C_ERROR;
+    }
+  }
+  return res;
+}
+#endif
 //---------------------------------------------------------------------------
 #ifdef FAT_WRITE
 enum cResult util_mv(struct FsHandle *handler, const vector<string> &args,
@@ -839,6 +860,16 @@ enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
   {
     enum cResult retval;
     retval = util_rm(handler, args, loc);
+    if (retval != C_OK)
+    {
+      cout << "Error" << endl;
+      return C_ERROR;
+    }
+  }
+  if (args[0] == "rmdir")
+  {
+    enum cResult retval;
+    retval = util_rmdir(handler, args, loc);
     if (retval != C_OK)
     {
       cout << "Error" << endl;
