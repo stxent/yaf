@@ -26,12 +26,14 @@ typedef int64_t asize_t;
 enum fsMode
 {
     FS_NONE = 0,
-    /** File read mode */
+    /** Open file for reading. */
     FS_READ,
-    /** File write mode */
+    /** Truncate to zero length or create file for writing. */
     FS_WRITE,
-    /** File append mode */
-    FS_APPEND
+    /** Append, open file for writing at end-of-file. */
+    FS_APPEND,
+    /** Open file for update: reading and writing. */
+    FS_UPDATE
 };
 /*----------------------------------------------------------------------------*/
 enum fsSeekOrigin

@@ -31,14 +31,14 @@ enum result fsBlockRead(void *interface, asize_t address,
 #ifdef DEBUG
     printf("block_read: error: io control\n");
 #endif
-    return E_ERROR;
+    return E_DEVICE;
   }
   if (ifRead(interface, buffer, length) != length)
   {
 #ifdef DEBUG
     printf("block_read: error: read position: %u\n", (unsigned int)address);
 #endif
-    return E_ERROR;
+    return E_INTERFACE;
   }
 #ifdef DEBUG
   readCount++;

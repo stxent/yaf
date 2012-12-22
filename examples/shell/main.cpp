@@ -672,8 +672,10 @@ enum cResult util_dd(struct FsHandle *handler, const vector<string> &args,
 //------------------------------------------------------------------------------
 int util_io(struct FsHandle *handler)
 {
+#ifdef DEBUG
   cout << "Sectors read:    " << readCount << endl;
   cout << "Sectors written: " << writeCount << endl;
+#endif
   return E_OK;
 }
 //------------------------------------------------------------------------------
