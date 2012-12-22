@@ -6,7 +6,7 @@
 
 /**
  *  @file
- *  Abstract filesystem interface for embedded system applications
+ *  Abstract filesystem interface for embedded system applications.
  */
 
 #ifndef FS_H_
@@ -38,23 +38,23 @@ enum fsMode
 /*----------------------------------------------------------------------------*/
 enum fsSeekOrigin
 {
-    /** Beginning of file */
+    /** Beginning of file. */
     FS_SEEK_SET = 0,
-    /** Current position of the file pointer */
+    /** Current position of the file pointer. */
     FS_SEEK_CUR,
-    /** End of file */
+    /** End of file. */
     FS_SEEK_END
 };
 /*----------------------------------------------------------------------------*/
 enum fsEntryType
 {
-    /** Unknown type */
+    /** Unknown type. */
     FS_TYPE_NONE = 0,
-    /** Directory entry */
+    /** Directory entry. */
     FS_TYPE_DIR,
-    /** Regular file */
+    /** Regular file. */
     FS_TYPE_FILE,
-    /** Symbolic link */
+    /** Symbolic link. */
     FS_TYPE_LINK
 };
 /*----------------------------------------------------------------------------*/
@@ -169,9 +169,11 @@ enum result fsRemoveDir(void *, const char *);
 void fsClose(void *);
 bool fsEof(const void *);
 enum result fsFlush(void *);
+/* TODO Change return type to uint32_t */
 enum result fsRead(void *, uint8_t *, uint32_t, uint32_t *);
 enum result fsSeek(void *, asize_t, enum fsSeekOrigin);
 asize_t fsTell(const void *);
+/* TODO Change return type to uint32_t */
 enum result fsWrite(void *, const uint8_t *, uint32_t, uint32_t *);
 /*----------------------------------------------------------------------------*/
 /*------------------Directory functions---------------------------------------*/

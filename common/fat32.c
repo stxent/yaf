@@ -49,25 +49,6 @@ static inline uint16_t entryCount(struct FatHandle *handle)
   return 1 << E_POW << handle->clusterSize;
 }
 /*----------------------------------------------------------------------------*/
-static /*inline */enum result readSector(struct FatHandle *handle,
-    uint32_t address, uint8_t *buffer, uint8_t count)
-{
-  /* FIXME */
-  if (handle->bufferedSector == address)
-    return E_OK;
-  handle->bufferedSector = address;
-  return fsBlockRead(handle->parent.dev, address << SECTOR_POW, buffer,
-      count << SECTOR_POW);
-}
-/*----------------------------------------------------------------------------*/
-static /*inline */enum result writeSector(struct FatHandle *handle,
-    uint32_t address, const uint8_t *buffer, uint8_t count)
-{
-  /* FIXME */
-  return fsBlockWrite(handle->parent.dev, address << SECTOR_POW, buffer,
-      count << SECTOR_POW);
-}
-/*----------------------------------------------------------------------------*/
 /*------------------Class descriptors-----------------------------------------*/
 static const struct FsFileClass fatFileTable = {
     .size = sizeof(struct FatFile),
@@ -251,6 +232,16 @@ static const char *followPath(struct FatHandle *handle, struct FatObject *item,
     item->index++;
   }
   return 0;
+}
+/*----------------------------------------------------------------------------*/
+static enum result readSector(struct FatHandle *handle,
+    uint32_t address, uint8_t *buffer, uint8_t count)
+{
+  if (handle->bufferedSector == address)
+    return E_OK;
+  handle->bufferedSector = address;
+  return fsBlockRead(handle->parent.dev, address << SECTOR_POW, buffer,
+      count << SECTOR_POW);
 }
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
@@ -482,6 +473,15 @@ static enum result markFree(struct FatHandle *handle, struct FatObject *entry)
   if ((res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
     return res;
   return E_OK;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_WRITE
+static enum result writeSector(struct FatHandle *handle,
+    uint32_t address, const uint8_t *buffer, uint8_t count)
+{
+  return fsBlockWrite(handle->parent.dev, address << SECTOR_POW, buffer,
+      count << SECTOR_POW);
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -858,6 +858,7 @@ static void fatClose(void *object)
 {
   struct FsFile *file = object;
 
+  /* Write changes when file was opened for writing or updating */
   if (file->mode != FS_READ)
     fatFlush(object);
   file->descriptor = 0;
@@ -880,8 +881,11 @@ static enum result fatRead(void *object, uint8_t *buffer, uint32_t count,
   uint16_t chunk, offset;
   uint32_t read = 0;
 
-  if (fileHandle->parent.mode != FS_READ)
+  if (fileHandle->parent.mode != FS_READ &&
+      fileHandle->parent.mode != FS_UPDATE)
+  {
     return E_ERROR;
+  }
   if (count > fileHandle->size - fileHandle->position)
     count = fileHandle->size - fileHandle->position;
   if (!count)
@@ -952,12 +956,8 @@ static enum result fatWrite(void *object, const uint8_t *buffer,
   uint16_t chunk, offset;
   uint32_t sector, written = 0;
 
-  /* FIXME Replace with FS_READ? */
-  if (fileHandle->parent.mode != FS_APPEND &&
-      fileHandle->parent.mode != FS_WRITE)
-  {
+  if (fileHandle->parent.mode == FS_READ)
     return E_ERROR;
-  }
   if (!fileHandle->size)
   {
     if ((res = allocateCluster(handle, &fileHandle->cluster)) != E_OK)
@@ -1039,6 +1039,8 @@ static enum result fatFlush(void *object)
   enum result res;
   uint32_t sector;
 
+  if (fileHandle->parent.mode == FS_READ)
+    return E_ERROR;
   sector = getSector(handle, fileHandle->parentCluster) +
       E_SECTOR(fileHandle->parentIndex);
   if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)

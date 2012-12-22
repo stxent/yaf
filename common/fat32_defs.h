@@ -168,11 +168,6 @@ static inline bool clusterEOC(uint32_t);
 static inline bool clusterUsed(uint32_t);
 static inline uint32_t getSector(struct FatHandle *, uint32_t);
 static inline uint16_t entryCount(struct FatHandle *);
-/* FIXME */
-static /*inline */enum result readSector(struct FatHandle *, uint32_t,
-    uint8_t *, uint8_t);
-static /*inline */enum result writeSector(struct FatHandle *, uint32_t,
-    const uint8_t *, uint8_t);
 /*----------------------------------------------------------------------------*/
 /*------------------Specific FAT32 functions----------------------------------*/
 static const char *getChunk(const char *, char *);
@@ -180,6 +175,8 @@ static enum result getNextCluster(struct FatHandle *, uint32_t *);
 static enum result fetchEntry(struct FatHandle *, struct FatObject *);
 static const char *followPath(struct FatHandle *, struct FatObject *,
     const char *);
+static enum result readSector(struct FatHandle *, uint32_t, uint8_t *,
+    uint8_t);
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
 static enum result allocateCluster(struct FatHandle *, uint32_t *);
@@ -187,6 +184,8 @@ static enum result createEntry(struct FatHandle *, struct FatObject *,
     const char *);
 static enum result freeChain(struct FatHandle *, uint32_t);
 static enum result markFree(struct FatHandle *, struct FatObject *);
+static enum result writeSector(struct FatHandle *, uint32_t, const uint8_t *,
+    uint8_t);
 static enum result truncate(struct FatFile *);
 static enum result updateTable(struct FatHandle *, uint32_t);
 #endif
