@@ -157,9 +157,11 @@ static enum result getNextCluster(struct FatHandle *handle, uint32_t *cluster)
     return E_EOF;
 }
 /*----------------------------------------------------------------------------*/
-static enum result fetchEntry(struct FatHandle *handle, struct FatObject *entry)
+/* Members entry->index and entry->parent have to be initialized */
+/* Pointer nameBuffer must be at least FILE_NAME_MAX length or zero */
+static enum result fetchEntry(struct FatHandle *handle,
+    struct FatObject *entry, char *nameBuffer)
 {
-  /* Members entry->index and entry->parent have to be initialized */
   struct DirEntryImage *ptr;
   uint32_t sector;
 
@@ -191,27 +193,30 @@ static enum result fetchEntry(struct FatHandle *handle, struct FatObject *entry)
   if (!(entry->attribute & FLAG_DIR))
     entry->size = ptr->size;
   entry->cluster = ptr->clusterHigh << 16 | ptr->clusterLow;
-  /* Copy entry name */
-  memcpy(entry->name, ptr->name, sizeof(ptr->name));
-  /* Add dot, when entry is not directory or extension exists */
-  if (!(entry->attribute & FLAG_DIR) && ptr->extension[0] != ' ')
+  if (nameBuffer)
   {
-    //TODO add LFN support
-    entry->name[8] = '.';
-    /* Copy entry extension */
-    memcpy(entry->name + 9, ptr->extension, sizeof(ptr->extension));
-    entry->name[12] = '\0';
+    /* Copy entry name */
+    memcpy(nameBuffer, ptr->name, sizeof(ptr->name));
+    /* Add dot, when entry is not directory or extension exists */
+    if (!(entry->attribute & FLAG_DIR) && ptr->extension[0] != ' ')
+    {
+      //TODO add LFN support
+      nameBuffer[8] = '.';
+      /* Copy entry extension */
+      memcpy(nameBuffer + 9, ptr->extension, sizeof(ptr->extension));
+      nameBuffer[12] = '\0';
+    }
+    else
+      nameBuffer[8] = '\0';
+    getChunk(nameBuffer, nameBuffer);
   }
-  else
-    entry->name[8] = '\0';
-  getChunk(entry->name, entry->name);
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
 static const char *followPath(struct FatHandle *handle, struct FatObject *item,
     const char *path)
 {
-  char name[FILE_NAME_MAX];
+  char name[FILE_NAME_MAX], entryName[FILE_NAME_MAX];
 
   path = getChunk(path, name);
   if (!strlen(name))
@@ -225,9 +230,9 @@ static const char *followPath(struct FatHandle *handle, struct FatObject *item,
   }
   item->parent = item->cluster;
   item->index = 0;
-  while (!fetchEntry(handle, item))
+  while (!fetchEntry(handle, item, entryName))
   {
-    if (!strcmp(item->name, name))
+    if (!strcmp(entryName, name))
       return path;
     item->index++;
   }
@@ -614,8 +619,7 @@ static enum result fatStat(void *object, struct FsStat *result,
   if (*path)
     return E_NONEXISTENT;
 
-  sector = getSector(object, item.parent) +
-      E_SECTOR(item.index);
+  sector = getSector(object, item.parent) + E_SECTOR(item.index);
   if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
     return res;
 #ifdef FAT_TIME
@@ -1115,6 +1119,7 @@ static enum result fatReadDir(void *object, char *name)
   struct FatDir *dirHandle = object;
   struct FatObject item;
   enum result res;
+  char entryName[FILE_NAME_MAX];
 
   item.parent = dirHandle->currentCluster;
   /* Fetch next entry */
@@ -1122,7 +1127,7 @@ static enum result fatReadDir(void *object, char *name)
   do
   {
     if ((res = fetchEntry((struct FatHandle *)dirHandle->parent.descriptor,
-        &item)) != E_OK)
+        &item, entryName)) != E_OK)
     {
       return E_NONEXISTENT;
     }
@@ -1133,7 +1138,7 @@ static enum result fatReadDir(void *object, char *name)
   dirHandle->currentIndex = item.index; /* Points to next item */
   dirHandle->currentCluster = item.parent;
 
-  strcpy(name, item.name);
+  strcpy(name, entryName);
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
@@ -1222,7 +1227,7 @@ static enum result fatMakeDir(void *object, const char *path)
   ptr->flags = FLAG_DIR;
   ptr->clusterHigh = item.cluster >> 16;
   ptr->clusterLow = item.cluster;
-#ifdef FS_RTS_ENABLED
+#ifdef FAT_TIME
   //FIXME rewrite
   ptr->time = rtcGetTime();
   ptr->date = rtcGetDate();
@@ -1231,6 +1236,7 @@ static enum result fatMakeDir(void *object, const char *path)
   /* Parent directory entry .. */
   ptr++;
   /* Fill name and extension with spaces */
+  /* TODO LFN */
   memset(ptr->filename, ' ', sizeof(ptr->filename));
   ptr->name[0] = ptr->name[1] = '.';
   ptr->flags = FLAG_DIR;
@@ -1250,7 +1256,6 @@ static enum result fatMakeDir(void *object, const char *path)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-//FIXME Rewrite
 #ifdef FAT_WRITE
 static enum result fatRemoveDir(void *object, const char *path)
 {
@@ -1273,7 +1278,7 @@ static enum result fatRemoveDir(void *object, const char *path)
   dirItem = item;
   dirItem.index = 2; /* Exclude . and .. */
   dirItem.parent = item.cluster;
-  res = fetchEntry(handle, &dirItem);
+  res = fetchEntry(handle, &dirItem, 0);
   if (res == E_OK)
     return E_ERROR;
   else if (res != E_EOF)

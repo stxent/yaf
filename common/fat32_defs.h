@@ -107,7 +107,6 @@ struct FatObject
   uint32_t cluster; /* First cluster of entry */
   uint32_t parent; /* Directory cluster where entry located */
   uint32_t size; /* File size or zero for directories */
-  char name[FILE_NAME_MAX];
 };
 /*----------------------------------------------------------------------------*/
 /*------------------Specific FAT32 memory structures--------------------------*/
@@ -172,7 +171,7 @@ static inline uint16_t entryCount(struct FatHandle *);
 /*------------------Specific FAT32 functions----------------------------------*/
 static const char *getChunk(const char *, char *);
 static enum result getNextCluster(struct FatHandle *, uint32_t *);
-static enum result fetchEntry(struct FatHandle *, struct FatObject *);
+static enum result fetchEntry(struct FatHandle *, struct FatObject *, char *);
 static const char *followPath(struct FatHandle *, struct FatObject *,
     const char *);
 static enum result readSector(struct FatHandle *, uint32_t, uint8_t *,
