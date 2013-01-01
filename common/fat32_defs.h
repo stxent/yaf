@@ -176,7 +176,7 @@ static const char *followPath(struct FatHandle *, struct FatObject *,
     const char *);
 static enum result readSector(struct FatHandle *, uint32_t, uint8_t *,
     uint8_t);
-/*----------------------------------------------------------------------------*/
+/* Functions with write access */
 #ifdef FAT_WRITE
 static enum result allocateCluster(struct FatHandle *, uint32_t *);
 static enum result createEntry(struct FatHandle *, struct FatObject *,
@@ -190,6 +190,7 @@ static enum result updateTable(struct FatHandle *, uint32_t);
 #endif
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
+/* Constructor and destructor */
 static enum result fatInit(void *, const void *);
 static void fatDeinit(void *);
 /*------------------Implemented filesystem methods----------------------------*/
@@ -197,10 +198,8 @@ static void fatDeinit(void *);
 static enum result fatOpen(void *, void *, const char *, enum fsMode);
 static enum result fatOpenDir(void *, void *, const char *);
 static enum result fatStat(void *, struct FsStat *, const char *);
-#ifdef FAT_WRITE
 static enum result fatMove(void *, const char *, const char *);
 static enum result fatRemove(void *, const char *);
-#endif
 /*----------------------------------------------------------------------------*/
 /* File functions */
 static void fatClose(void *);
@@ -208,17 +207,15 @@ static bool fatEof(const void *);
 static uint32_t fatRead(void *, uint8_t *, uint32_t);
 static enum result fatSeek(void *, asize_t, enum fsSeekOrigin);
 static asize_t fatTell(const void *);
-#ifdef FAT_WRITE
+/* Functions with write access */
 static enum result fatFlush(void *);
 static uint32_t fatWrite(void *, const uint8_t *, uint32_t);
-#endif
 /*----------------------------------------------------------------------------*/
 /* Directory functions */
 static void fatCloseDir(void *);
 static enum result fatReadDir(void *, char *);
-#ifdef FAT_WRITE
+/* Functions with write access */
 static enum result fatMakeDir(void *, const char *);
 static enum result fatRemoveDir(void *, const char *);
-#endif
 /*----------------------------------------------------------------------------*/
 #endif /* FAT32_DEFS_H_ */

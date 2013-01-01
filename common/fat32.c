@@ -61,11 +61,7 @@ static const struct FsFileClass fatFileTable = {
     .seek = fatSeek,
     .read = fatRead,
 
-#ifdef FAT_WRITE
     .write = fatWrite
-#else
-    .write = 0
-#endif
 };
 /*----------------------------------------------------------------------------*/
 static const struct FsDirClass fatDirTable = {
@@ -89,17 +85,10 @@ static const struct FsHandleClass fatHandleTable = {
     .openDir = fatOpenDir,
     .stat = fatStat,
 
-#ifdef FAT_WRITE
     .makeDir = fatMakeDir,
     .move = fatMove,
     .remove = fatRemove,
     .removeDir = fatRemoveDir
-#else
-    .makeDir = 0, /* FIXME */
-    .move = 0,
-    .remove = 0,
-    .removeDir = 0
-#endif
 };
 /*----------------------------------------------------------------------------*/
 const struct FsHandleClass *FatHandle = (void *)&fatHandleTable;
@@ -661,8 +650,10 @@ static enum result fatOpen(void *handleObject, void *fileObject,
   struct FatHandle *handle = handleObject;
   struct FatFile *fileHandle = fileObject;
   struct FatObject item;
-  enum result res;
   const char *followedPath;
+#ifdef FAT_WRITE
+  enum result res;
+#endif
 
   fileHandle->parent.descriptor = 0;
   fileHandle->parent.mode = mode;
@@ -817,6 +808,13 @@ static enum result fatMove(void *object, const char *src, const char *dest)
 
   return E_OK;
 }
+#else
+static enum result fatMove(void *object __attribute__((unused)),
+    const char *src __attribute__((unused)),
+    const char *dest __attribute__((unused)))
+{
+  return E_ERROR;
+}
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
@@ -841,6 +839,12 @@ static enum result fatRemove(void *object, const char *path)
   if ((res = markFree(handle, &item)) != E_OK)
     return res;
   return E_OK;
+}
+#else
+static enum result fatRemove(void *object __attribute__((unused)),
+    const char *path __attribute__((unused)))
+{
+  return E_ERROR;
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -1008,6 +1012,13 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
   fileHandle->position = fileHandle->size;
   return written;
 }
+#else
+static uint32_t fatWrite(void *object __attribute__((unused)),
+    const uint8_t *buffer __attribute__((unused)),
+    uint32_t count __attribute__((unused)))
+{
+  return 0;
+}
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
@@ -1042,6 +1053,11 @@ static enum result fatFlush(void *object)
   if ((res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
     return res;
   return E_OK;
+}
+#else
+static enum result fatFlush(void *object __attribute__((unused)))
+{
+  return E_ERROR;
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -1243,7 +1259,13 @@ static enum result fatMakeDir(void *object, const char *path)
     return res;
   return E_OK;
 }
-#endif
+#else
+static enum result fatMakeDir(void *object __attribute__((unused)),
+    const char *path __attribute__((unused)))
+{
+  return E_ERROR;
+}
+#endif /* FAT_WRITE */
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
 static enum result fatRemoveDir(void *object, const char *path)
@@ -1280,6 +1302,12 @@ static enum result fatRemoveDir(void *object, const char *path)
   if ((res = markFree(handle, &item)) != E_OK)
     return res;
   return E_OK;
+}
+#else
+static enum result fatRemoveDir(void *object __attribute__((unused)),
+    const char *path __attribute__((unused)))
+{
+  return E_ERROR;
 }
 #endif
 /*----------------------------------------------------------------------------*/
