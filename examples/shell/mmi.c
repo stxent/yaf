@@ -12,11 +12,12 @@
 #include <stdlib.h>
 #include <stdint.h>
 /*----------------------------------------------------------------------------*/
-#undef DEBUG
-/*----------------------------------------------------------------------------*/
 #ifdef DEBUG
 #include <stdio.h>
+/* #define DEBUG_RW */
 #endif
+/*----------------------------------------------------------------------------*/
+#define MMI_SECTOR_POW 9
 /*----------------------------------------------------------------------------*/
 #include "mmi.h"
 #include "mutex.h"
@@ -24,11 +25,13 @@
 struct Mmi
 {
   struct Interface parent;
+
   Mutex lock;
-  void *data;
+  uint64_t position, offset, size;
+
+  uint8_t *data;
   int file;
   struct stat info;
-  uint64_t position;
 };
 /*----------------------------------------------------------------------------*/
 static enum result mmiInit(void *, const void *);
@@ -59,10 +62,9 @@ static enum result mmiInit(void *object, const void *configPtr)
   if (!path)
     return E_ERROR;
   dev->position = 0;
+  dev->offset = 0;
+  dev->size = 0;
   dev->file = open(path, O_RDWR);
-#ifdef DEBUG
-  printf("mmaped_io: opening file: %s\n", path);
-#endif
   if (!dev->file)
     return E_ERROR;
   if (fstat(dev->file, &(dev->info)) == -1 || dev->info.st_size == 0)
@@ -70,6 +72,11 @@ static enum result mmiInit(void *object, const void *configPtr)
   dev->data = mmap(0, dev->info.st_size, PROT_WRITE, MAP_SHARED, dev->file, 0);
   if (dev->data == MAP_FAILED)
     return E_ERROR;
+  dev->size = dev->info.st_size;
+#ifdef DEBUG
+  printf("mmaped_io: opened file: %s, size: 0x%012lX\n",
+      path, (unsigned long)dev->size);
+#endif
 
   return E_OK;
 }
@@ -79,11 +86,12 @@ static uint32_t mmiRead(void *object, uint8_t *buffer, uint32_t length)
   struct Mmi *dev = object;
 
   mutexLock(&dev->lock);
-  memcpy(buffer, (uint8_t *)dev->data + dev->position, length);
+  memcpy(buffer, dev->data + dev->position + dev->offset, length);
+  dev->position += length;
   mutexUnlock(&dev->lock);
-#ifdef DEBUG
-  printf("mmaped_io: read data at 0x%08X, length %u\n",
-      (unsigned int)dev->position, length);
+#ifdef DEBUG_RW
+  printf("mmaped_io: read data at 0x%012lX, length %u\n",
+      (unsigned long)dev->position, length);
 #endif
   return length;
 }
@@ -93,11 +101,12 @@ static uint32_t mmiWrite(void *object, const uint8_t *buffer, uint32_t length)
   struct Mmi *dev = object;
 
   mutexLock(&dev->lock);
-  memcpy((uint8_t *)dev->data + dev->position, buffer, length);
+  memcpy(dev->data + dev->position + dev->offset, buffer, length);
+  dev->position += length;
   mutexUnlock(&dev->lock);
-#ifdef DEBUG
-  printf("mmaped_io: write data at 0x%08X, length %u\n",
-      (unsigned int)dev->position, length);
+#ifdef DEBUG_RW
+  printf("mmaped_io: write data at 0x%012lX, length %u\n",
+      (unsigned long)dev->position, length);
 #endif
   return length;
 }
@@ -120,15 +129,25 @@ static enum result mmiSetOpt(void *object, enum ifOption option,
     const void *data)
 {
   struct Mmi *dev = object;
+  uint64_t newPos;
 
   switch (option)
   {
     case IF_ADDRESS:
-      dev->position = *(uint64_t *)data;
+      newPos = *(uint64_t *)data;
+      if (newPos + dev->offset >= dev->size)
+      {
 #ifdef DEBUG
+        printf("mmaped_io: out of bounds, position 0x%012lX, size 0x%012lX\n",
+            (unsigned long)dev->position, (unsigned long)dev->size);
+#endif
+        return E_ERROR;
+      }
+      dev->position = newPos;
+/* #ifdef DEBUG
       printf("mmaped_io: position set to 0x%08X\n",
           (unsigned int)dev->position);
-#endif
+#endif */
       return E_OK;
     default:
       return E_ERROR;
@@ -141,4 +160,46 @@ static void mmiDeinit(void *object)
 
   munmap(dev->data, dev->info.st_size);
   close(dev->file);
+}
+/*----------------------------------------------------------------------------*/
+enum result mmiSetPartition(void *object, struct MbrDescriptor *desc)
+{
+  struct Mmi *dev = object;
+  const char validTypes[] = {0x0B, 0x0C, 0x1B, 0x1C, 0x00};
+
+  if (!strchr(validTypes, desc->type))
+    return E_ERROR;
+  dev->size = desc->size << MMI_SECTOR_POW;
+  dev->offset = desc->offset << MMI_SECTOR_POW;
+#ifdef DEBUG
+  printf("mmaped_io: partition type 0x%02X, size %u sectors, "
+      "offset %u sectors\n",
+      desc->type, (unsigned int)desc->size, (unsigned int)desc->offset);
+#endif
+  return E_OK;
+}
+/*----------------------------------------------------------------------------*/
+enum result mmiReadTable(void *object, uint32_t sector, uint8_t index,
+    struct MbrDescriptor *desc)
+{
+  struct Mmi *dev = object;
+  uint64_t position = sector << MMI_SECTOR_POW;
+  uint8_t buffer[1 << MMI_SECTOR_POW];
+  uint8_t *ptr;
+
+  dev->offset = 0;
+  if (ifSetOpt(object, IF_ADDRESS, &position) != E_OK)
+    return E_INTERFACE;
+  if (ifRead(object, buffer, sizeof(buffer)) != sizeof(buffer))
+    return E_INTERFACE;
+  if (*(uint16_t *)(buffer + 0x01FE) != 0xAA55)
+    return E_ERROR;
+
+  ptr = buffer + 0x01BE + (index << 4); /* Pointer to partition entry */
+  if (!*(ptr + 0x04)) /* Empty entry */
+    return E_ERROR;
+  desc->type = *(ptr + 0x04); /* File system descriptor */
+  desc->offset = *(uint32_t *)(ptr + 0x08);
+  desc->size = *(uint32_t *)(ptr + 0x0C);
+  return E_OK;
 }

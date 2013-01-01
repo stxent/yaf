@@ -7,8 +7,19 @@
 #ifndef MMI_H_
 #define MMI_H_
 /*----------------------------------------------------------------------------*/
+#include <stdbool.h>
+/*----------------------------------------------------------------------------*/
 #include "interface.h"
 /*----------------------------------------------------------------------------*/
 extern const struct InterfaceClass *Mmi;
+/*----------------------------------------------------------------------------*/
+struct MbrDescriptor
+{
+  uint8_t type;
+  uint32_t offset, size;
+};
+/*----------------------------------------------------------------------------*/
+enum result mmiSetPartition(void *, struct MbrDescriptor *);
+enum result mmiReadTable(void *, uint32_t, uint8_t, struct MbrDescriptor *);
 /*----------------------------------------------------------------------------*/
 #endif /* MMI_H_ */

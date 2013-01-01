@@ -986,22 +986,14 @@ int main(int argc, char *argv[])
     return 0;
   }
 
-//   if (mmdReadTable(dev, 0, 0) == E_OK)
-//   {
-//     /*
-//      * 0x0B: 32-bit FAT
-//      * 0x0C: 32-bit FAT, using INT 13 Extensions.
-//      * 0x1B: Hidden 32-bit FAT
-//      * 0x1C: Hidden 32-bit FAT, using INT 13 Extensions
-//      */
-//     if (mmdGetType(dev) != 0x0B)
-//     {
-//       printf("Wrong partition type, expected: 0x0B, got: 0x%02X\n",
-//           mmdGetType(dev));
-//     }
-//   }
-//   else
-//     printf("No partitions found, selected raw partition at 0\n");
+  struct MbrDescriptor mbrRecord;
+  if (mmiReadTable(mmaped, 0, 0, &mbrRecord) == E_OK)
+  {
+    if (mmiSetPartition(mmaped, &mbrRecord) != E_OK)
+      printf("Error setup partition\n");
+  }
+  else
+    printf("No partitions found, selected raw partition at 0\n");
 
   struct Fat32Config fsConf = {
     .interface = mmaped
