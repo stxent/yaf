@@ -366,18 +366,16 @@ enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
   }
   if ((file = (struct FsFile *)fsOpen(handler, target.c_str(), FS_WRITE)))
   {
-    result ecode;
     uint32_t cnt;
     uint64_t total = 0;
 
+    char *ibuf = new char[bufSize];
     while (!datafile.eof())
     {
-      char *ibuf = new char[bufSize];
       datafile.read(ibuf, bufSize); //FIXME rewrite
-      ecode = fsWrite(file, (uint8_t *)ibuf, datafile.gcount(), &cnt);
+      cnt = fsWrite(file, (uint8_t *)ibuf, datafile.gcount());
       total += cnt;
-      delete ibuf;
-      if ((ecode != E_OK) || (cnt != datafile.gcount()))
+      if (cnt != datafile.gcount())
       {
         cout << "put: " << target << ": Write error on " << total << endl;
         break;
@@ -385,6 +383,7 @@ enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
       if (!datafile.gcount())
         break;
     }
+    delete ibuf;
     fsClose(file);
   }
   else
@@ -405,6 +404,7 @@ enum cResult util_cp(struct FsHandle *handler, const vector<string> &args,
   //TODO add argument parsing
   string src = parsePath(loc, args[1]);
   string dst = parsePath(loc, args[2]);
+  cResult res = C_OK;
 
   struct FsFile *srcFile, *dstFile;
   if (!(srcFile = (struct FsFile *)fsOpen(handler, src.c_str(), FS_READ)))
@@ -419,29 +419,30 @@ enum cResult util_cp(struct FsHandle *handler, const vector<string> &args,
 
   const int bufSize = 5000;
   char buf[bufSize];
-  enum result fsres;
   while (!fsEof(srcFile))
   {
     uint32_t cnt, wcnt;
 
-    fsres = fsRead(srcFile, (uint8_t *)buf, bufSize, &cnt);
-    if (fsres != E_OK)
+    cnt = fsRead(srcFile, (uint8_t *)buf, bufSize);
+    if (!cnt)
     {
-      cout << "cp: Error" << endl;
-      return C_ERROR;
+      cout << "cp: Read error" << endl;
+      res = C_ERROR;
+      break;
     }
     wcnt = cnt;
-    fsres = fsWrite(dstFile, (uint8_t *)buf, wcnt, &cnt);
-    if (fsres != E_OK)
+    cnt = fsWrite(dstFile, (uint8_t *)buf, wcnt);
+    if (cnt != wcnt)
     {
-      cout << "cp: Error" << endl;
-      return C_ERROR;
+      cout << "cp: Write error" << endl;
+      res = C_ERROR;
+      break;
     }
   }
 
   fsClose(dstFile);
   fsClose(srcFile);
-  return C_OK;
+  return res;
 }
 #endif
 //------------------------------------------------------------------------------
@@ -451,7 +452,6 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handler,
   const int bufSize = 64;
   vector< map<string, string> > entries;
   struct FsFile *file;
-  enum result fsres;
 
   for (unsigned int i = 1; i < args.size(); i++)
   {
@@ -466,10 +466,16 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handler,
       unsigned char md5str[16];
 
       MD5_Init(&md5result);
-      while ((fsres = fsRead(file, (uint8_t *)buf, bufSize, &cnt)) == E_OK)
+      while (!fsEof(file))
       {
+        cnt = fsRead(file, (uint8_t *)buf, bufSize);
         if (cnt)
           MD5_Update(&md5result, (const void *)buf, cnt);
+        else
+        {
+          cout << "md5sum: Read error" << endl;
+          break;
+        }
       }
       fsClose(file);
       MD5_Final(md5str, &md5result);
@@ -638,16 +644,14 @@ enum cResult util_dd(struct FsHandle *handler, const vector<string> &args,
     {
       rcnt = length - rdone;
       rcnt = rcnt > blockSize ? blockSize : rcnt;
-      fsres = fsRead(srcFile, (uint8_t *)buf, rcnt, &cnt);
-      if (fsres != E_OK)
+      cnt = fsRead(srcFile, (uint8_t *)buf, rcnt);
+      if (!cnt)
         throw "source read failed";
       rdone += cnt;
       wcnt = cnt;
-      fsres = fsWrite(dstFile, (uint8_t *)buf, wcnt, &cnt);
+      cnt = fsWrite(dstFile, (uint8_t *)buf, wcnt);
       if (cnt != wcnt)
-        throw "block length and written length differ";
-      if (fsres != E_OK)
-        throw "destination write failed";
+        throw "read and written lengths differ";
     }
 
     fsres = fsSeek(srcFile, -length, FS_SEEK_CUR);

@@ -81,6 +81,10 @@ static uint32_t mmiRead(void *object, uint8_t *buffer, uint32_t length)
   mutexLock(&dev->lock);
   memcpy(buffer, (uint8_t *)dev->data + dev->position, length);
   mutexUnlock(&dev->lock);
+#ifdef DEBUG
+  printf("mmaped_io: read data at 0x%08X, length %u\n",
+      (unsigned int)dev->position, length);
+#endif
   return length;
 }
 /*----------------------------------------------------------------------------*/
@@ -91,6 +95,10 @@ static uint32_t mmiWrite(void *object, const uint8_t *buffer, uint32_t length)
   mutexLock(&dev->lock);
   memcpy((uint8_t *)dev->data + dev->position, buffer, length);
   mutexUnlock(&dev->lock);
+#ifdef DEBUG
+  printf("mmaped_io: write data at 0x%08X, length %u\n",
+      (unsigned int)dev->position, length);
+#endif
   return length;
 }
 /*----------------------------------------------------------------------------*/

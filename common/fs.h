@@ -86,10 +86,10 @@ struct FsFileClass
   void (*close)(void *);
   bool (*eof)(const void *);
   enum result (*flush)(void *);
-  enum result (*read)(void *, uint8_t *, uint32_t, uint32_t *);
+  uint32_t (*read)(void *, uint8_t *, uint32_t);
   enum result (*seek)(void *, asize_t, enum fsSeekOrigin);
   asize_t (*tell)(const void *);
-  enum result (*write)(void *, const uint8_t *, uint32_t, uint32_t *);
+  uint32_t (*write)(void *, const uint8_t *, uint32_t);
 };
 /*----------------------------------------------------------------------------*/
 struct FsFile
@@ -150,8 +150,7 @@ struct FsHandle
 /* Block access functions */
 /* Address space defined by asize_t, block size defined by uint32_t */
 enum result fsBlockRead(void *, asize_t, uint8_t *, uint32_t);
-enum result fsBlockWrite(void *, asize_t, const uint8_t *,
-    uint32_t);
+enum result fsBlockWrite(void *, asize_t, const uint8_t *, uint32_t);
 /*----------------------------------------------------------------------------*/
 /*------------------Filesystem handle functions-------------------------------*/
 /* Common functions */
@@ -169,12 +168,10 @@ enum result fsRemoveDir(void *, const char *);
 void fsClose(void *);
 bool fsEof(const void *);
 enum result fsFlush(void *);
-/* TODO Change return type to uint32_t */
-enum result fsRead(void *, uint8_t *, uint32_t, uint32_t *);
+uint32_t fsRead(void *, uint8_t *, uint32_t);
 enum result fsSeek(void *, asize_t, enum fsSeekOrigin);
 asize_t fsTell(const void *);
-/* TODO Change return type to uint32_t */
-enum result fsWrite(void *, const uint8_t *, uint32_t, uint32_t *);
+uint32_t fsWrite(void *, const uint8_t *, uint32_t);
 /*----------------------------------------------------------------------------*/
 /*------------------Directory functions---------------------------------------*/
 void fsCloseDir(void *);

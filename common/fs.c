@@ -205,11 +205,9 @@ enum result fsFlush(void *file)
  *  read will be stored.
  *  @return Returns E_OK on success.
  */
-enum result fsRead(void *file, uint8_t *buffer, uint32_t length,
-    uint32_t *result)
+uint32_t fsRead(void *file, uint8_t *buffer, uint32_t length)
 {
-  return ((struct FsFileClass *)CLASS(file))->read(file, buffer, length,
-      result);
+  return ((struct FsFileClass *)CLASS(file))->read(file, buffer, length);
 }
 /*----------------------------------------------------------------------------*/
 /** Set the position in file to a new position.
@@ -240,11 +238,9 @@ asize_t fsTell(const void *file)
  *  written will be stored.
  *  @return Returns E_OK on success.
  */
-enum result fsWrite(void *file, const uint8_t *buffer, uint32_t length,
-    uint32_t *result)
+uint32_t fsWrite(void *file, const uint8_t *buffer, uint32_t length)
 {
-  return ((struct FsFileClass *)CLASS(file))->write(file, buffer, length,
-      result);
+  return ((struct FsFileClass *)CLASS(file))->write(file, buffer, length);
 }
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/

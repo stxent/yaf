@@ -862,33 +862,30 @@ static bool fatEof(const void *object)
   return fileHandle->position >= fileHandle->size;
 }
 /*----------------------------------------------------------------------------*/
-static enum result fatRead(void *object, uint8_t *buffer, uint32_t count,
-    uint32_t *result)
+static uint32_t fatRead(void *object, uint8_t *buffer, uint32_t count)
 {
   struct FatFile *fileHandle = object;
   /* FIXME */
   struct FatHandle *handle = (struct FatHandle *)fileHandle->parent.descriptor;
-  enum result res;
   uint16_t chunk, offset;
   uint32_t read = 0;
 
   if (fileHandle->parent.mode != FS_READ &&
       fileHandle->parent.mode != FS_UPDATE)
   {
-    return E_ERROR;
+    return 0;
   }
   if (count > fileHandle->size - fileHandle->position)
     count = fileHandle->size - fileHandle->position;
   if (!count)
-    return E_EOF;
+    return 0;
 
   while (count)
   {
     if (fileHandle->currentSector >= (1 << handle->clusterSize))
     {
-      res = getNextCluster(handle, &fileHandle->currentCluster);
-      if (res != E_OK) /* Sector read error or end-of-file */
-        return res;
+      if (getNextCluster(handle, &fileHandle->currentCluster) != E_OK)
+        return 0; /* Sector read error or end-of-file */
       fileHandle->currentSector = 0;
     }
 
@@ -899,11 +896,10 @@ static enum result fatRead(void *object, uint8_t *buffer, uint32_t count,
       /* Length of remaining sector space */
       chunk = SECTOR_SIZE - offset;
       chunk = count < chunk ? count : chunk;
-      if ((res = readSector(handle, getSector(handle,
-          fileHandle->currentCluster) + fileHandle->currentSector,
-          handle->buffer, 1)) != E_OK)
+      if (readSector(handle, getSector(handle, fileHandle->currentCluster) +
+          fileHandle->currentSector, handle->buffer, 1) != E_OK)
       {
-        return res;
+        return 0;
       }
       memcpy(buffer + read, handle->buffer + offset, chunk);
       if (chunk + offset >= SECTOR_SIZE)
@@ -919,11 +915,11 @@ static enum result fatRead(void *object, uint8_t *buffer, uint32_t count,
       printf("Burst read position %u, chunk size %u, sector count %u\n",
           read, chunk, chunk >> SECTOR_POW);
 #endif
-      if ((res = readSector(handle, getSector(handle,
+      if (readSector(handle, getSector(handle,
           fileHandle->currentCluster) + fileHandle->currentSector,
-          buffer + read, chunk >> SECTOR_POW)) != E_OK)
+          buffer + read, chunk >> SECTOR_POW) != E_OK)
       {
-        return res;
+        return 0;
       }
       fileHandle->currentSector += chunk >> SECTOR_POW;
     }
@@ -933,13 +929,11 @@ static enum result fatRead(void *object, uint8_t *buffer, uint32_t count,
   }
 
   fileHandle->position += read;
-  *result = read;
-  return E_OK;
+  return read;
 }
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
-static enum result fatWrite(void *object, const uint8_t *buffer,
-    uint32_t count, uint32_t *result)
+static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
 {
   struct FatFile *fileHandle = object;
   struct FatHandle *handle = (struct FatHandle *)fileHandle->parent.descriptor;
@@ -948,11 +942,11 @@ static enum result fatWrite(void *object, const uint8_t *buffer,
   uint32_t sector, written = 0;
 
   if (fileHandle->parent.mode == FS_READ)
-    return E_ERROR;
+    return 0;
   if (!fileHandle->size)
   {
-    if ((res = allocateCluster(handle, &fileHandle->cluster)) != E_OK)
-      return res;
+    if (allocateCluster(handle, &fileHandle->cluster) != E_OK)
+      return 0;
     fileHandle->currentCluster = fileHandle->cluster;
   }
   /* Checking file size limit (4 GiB - 1) */
@@ -967,9 +961,9 @@ static enum result fatWrite(void *object, const uint8_t *buffer,
       /* Allocate new cluster when next cluster does not exist */
       res = getNextCluster(handle, &fileHandle->currentCluster);
       if ((res != E_EOF && res != E_OK) || (res == E_EOF &&
-          (res = allocateCluster(handle, &fileHandle->currentCluster)) != E_OK))
+          allocateCluster(handle, &fileHandle->currentCluster) != E_OK))
       {
-          return res;
+          return 0;
       }
       fileHandle->currentSector = 0;
     }
@@ -983,11 +977,11 @@ static enum result fatWrite(void *object, const uint8_t *buffer,
       chunk = (count < chunk) ? count : chunk;
       sector = getSector(handle, fileHandle->currentCluster) +
           fileHandle->currentSector;
-      if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
-        return res;
+      if (readSector(handle, sector, handle->buffer, 1) != E_OK)
+        return 0;
       memcpy(handle->buffer + offset, buffer + written, chunk);
-      if ((res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
-        return res;
+      if (writeSector(handle, sector, handle->buffer, 1) != E_OK)
+        return 0;
       if (chunk + offset >= SECTOR_SIZE)
         fileHandle->currentSector++;
     }
@@ -997,15 +991,11 @@ static enum result fatWrite(void *object, const uint8_t *buffer,
       chunk = (SECTOR_SIZE << handle->clusterSize) -
           (fileHandle->currentSector << SECTOR_POW);
       chunk = (count < chunk) ? count & ~(SECTOR_SIZE - 1) : chunk;
-#ifdef DEBUG
-      printf("Burst write position %u, chunk size %u, sector count %u\n",
-          written, chunk, chunk >> SECTOR_POW);
-#endif
-      if ((res = writeSector(handle, getSector(handle,
+      if (writeSector(handle, getSector(handle,
           fileHandle->currentCluster) + fileHandle->currentSector,
-          buffer + written, chunk >> SECTOR_POW)) != E_OK)
+          buffer + written, chunk >> SECTOR_POW) != E_OK)
       {
-        return res;
+        return 0;
       }
       fileHandle->currentSector += chunk >> SECTOR_POW;
     }
@@ -1016,8 +1006,7 @@ static enum result fatWrite(void *object, const uint8_t *buffer,
 
   fileHandle->size += written;
   fileHandle->position = fileHandle->size;
-  *result = written;
-  return E_OK;
+  return written;
 }
 #endif
 /*----------------------------------------------------------------------------*/
