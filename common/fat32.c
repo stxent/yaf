@@ -177,9 +177,7 @@ static enum result fetchEntry(struct FatHandle *handle,
     entry->index++;
   }
   entry->attribute = ptr->flags;
-  /* Copy file size, when entry is not directory */
-  if (!(entry->attribute & FLAG_DIR))
-    entry->size = ptr->size;
+  entry->size = ptr->size;
   entry->cluster = ptr->clusterHigh << 16 | ptr->clusterLow;
   if (nameBuffer)
   {

@@ -14,11 +14,7 @@
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 /* Sector size may be 512, 1024, 2048, 4096 bytes, default is 512 */
-/* FIXME */
-#ifndef SECTOR_POW
-#define SECTOR_POW              (9) /* Sector size in power of 2 */
-#endif /* SECTOR_POW */
-/*----------------------------------------------------------------------------*/
+#define SECTOR_POW              9 /* Sector size in power of 2 */
 #define SECTOR_SIZE             (1 << SECTOR_POW) /* Sector size in bytes */
 /*----------------------------------------------------------------------------*/
 #define FLAG_RO                 (uint8_t)0x01 /* Read only */
@@ -27,6 +23,7 @@
 #define FLAG_VOLUME             (uint8_t)0x08 /* Volume name */
 #define FLAG_DIR                (uint8_t)0x10 /* Subdirectory */
 #define FLAG_ARCHIVE            (uint8_t)0x20
+#define FLAG_LFN                (uint8_t)0x0F /* Long file name */
 /*----------------------------------------------------------------------------*/
 #define E_FLAG_EMPTY            (char)0xE5 /* Directory entry is free */
 /*----------------------------------------------------------------------------*/
