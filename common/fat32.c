@@ -4,7 +4,6 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-/* TODO Propagate errros in underlying functions to callers */
 #include <string.h>
 #include <stdlib.h>
 /*----------------------------------------------------------------------------*/
@@ -476,14 +475,15 @@ static enum result writeSector(struct FatHandle *handle,
 #ifdef FAT_WRITE
 static enum result truncate(struct FatFile *fileHandle)
 {
-  /* FIXME */
-  struct FatHandle *handle = (struct FatHandle *)fileHandle->parent.descriptor;
   enum result res;
 
   if (fileHandle->parent.mode == FS_READ)
     return E_ERROR; /* TODO Add access denied message */
-  if ((res = freeChain(handle, fileHandle->cluster)) != E_OK)
+  if ((res = freeChain((struct FatHandle *)fileHandle->parent.descriptor,
+      fileHandle->cluster)) != E_OK)
+  {
     return res;
+  }
 
   fileHandle->cluster = 0;
   fileHandle->currentCluster = 0;
@@ -771,32 +771,6 @@ static enum result fatMove(void *object, const char *src, const char *dest)
   if (!*dest) /* Entry with same name exists */
     return E_ERROR;
 
-/*  if (parent == item.parent) //Same directory
-  {
-    sector = getSector(handle, parent) + ENTRY_SECTOR(index);
-    if (readSector(handle, sector))
-      return E_INTERFACE;
-    ptr = handle->buffer + ENTRY_OFFSET(index);
-    memset(ptr, 0x20, 11);
-    for (counter = 0; *dest && *dest != '.' && counter < 8; counter++)
-      *(char *)(ptr + counter) = *dest++;
-    if (!(attribute & FLAG_DIR) && *dest == '.')
-    {
-      for (counter = 8, name++; *dest && (counter < 11); counter++)
-        *(char *)(ptr + counter) = *dest++;
-    }
-    if (writeSector(handle, sector, handle->buffer, 1))
-      return E_INTERFACE;
-
-    return E_OK;
-  }
-  else
-  {
-    item.attribute = attribute;
-    if (createEntry(handle, &item, dest))
-      return E_INTERFACE;
-  }*/
-
   item.attribute = oldItem.attribute;
   if ((res = createEntry(handle, &item, dest)) != E_OK)
     return res;
@@ -808,7 +782,6 @@ static enum result fatMove(void *object, const char *src, const char *dest)
   if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
     return res;
   ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(item.index));
-  /* TODO Possibly optimize */
   ptr->clusterHigh = oldItem.cluster >> 16;
   ptr->clusterLow = oldItem.cluster;
   ptr->size = oldItem.size;
@@ -878,7 +851,6 @@ static bool fatEof(void *object)
 static uint32_t fatRead(void *object, uint8_t *buffer, uint32_t count)
 {
   struct FatFile *fileHandle = object;
-  /* FIXME */
   struct FatHandle *handle = (struct FatHandle *)fileHandle->parent.descriptor;
   uint16_t chunk, offset;
   uint32_t read = 0;
@@ -924,10 +896,6 @@ static uint32_t fatRead(void *object, uint8_t *buffer, uint32_t count)
       chunk = (SECTOR_SIZE << handle->clusterSize) -
           (fileHandle->currentSector << SECTOR_POW);
       chunk = (count < chunk) ? count & ~(SECTOR_SIZE - 1) : chunk;
-#ifdef DEBUG
-      printf("Burst read position %u, chunk size %u, sector count %u\n",
-          read, chunk, chunk >> SECTOR_POW);
-#endif
       if (readSector(handle, getSector(handle,
           fileHandle->currentCluster) + fileHandle->currentSector,
           buffer + read, chunk >> SECTOR_POW) != E_OK)
@@ -950,9 +918,9 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
 {
   struct FatFile *fileHandle = object;
   struct FatHandle *handle = (struct FatHandle *)fileHandle->parent.descriptor;
-  enum result res;
   uint16_t chunk, offset;
   uint32_t sector, written = 0;
+  enum result res;
 
   if (fileHandle->parent.mode == FS_READ)
     return 0;
@@ -966,7 +934,6 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
   if (fileHandle->size + count > FILE_SIZE_MAX)
     count = FILE_SIZE_MAX - fileHandle->size;
 
-  /* TODO Possibly save intermediate state on error */
   while (count)
   {
     if (fileHandle->currentSector >= (1 << handle->clusterSize))
@@ -1036,8 +1003,8 @@ static enum result fatFlush(void *object)
   struct FatFile *fileHandle = object;
   struct FatHandle *handle = (struct FatHandle *)fileHandle->parent.descriptor;
   struct DirEntryImage *ptr;
-  enum result res;
   uint32_t sector;
+  enum result res;
 
   if (fileHandle->parent.mode == FS_READ)
     return E_ERROR;
@@ -1076,8 +1043,8 @@ static enum result fatSeek(void *object, asize_t offset,
 {
   struct FatFile *fileHandle = object;
   struct FatHandle *handle = (struct FatHandle *)fileHandle->parent.descriptor;
-  enum result res;
   uint32_t clusterCount, current;
+  enum result res;
 
   switch (origin)
   {
@@ -1132,8 +1099,8 @@ static enum result fatReadDir(void *object, char *name)
 {
   struct FatDir *dirHandle = object;
   struct FatObject item;
-  enum result res;
   char entryName[FILE_NAME_MAX];
+  enum result res;
 
   item.parent = dirHandle->currentCluster;
   /* Fetch next entry */
@@ -1191,18 +1158,18 @@ static enum result fatReadDir(void *object, char *name)
 #ifdef FAT_WRITE
 static enum result fatMakeDir(void *object, const char *path)
 {
-  //FIXME
   struct FatHandle *handle = object;
   struct DirEntryImage *ptr;
   struct FatObject item;
-  enum result res;
-  uint32_t sector, parent = handle->rootCluster;
   const char *followedPath;
+  uint32_t sector, parent = handle->rootCluster;
   uint8_t pos;
+  enum result res;
 
-  /* TODO Check top folder attributes */
   while (*path && (followedPath = followPath(handle, &item, path)))
   {
+//     if (item.attribute & FLAG_RO)
+//       return E_ERROR; /* TODO Access denied */
     parent = item.cluster;
     path = followedPath;
   }
@@ -1232,7 +1199,7 @@ static enum result fatMakeDir(void *object, const char *path)
       return res;
   }
 
-  /* TODO Optimize with mark entry */
+  /* TODO LFN */
   /* Current directory entry . */
   ptr = (struct DirEntryImage *)handle->buffer;
   /* Fill name and extension with spaces */
@@ -1250,7 +1217,6 @@ static enum result fatMakeDir(void *object, const char *path)
   /* Parent directory entry .. */
   ptr++;
   /* Fill name and extension with spaces */
-  /* TODO LFN */
   memset(ptr->filename, ' ', sizeof(ptr->filename));
   ptr->name[0] = ptr->name[1] = '.';
   ptr->flags = FLAG_DIR;
