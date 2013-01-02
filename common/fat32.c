@@ -145,6 +145,47 @@ static enum result getNextCluster(struct FatHandle *handle, uint32_t *cluster)
     return E_EOF;
 }
 /*----------------------------------------------------------------------------*/
+/* Extract 13 unicode characters from LFN entry */
+static void extractName(uint8_t *lfn, uint16_t *unicode)
+{
+  memcpy(unicode + 0x00, lfn + 0x01, 10);
+  memcpy(unicode + 0x05, lfn + 0x0E, 12);
+  memcpy(unicode + 0x0B, lfn + 0x1C, 4);
+}
+/*----------------------------------------------------------------------------*/
+static void printPart(uint16_t *unicode)
+{
+  int i;
+  for (i = 0; i < 13; i++)
+    printf("%04X %c ", unicode[i], unicode[i]);
+}
+
+
+#include <iconv.h>
+void encode(char *inbuf)
+{
+  size_t insize = 26, outsize = 52;
+  char *outptr, outbuf[52];
+  int result = 0;
+  iconv_t cd;
+//   size_t nconv;
+
+  cd = iconv_open("UTF-8", "UTF-16LE");
+  if (cd == (iconv_t) -1)
+  {
+    printf("SAGE\n");
+    return;
+  }
+
+  outptr = outbuf;
+  /*nconv = */iconv(cd, &inbuf, &insize, &outptr, &outsize);
+  *outptr = 0;
+  if (iconv_close (cd) != 0)
+    printf("iconv_close");
+
+  printf("STR: %s\n", outbuf);
+}
+/*----------------------------------------------------------------------------*/
 /* Members entry->index and entry->parent have to be initialized */
 /* Pointer nameBuffer must be at least FILE_NAME_MAX length or zero */
 static enum result fetchEntry(struct FatHandle *handle,
@@ -152,6 +193,7 @@ static enum result fetchEntry(struct FatHandle *handle,
 {
   struct DirEntryImage *ptr;
   uint32_t sector;
+  uint16_t unicode[13];
 
   entry->attribute = 0;
   entry->cluster = 0;
@@ -177,10 +219,19 @@ static enum result fetchEntry(struct FatHandle *handle,
     entry->index++;
   }
   entry->attribute = ptr->flags;
-  /* Copy file size, when entry is not directory */
-  if (!(entry->attribute & FLAG_DIR))
-    entry->size = ptr->size;
+  /* Copy file size */
+//   if (!(entry->attribute & FLAG_DIR))
+  entry->size = ptr->size;
   entry->cluster = ptr->clusterHigh << 16 | ptr->clusterLow;
+
+  if (entry->attribute & 0x0F)
+  {
+    printf("LFN entry %02X: ", *((unsigned char *)ptr));
+    extractName((uint8_t *)ptr, unicode);
+    encode((uint8_t *)unicode);
+    printf("\n");
+  }
+
   if (nameBuffer)
   {
     /* Copy entry name */
