@@ -54,10 +54,33 @@ static const struct InterfaceClass mmiTable = {
 /*----------------------------------------------------------------------------*/
 const struct InterfaceClass *Mmi = &mmiTable;
 /*----------------------------------------------------------------------------*/
+#ifdef DEBUG
+void getSizeStr(uint64_t size, char *str)
+{
+  const unsigned short suffixCount = 4;
+  const char *suffix[] = {"KiB", "MiB", "GiB", "TiB"};
+  unsigned short selectedSuffix = 0;
+  double remainder;
+
+  remainder = (double)size / 1024.0;
+  while (remainder >= 1024.0)
+  {
+    selectedSuffix++;
+    remainder /= 1024.0;
+    if (selectedSuffix == suffixCount - 1)
+      break;
+  }
+  sprintf(str, "%.2f %s", remainder, suffix[selectedSuffix]);
+}
+#endif
+/*----------------------------------------------------------------------------*/
 static enum result mmiInit(void *object, const void *configPtr)
 {
   const char *path = configPtr;
   struct Mmi *dev = object;
+#ifdef DEBUG
+  char size2str[16];
+#endif
 
   if (!path)
     return E_ERROR;
@@ -73,9 +96,10 @@ static enum result mmiInit(void *object, const void *configPtr)
   if (dev->data == MAP_FAILED)
     return E_ERROR;
   dev->size = dev->info.st_size;
+
 #ifdef DEBUG
-  printf("mmaped_io: opened file: %s, size: 0x%012lX\n",
-      path, (unsigned long)dev->size);
+  getSizeStr(dev->size, size2str);
+  printf("mmaped_io: opened file: %s, size: %s\n", path, size2str);
 #endif
 
   return E_OK;
