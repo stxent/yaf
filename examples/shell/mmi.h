@@ -20,4 +20,9 @@ struct MbrDescriptor
 enum result mmiSetPartition(void *, struct MbrDescriptor *);
 enum result mmiReadTable(void *, uint32_t, uint8_t, struct MbrDescriptor *);
 /*----------------------------------------------------------------------------*/
+#ifdef DEBUG
+void mmiGetStat(void *, uint64_t *);
+void getSizeStr(uint64_t, char *);
+#endif
+/*----------------------------------------------------------------------------*/
 #endif /* MMI_H_ */

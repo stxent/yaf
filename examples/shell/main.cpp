@@ -30,11 +30,6 @@ extern "C"
 #include "fat32.h"
 }
 //------------------------------------------------------------------------------
-#ifdef DEBUG
-extern uint64_t readCount, writeCount;
-#endif
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
 using namespace std;
 using namespace boost;
 //------------------------------------------------------------------------------
@@ -674,14 +669,28 @@ enum cResult util_dd(struct FsHandle *handler, const vector<string> &args,
 }
 #endif
 //------------------------------------------------------------------------------
+#ifdef DEBUG
 int util_io(struct FsHandle *handler)
 {
-#ifdef DEBUG
-  cout << "Sectors read:    " << readCount << endl;
-  cout << "Sectors written: " << writeCount << endl;
-#endif
+  char size2str[16];
+  uint64_t stat[4];
+
+  mmiGetStat(handler->dev, stat);
+  cout << "Read requests:      " << stat[0] << endl;
+  getSizeStr(stat[1], size2str);
+  cout << "Data read:          " << size2str << endl;
+  cout << "Write requests:     " << stat[2] << endl;
+  getSizeStr(stat[3], size2str);
+  cout << "Data written:       " << size2str << endl;
+
   return E_OK;
 }
+#else
+int util_io(struct FsHandle *handler __attribute__((unused)))
+{
+  return E_OK;
+}
+#endif
 //------------------------------------------------------------------------------
 int util_info(struct FsHandle *handler)
 {
@@ -700,12 +709,12 @@ int util_info(struct FsHandle *handler)
 //   cout << "Data clusters:      " << handler->clusterCount << endl;
 //   cout << "Last allocated:     " << handler->lastAllocated << endl;
 #if defined (FAT_WRITE) && defined (DEBUG)
-  cout << "Free clusters:       " << sz << endl;
+  cout << "Free clusters:      " << sz << endl;
 #endif
 // #endif
-  cout << "Size of FsHandle:    " << sizeof(struct FsHandle) << endl;
-  cout << "Size of FsFile:      " << sizeof(struct FsFile) << endl;
-  cout << "Size of FsDir:       " << sizeof(struct FsDir) << endl;
+  cout << "Size of FsHandle:   " << sizeof(struct FsHandle) << endl;
+  cout << "Size of FsFile:     " << sizeof(struct FsFile) << endl;
+  cout << "Size of FsDir:      " << sizeof(struct FsDir) << endl;
   return E_OK;
 }
 //------------------------------------------------------------------------------

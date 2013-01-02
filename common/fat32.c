@@ -552,6 +552,11 @@ static enum result fatInit(void *object, const void *cdata)
   handle->tableSector = boot->reservedSectors;
   handle->dataSector = handle->tableSector + boot->fatCopies * boot->fatSize;
   handle->rootCluster = boot->rootCluster;
+#ifdef DEBUG
+  printf("Cluster size:       %u\n", (unsigned int)(1 << handle->clusterSize));
+  printf("Table sector:       %u\n", (unsigned int)handle->tableSector);
+  printf("Data sector:        %u\n", (unsigned int)handle->dataSector);
+#endif
 
 #ifdef FAT_WRITE
   handle->tableCount = boot->fatCopies;
@@ -560,7 +565,11 @@ static enum result fatInit(void *object, const void *cdata)
       handle->dataSector) >> handle->clusterSize) + 2;
   handle->infoSector = boot->infoSector;
 #ifdef DEBUG
-  printf("Sectors count:        %u\n", boot->partitionSize);
+  printf("Info sector:        %u\n", (unsigned int)handle->infoSector);
+  printf("Table copies:       %u\n", (unsigned int)handle->tableCount);
+  printf("Table size:         %u\n", (unsigned int)handle->tableSize);
+  printf("Cluster count:      %u\n", (unsigned int)handle->clusterCount);
+  printf("Sectors count:      %u\n", (unsigned int)boot->partitionSize);
 #endif /* DEBUG */
 
   if ((res = readSector(handle, handle->infoSector, handle->buffer, 1)) != E_OK)
@@ -571,14 +580,14 @@ static enum result fatInit(void *object, const void *cdata)
     return E_ERROR;
   handle->lastAllocated = info->lastAllocated;
 #ifdef DEBUG
-  printf("Free clusters:        %u\n", info->freeClusters);
+  printf("Free clusters:      %u\n", (unsigned int)info->freeClusters);
 #endif /* DEBUG */
 #endif /* FAT_WRITE */
 
 #ifdef DEBUG
-  printf("Size of FatHandle:    %u\n", (unsigned int)sizeof(struct FatHandle));
-  printf("Size of FatFile:      %u\n", (unsigned int)sizeof(struct FatFile));
-  printf("Size of FatDir:       %u\n", (unsigned int)sizeof(struct FatDir));
+  printf("Size of FatHandle:  %u\n", (unsigned int)sizeof(struct FatHandle));
+  printf("Size of FatFile:    %u\n", (unsigned int)sizeof(struct FatFile));
+  printf("Size of FatDir:     %u\n", (unsigned int)sizeof(struct FatDir));
 #endif
   return E_OK;
 }

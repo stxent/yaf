@@ -11,11 +11,6 @@
 
 #include "fs.h"
 /*----------------------------------------------------------------------------*/
-#ifdef DEBUG
-#include <stdio.h>
-uint64_t readCount = 0, writeCount = 0;
-#endif
-/*----------------------------------------------------------------------------*/
 /** Read block from underlying physical device.
  *  @param interface Pointer to Interface object.
  *  @param address Memory location on a physical device in bytes.
@@ -27,22 +22,9 @@ enum result fsBlockRead(void *interface, asize_t address,
     uint8_t *buffer, uint32_t length)
 {
   if (ifSetOpt(interface, IF_ADDRESS, &address) != E_OK)
-  {
-#ifdef DEBUG
-    printf("block_read: error: io control\n");
-#endif
     return E_DEVICE;
-  }
   if (ifRead(interface, buffer, length) != length)
-  {
-#ifdef DEBUG
-    printf("block_read: error: read position: %u\n", (unsigned int)address);
-#endif
     return E_INTERFACE;
-  }
-#ifdef DEBUG
-  readCount++;
-#endif
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
@@ -57,22 +39,9 @@ enum result fsBlockWrite(void *interface, asize_t address,
     const uint8_t *buffer, uint32_t size)
 {
   if (ifSetOpt(interface, IF_ADDRESS, &address) != E_OK)
-  {
-#ifdef DEBUG
-    printf("block_read: error: io control\n");
-#endif
     return E_ERROR;
-  }
   if (ifWrite(interface, buffer, size) != size)
-  {
-#ifdef DEBUG
-    printf("block_read: error: read position: %u\n", (unsigned int)address);
-#endif
     return E_ERROR;
-  }
-#ifdef DEBUG
-  writeCount++;
-#endif
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/

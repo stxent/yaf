@@ -22,6 +22,13 @@
 #include "mmi.h"
 #include "mutex.h"
 /*----------------------------------------------------------------------------*/
+static enum result mmiInit(void *, const void *);
+static void mmiDeinit(void *);
+static uint32_t mmiRead(void *, uint8_t *, uint32_t);
+static uint32_t mmiWrite(void *, const uint8_t *, uint32_t);
+static enum result mmiGetOpt(void *, enum ifOption, void *);
+static enum result mmiSetOpt(void *, enum ifOption, const void *);
+/*----------------------------------------------------------------------------*/
 struct Mmi
 {
   struct Interface parent;
@@ -32,14 +39,11 @@ struct Mmi
   uint8_t *data;
   int file;
   struct stat info;
+
+#ifdef DEBUG
+  uint64_t readCount, writeCount, readSize, writeSize;
+#endif
 };
-/*----------------------------------------------------------------------------*/
-static enum result mmiInit(void *, const void *);
-static void mmiDeinit(void *);
-static uint32_t mmiRead(void *, uint8_t *, uint32_t);
-static uint32_t mmiWrite(void *, const uint8_t *, uint32_t);
-static enum result mmiGetOpt(void *, enum ifOption, void *);
-static enum result mmiSetOpt(void *, enum ifOption, const void *);
 /*----------------------------------------------------------------------------*/
 static const struct InterfaceClass mmiTable = {
     .size = sizeof(struct Mmi),
@@ -53,6 +57,18 @@ static const struct InterfaceClass mmiTable = {
 };
 /*----------------------------------------------------------------------------*/
 const struct InterfaceClass *Mmi = &mmiTable;
+/*----------------------------------------------------------------------------*/
+#ifdef DEBUG
+void mmiGetStat(void *object, uint64_t *results)
+{
+  struct Mmi *dev = object;
+
+  results[0] = dev->readCount;
+  results[1] = dev->readSize;
+  results[2] = dev->writeCount;
+  results[3] = dev->writeSize;
+}
+#endif
 /*----------------------------------------------------------------------------*/
 #ifdef DEBUG
 void getSizeStr(uint64_t size, char *str)
@@ -98,6 +114,8 @@ static enum result mmiInit(void *object, const void *configPtr)
   dev->size = dev->info.st_size;
 
 #ifdef DEBUG
+  dev->readCount = dev->writeCount = 0;
+  dev->readSize = dev->writeSize = 0;
   getSizeStr(dev->size, size2str);
   printf("mmaped_io: opened file: %s, size: %s\n", path, size2str);
 #endif
@@ -113,10 +131,16 @@ static uint32_t mmiRead(void *object, uint8_t *buffer, uint32_t length)
   memcpy(buffer, dev->data + dev->position + dev->offset, length);
   dev->position += length;
   mutexUnlock(&dev->lock);
+
+#ifdef DEBUG
+  dev->readCount++;
+  dev->readSize += length;
+#endif
 #ifdef DEBUG_RW
   printf("mmaped_io: read data at 0x%012lX, length %u\n",
       (unsigned long)dev->position, length);
 #endif
+
   return length;
 }
 /*----------------------------------------------------------------------------*/
@@ -128,10 +152,16 @@ static uint32_t mmiWrite(void *object, const uint8_t *buffer, uint32_t length)
   memcpy(dev->data + dev->position + dev->offset, buffer, length);
   dev->position += length;
   mutexUnlock(&dev->lock);
+
+#ifdef DEBUG
+  dev->writeCount++;
+  dev->writeSize += length;
+#endif
 #ifdef DEBUG_RW
   printf("mmaped_io: write data at 0x%012lX, length %u\n",
       (unsigned long)dev->position, length);
 #endif
+
   return length;
 }
 /*----------------------------------------------------------------------------*/
