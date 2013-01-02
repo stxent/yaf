@@ -637,8 +637,6 @@ static enum result fatStat(void *object, struct FsStat *result,
 
 #ifdef DEBUG
   result->access = 07; /* rwx */
-  if (item.attribute & FLAG_RO)
-    result->access &= 05;
 #endif
 
 #ifdef FAT_TIME
@@ -685,13 +683,8 @@ static enum result fatOpen(void *handleObject, void *fileObject,
 #endif
   }
   /* Not found if volume name, system or directory entry */
-  if (item.attribute & (FLAG_VOLUME | FLAG_SYSTEM | FLAG_DIR))
+  if (item.attribute & (FLAG_VOLUME | FLAG_DIR))
     return E_NONEXISTENT;
-#ifdef FAT_WRITE
-  /* Attempt to write into read-only file */
-  if ((item.attribute & FLAG_RO) && (mode == FS_WRITE || mode == FS_APPEND))
-    return E_ERROR;
-#endif
   fileHandle->parent.descriptor = handleObject;
 
   fileHandle->position = 0;
@@ -729,12 +722,9 @@ static enum result fatOpenDir(void *handleObject, void *dirObject,
     path = followPath(handle, &item, path);
   if (!path)
     return E_NONEXISTENT;
-  /* Not directory or volume name, system */
-  if (!(item.attribute & FLAG_DIR) ||
-      item.attribute & (FLAG_VOLUME | FLAG_SYSTEM))
-  {
+  /* Not directory or volume name */
+  if (!(item.attribute & FLAG_DIR) || item.attribute & FLAG_VOLUME)
     return E_NONEXISTENT;
-  }
 
   dirHandle->cluster = item.cluster;
   dirHandle->currentCluster = item.cluster;
@@ -759,8 +749,8 @@ static enum result fatMove(void *object, const char *src, const char *dest)
   if (!src)
     return E_NONEXISTENT;
 
-  /* System entries are invisible */
-  if (item.attribute & FLAG_SYSTEM)
+  /* Volume entries are invisible */
+  if (item.attribute & FLAG_VOLUME)
     return E_NONEXISTENT;
 
   /* Save old entry data */
@@ -810,8 +800,8 @@ static enum result fatRemove(void *object, const char *path)
     path = followPath(handle, &item, path);
   if (!path)
     return E_NONEXISTENT;
-  /* Read only, volume name, system or directory */
-  if (item.attribute & (FLAG_RO | FLAG_VOLUME | FLAG_SYSTEM | FLAG_DIR))
+  /* Volume name or directory */
+  if (item.attribute & (FLAG_VOLUME | FLAG_DIR))
     return E_NONEXISTENT;
 
   /* Mark file table clusters as free */
@@ -1114,7 +1104,7 @@ static enum result fatReadDir(void *object, char *name)
     }
     item.index++;
   }
-  while (item.attribute & (FLAG_HIDDEN | FLAG_SYSTEM));
+  while (item.attribute & FLAG_VOLUME);
   /* Hidden and system entries not shown */
   dirHandle->currentIndex = item.index; /* Points to next item */
   dirHandle->currentCluster = item.parent;
@@ -1168,8 +1158,6 @@ static enum result fatMakeDir(void *object, const char *path)
 
   while (*path && (followedPath = followPath(handle, &item, path)))
   {
-//     if (item.attribute & FLAG_RO)
-//       return E_ERROR; /* TODO Access denied */
     parent = item.cluster;
     path = followedPath;
   }
@@ -1253,12 +1241,9 @@ static enum result fatRemoveDir(void *object, const char *path)
     path = followPath(handle, &item, path);
   if (!path)
     return E_NONEXISTENT;
-  /* Not directory or read only, volume name, system */
-  if (!(item.attribute & FLAG_DIR) ||
-      item.attribute & (FLAG_RO | FLAG_VOLUME | FLAG_SYSTEM))
-  {
+  /* Not directory or volume name */
+  if (!(item.attribute & FLAG_DIR) || item.attribute & FLAG_VOLUME)
     return E_NONEXISTENT;
-  }
 
   /* Check if directory not empty */
   dirItem = item;
