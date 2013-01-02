@@ -203,10 +203,10 @@ static enum result fatRemove(void *, const char *);
 /*----------------------------------------------------------------------------*/
 /* File functions */
 static void fatClose(void *);
-static bool fatEof(const void *);
+static bool fatEof(void *);
 static uint32_t fatRead(void *, uint8_t *, uint32_t);
 static enum result fatSeek(void *, asize_t, enum fsSeekOrigin);
-static asize_t fatTell(const void *);
+static asize_t fatTell(void *);
 /* Functions with write access */
 static enum result fatFlush(void *);
 static uint32_t fatWrite(void *, const uint8_t *, uint32_t);

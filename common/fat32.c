@@ -868,9 +868,9 @@ static void fatClose(void *object)
   file->descriptor = 0;
 }
 /*----------------------------------------------------------------------------*/
-static bool fatEof(const void *object)
+static bool fatEof(void *object)
 {
-  const struct FatFile *fileHandle = object;
+  struct FatFile *fileHandle = object;
 
   return fileHandle->position >= fileHandle->size;
 }
@@ -1115,9 +1115,9 @@ static enum result fatSeek(void *object, asize_t offset,
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-static asize_t fatTell(const void *object)
+static asize_t fatTell(void *object)
 {
-  const struct FatFile *fileHandle = object;
+  struct FatFile *fileHandle = object;
 
   return (asize_t)fileHandle->position;
 }

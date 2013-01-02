@@ -84,11 +84,11 @@ struct FsFileClass
 
   /* Virtual methods */
   void (*close)(void *);
-  bool (*eof)(const void *);
+  bool (*eof)(void *);
   enum result (*flush)(void *);
   uint32_t (*read)(void *, uint8_t *, uint32_t);
   enum result (*seek)(void *, asize_t, enum fsSeekOrigin);
-  asize_t (*tell)(const void *);
+  asize_t (*tell)(void *);
   uint32_t (*write)(void *, const uint8_t *, uint32_t);
 };
 /*----------------------------------------------------------------------------*/
@@ -166,11 +166,11 @@ enum result fsRemoveDir(void *, const char *);
 /*----------------------------------------------------------------------------*/
 /*------------------File functions--------------------------------------------*/
 void fsClose(void *);
-bool fsEof(const void *);
+bool fsEof(void *);
 enum result fsFlush(void *);
 uint32_t fsRead(void *, uint8_t *, uint32_t);
 enum result fsSeek(void *, asize_t, enum fsSeekOrigin);
-asize_t fsTell(const void *);
+asize_t fsTell(void *);
 uint32_t fsWrite(void *, const uint8_t *, uint32_t);
 /*----------------------------------------------------------------------------*/
 /*------------------Directory functions---------------------------------------*/

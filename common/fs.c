@@ -148,11 +148,11 @@ void fsClose(void *file)
   deinit(file);
 }
 /*----------------------------------------------------------------------------*/
-/** Check whether the position in file reached the last character.
+/** Check whether the position in file reached the end of file.
  *  @param file Pointer to FsFile object.
- *  @return Returns true on when reached the end of file or false otherwise.
+ *  @return Returns true when reached the end of file or false otherwise.
  */
-bool fsEof(const void *file)
+bool fsEof(void *file)
 {
   return ((struct FsFileClass *)CLASS(file))->eof(file);
 }
@@ -194,7 +194,7 @@ enum result fsSeek(void *file, asize_t offset, enum fsSeekOrigin origin)
  *  @param file Pointer to FsFile object.
  *  @return Returns position in file.
  */
-asize_t fsTell(const void *file)
+asize_t fsTell(void *file)
 {
   return ((struct FsFileClass *)CLASS(file))->tell(file);
 }
