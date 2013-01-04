@@ -145,35 +145,37 @@ static enum result getNextCluster(struct FatHandle *handle, uint32_t *cluster)
     return E_EOF;
 }
 /*----------------------------------------------------------------------------*/
+/* Calculate entry name checksum */
+static uint8_t getChecksum(const char *str)
+{
+  uint8_t pos, sum;
+
+  sum = *str++;
+  for (pos = 1; pos < FILE_NAME_MAX - 2; pos++)
+//     sum = (sum >> 1) + *str++;
+    sum = ((sum >> 1) | (sum << 7)) + *str++;
+  return sum;
+}
+/*----------------------------------------------------------------------------*/
 /* Extract 13 unicode characters from LFN entry */
-static void extractName(uint8_t *lfn, uint16_t *unicode)
+static inline void extractName(uint8_t *lfn, uint16_t *unicode)
 {
   memcpy(unicode + 0x00, lfn + 0x01, 10);
   memcpy(unicode + 0x05, lfn + 0x0E, 12);
   memcpy(unicode + 0x0B, lfn + 0x1C, 4);
 }
 /*----------------------------------------------------------------------------*/
-static void printPart(uint16_t *unicode)
-{
-  int i;
-  for (i = 0; i < 13; i++)
-    printf("%04X %c ", unicode[i], unicode[i]);
-}
-
-
 #include <iconv.h>
 void encode(char *inbuf)
 {
   size_t insize = 26, outsize = 52;
   char *outptr, outbuf[52];
-  int result = 0;
   iconv_t cd;
-//   size_t nconv;
 
   cd = iconv_open("UTF-8", "UTF-16LE");
-  if (cd == (iconv_t) -1)
+  if (cd == (iconv_t)-1)
   {
-    printf("SAGE\n");
+    printf("ioconv initialization error\n");
     return;
   }
 
@@ -226,10 +228,15 @@ static enum result fetchEntry(struct FatHandle *handle,
 
   if (entry->attribute & 0x0F)
   {
-    printf("LFN entry %02X: ", *((unsigned char *)ptr));
+    printf("LFN entry %02X, checksum %02X: ",
+        *((uint8_t *)ptr), *((uint8_t *)ptr + 0x0D));
     extractName((uint8_t *)ptr, unicode);
-    encode((uint8_t *)unicode);
+    encode((char *)unicode);
     printf("\n");
+  }
+  else
+  {
+    printf("Entry name checksum %02X\n", getChecksum(ptr->filename));
   }
 
   if (nameBuffer)
