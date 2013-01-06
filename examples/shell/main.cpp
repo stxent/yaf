@@ -166,7 +166,7 @@ vector< map<string, string> > util_ls(struct FsHandle *handler,
   dir = (struct FsDir *)fsOpenDir(handler, dirPath.c_str());
   if (dir)
   {
-    char fname[13];
+    char fname[256];
     int pos;
     for (pos = 1; (fsres = fsReadDir(dir, fname)) == E_OK; pos++)
     {

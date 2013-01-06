@@ -13,13 +13,13 @@
 #include "fs.h"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
+#define SECTOR_SIZE             (1 << SECTOR_POW) /* Sector size in bytes */
 /* Sector size may be 512, 1024, 2048, 4096 bytes, default is 512 */
 /* FIXME */
 #ifndef SECTOR_POW
 #define SECTOR_POW              (9) /* Sector size in power of 2 */
 #endif /* SECTOR_POW */
 /*----------------------------------------------------------------------------*/
-#define SECTOR_SIZE             (1 << SECTOR_POW) /* Sector size in bytes */
 /*----------------------------------------------------------------------------*/
 #define FLAG_RO                 (uint8_t)0x01 /* Read only */
 #define FLAG_HIDDEN             (uint8_t)0x02
@@ -27,12 +27,20 @@
 #define FLAG_VOLUME             (uint8_t)0x08 /* Volume name */
 #define FLAG_DIR                (uint8_t)0x10 /* Subdirectory */
 #define FLAG_ARCHIVE            (uint8_t)0x20
+#define FLAG_LFN                (uint8_t)0x0F /* Long file name chunk */
+/*----------------------------------------------------------------------------*/
+/* FIXME */
+#define FAT_LFN
+#define LFN_DELETED             (uint8_t)0x80 /* Deleted LFN entry */
+#define LFN_LAST                (uint8_t)0x40 /* Last LFN entry */
+/*----------------------------------------------------------------------------*/
+#define LFN_ENTRY_LENGTH        13
 /*----------------------------------------------------------------------------*/
 #define E_FLAG_EMPTY            (char)0xE5 /* Directory entry is free */
 /*----------------------------------------------------------------------------*/
 #define CLUSTER_EOC_VAL         (uint32_t)0x0FFFFFF8
 #define FILE_SIZE_MAX           (uint32_t)0xFFFFFFFF
-#define FILE_NAME_MAX           13 /* Name + dot + extension + null character */
+#define FILE_NAME_MAX           64 /* Name + dot + extension + null character */
 /*----------------------------------------------------------------------------*/
 /* File or directory entry size power */
 #define E_POW                   (SECTOR_POW - 5)
@@ -99,7 +107,7 @@ struct FatHandle
   /* bool staticAlloc; *//* TODO Add */
 };
 /*----------------------------------------------------------------------------*/
-/*------------------Directory entry structure---------------------------------*/
+/* Directory entry descriptor */
 struct FatObject
 {
   uint8_t attribute; /* File or directory attributes */
@@ -108,6 +116,16 @@ struct FatObject
   uint32_t parent; /* Directory cluster where entry located */
   uint32_t size; /* File size or zero for directories */
 };
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_LFN
+/* Long file name entry descriptor */
+struct LfnObject
+{
+  uint8_t checksum, length;
+  uint16_t index; /* Entry position in parent cluster */
+  uint32_t cluster; /* Directory cluster where entry located */
+};
+#endif
 /*----------------------------------------------------------------------------*/
 /*------------------Specific FAT32 memory structures--------------------------*/
 /* Directory entry */
@@ -160,6 +178,21 @@ struct InfoSectorImage
   char unused1[14];
   uint16_t bootSignature;
 } __attribute__((packed));
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_LFN
+/* Long file name entry */
+struct LfnEntryImage
+{
+  uint8_t ordinal;
+  char16_t name0[5];
+  uint8_t flags;
+  uint8_t unused0;
+  uint8_t checksum;
+  char16_t name1[6];
+  uint8_t unused1[2];
+  char16_t name2[2];
+} __attribute__((packed));
+#endif
 /*----------------------------------------------------------------------------*/
 /*------------------Inline functions------------------------------------------*/
 static inline bool clusterFree(uint32_t);
