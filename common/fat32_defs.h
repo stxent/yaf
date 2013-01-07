@@ -12,6 +12,14 @@
 /*----------------------------------------------------------------------------*/
 #include "fs.h"
 /*----------------------------------------------------------------------------*/
+#ifdef FAT_TIME
+#include "rtc.h"
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_LFN
+#include "unicode.h"
+#endif
+/*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 #define SECTOR_SIZE             (1 << SECTOR_POW) /* Sector size in bytes */
 /* Sector size may be 512, 1024, 2048, 4096 bytes, default is 512 */
@@ -29,8 +37,6 @@
 #define FLAG_ARCHIVE            (uint8_t)0x20
 #define FLAG_LFN                (uint8_t)0x0F /* Long file name chunk */
 /*----------------------------------------------------------------------------*/
-/* FIXME */
-#define FAT_LFN
 #define LFN_DELETED             (uint8_t)0x80 /* Deleted LFN entry */
 #define LFN_LAST                (uint8_t)0x40 /* Last LFN entry */
 /*----------------------------------------------------------------------------*/
@@ -40,7 +46,11 @@
 /*----------------------------------------------------------------------------*/
 #define CLUSTER_EOC_VAL         (uint32_t)0x0FFFFFF8
 #define FILE_SIZE_MAX           (uint32_t)0xFFFFFFFF
-#define FILE_NAME_MAX           64 /* Name + dot + extension + null character */
+/* Buffer size in code points for internal long file name processing */
+/* Up to 255 UTF-16 characters */
+#define FILE_NAME_BUFFER        128
+/* Length in bytes for short names and UTF-8 entry names */
+#define FILE_NAME_MAX           256
 /*----------------------------------------------------------------------------*/
 /* File or directory entry size power */
 #define E_POW                   (SECTOR_POW - 5)

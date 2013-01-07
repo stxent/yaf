@@ -21,8 +21,6 @@
 /*----------------------------------------------------------------------------*/
 /* Type represents address space width */
 typedef int64_t asize_t;
-/* Type for unicode UTF-16 characters */
-typedef int16_t char16_t;
 /*----------------------------------------------------------------------------*/
 enum fsMode
 {

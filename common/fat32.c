@@ -10,10 +10,6 @@
 #include "fat32.h"
 #include "fat32_defs.h"
 /*----------------------------------------------------------------------------*/
-#ifdef FAT_TIME
-#include "rtc.h"
-#endif
-/*----------------------------------------------------------------------------*/
 #ifdef DEBUG
 #include <stdio.h>
 #include <stdlib.h>
@@ -187,40 +183,15 @@ static inline void extractShortName(const struct DirEntryImage *entry,
   getChunk(str, str);
 }
 /*----------------------------------------------------------------------------*/
-#include <iconv.h>
-void encode(char *inbuf, unsigned int length)
-{
-  size_t insize = length * 2, outsize = length * 4;
-  char *outptr, *outbuf;
-  iconv_t cd;
-
-  cd = iconv_open("UTF-8", "UTF-16LE");
-  if (cd == (iconv_t)-1)
-  {
-    printf("ioconv initialization error\n");
-    return;
-  }
-
-  outbuf = malloc(outsize);
-  outptr = outbuf;
-  /*nconv = */iconv(cd, &inbuf, &insize, &outptr, &outsize);
-  *outptr = 0;
-  if (iconv_close (cd) != 0)
-    printf("iconv_close");
-
-  printf("STR: %s\n", outbuf);
-  free(outbuf);
-}
-/*----------------------------------------------------------------------------*/
 #ifdef FAT_LFN
 static enum result readLongName(struct FatHandle *handle,
     struct LfnObject *entry, char *nameBuffer)
 {
   struct LfnEntryImage *ptr;
   enum result res;
+  char16_t unicodeName[FILE_NAME_BUFFER]; //FIXME
   uint32_t sector;
   uint8_t chunks = 0;
-//   uint16_t i; //FIXME
 
   while (1)
   {
@@ -239,7 +210,7 @@ static enum result readLongName(struct FatHandle *handle,
     if ((ptr->flags & FLAG_LFN) == FLAG_LFN)
     {
       chunks++;
-      extractLongName(ptr, (char16_t *)nameBuffer +
+      extractLongName(ptr, unicodeName +
           ((ptr->ordinal & ~LFN_LAST) - 1) * LFN_ENTRY_LENGTH);
       entry->index++;
       continue;
@@ -248,13 +219,9 @@ static enum result readLongName(struct FatHandle *handle,
       break; /* No more consecutive long file name entries */
     entry->index++;
   }
-  printf("Read long name, chunks expected %u, read %u\n", entry->length,
-      chunks);
-  encode(nameBuffer, entry->length * LFN_ENTRY_LENGTH);
-//   //Dump name
-//   printf("Name: ");
-//   for (i = 0; i < entry->length * 2 * LFN_ENTRY_LENGTH; i++)
-//     printf("%02X ", (unsigned char)nameBuffer[i]);
+  if (!chunks || entry->length != chunks)
+    return E_ERROR;
+  uFromUtf16(nameBuffer, unicodeName, FILE_NAME_MAX); //FIXME
   return E_OK;
 }
 #endif
@@ -323,6 +290,7 @@ static enum result fetchEntry(struct FatHandle *handle,
         found == longName.length)
     {
       readLongName(handle, &longName, nameBuffer);
+      printf("Read cluster %u, index %u, name: %s\n", longName.cluster, longName.index, nameBuffer);
     }
     else
       extractShortName(ptr, nameBuffer);
