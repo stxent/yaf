@@ -105,15 +105,11 @@ static const char *getChunk(const char *src, char *dest)
   }
   while (*src && counter++ < FILE_NAME_MAX - 1)
   {
+    //TODO optimize
     if (*src == '/')
     {
       src++;
       break;
-    }
-    if (*src == ' ')
-    {
-      src++;
-      continue;
     }
     *dest++ = *src++;
   }
@@ -141,7 +137,8 @@ static enum result getNextCluster(struct FatHandle *handle, uint32_t *cluster)
     return E_EOF;
 }
 /*----------------------------------------------------------------------------*/
-/* Calculate entry name checksum */
+#ifdef FAT_LFN
+/* Calculate entry name checksum for long file name support */
 static uint8_t getChecksum(const struct DirEntryImage *entry)
 {
   const char *ptr = entry->filename;
@@ -151,6 +148,7 @@ static uint8_t getChecksum(const struct DirEntryImage *entry)
     sum = ((sum >> 1) | (sum << 7)) + *ptr++;
   return sum;
 }
+#endif
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_LFN
 /* Extract 13 unicode characters from LFN entry */
@@ -168,6 +166,9 @@ static inline void extractLongName(const struct LfnEntryImage *entry,
 static inline void extractShortName(const struct DirEntryImage *entry,
     char *str)
 {
+  uint8_t counter = 0;
+  char *src = str, *dest = str;
+
   /* Copy entry name */
   memcpy(str, entry->name, sizeof(entry->name));
   /* Add dot, when entry is not directory or extension exists */
@@ -180,7 +181,16 @@ static inline void extractShortName(const struct DirEntryImage *entry,
   }
   else
     str[8] = '\0';
-  getChunk(str, str);
+
+  //TODO Optimize
+  while (*src && counter++ < 12)
+  {
+    if (*src != ' ')
+      *dest++ = *src++;
+    else
+      src++;
+  }
+  *dest = '\0';
 }
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_LFN
@@ -290,7 +300,7 @@ static enum result fetchEntry(struct FatHandle *handle,
         found == longName.length)
     {
       readLongName(handle, &longName, nameBuffer);
-      printf("Read cluster %u, index %u, name: %s\n", longName.cluster, longName.index, nameBuffer);
+//       printf("Read cluster %u, index %u, name: %s\n", longName.cluster, longName.index, nameBuffer);
     }
     else
       extractShortName(ptr, nameBuffer);
@@ -320,6 +330,7 @@ static const char *followPath(struct FatHandle *handle, struct FatObject *item,
   item->index = 0;
   while (!fetchEntry(handle, item, entryName))
   {
+    printf("Comparing: %s and %s\n", entryName, name);
     if (!strcmp(entryName, name))
       return path;
     item->index++;
