@@ -137,26 +137,42 @@ struct LfnObject
 #endif
 /*----------------------------------------------------------------------------*/
 /*------------------Specific FAT32 memory structures--------------------------*/
-/* Directory entry */
-struct DirEntryImage
+/* Directory entry or long file name entry*/
+union DirEntryImage
 {
-  union
+  /* Directory entry */
+  struct DirEntry
   {
-    char filename[11];
-    struct
+    union
     {
-      char name[8];
-      char extension[3];
-    } __attribute__((packed));
-  };
-  uint8_t flags;
-  char unused[8];
-  uint16_t clusterHigh; /* Starting cluster high word */
-  uint16_t time;
-  uint16_t date;
-  uint16_t clusterLow; /* Starting cluster low word */
-  uint32_t size;
-} __attribute__((packed));
+      char filename[11];
+      struct
+      {
+        char name[8];
+        char extension[3];
+      } __attribute__((packed));
+    };
+    uint8_t flags;
+    char unused[8];
+    uint16_t clusterHigh; /* Starting cluster high word */
+    uint16_t time;
+    uint16_t date;
+    uint16_t clusterLow; /* Starting cluster low word */
+    uint32_t size;
+  } __attribute__((packed)) dir;
+  /* Long file name entry */
+  struct NameEntry
+  {
+    uint8_t ordinal;
+    char16_t name0[5];
+    uint8_t flags;
+    uint8_t unused0;
+    uint8_t checksum;
+    char16_t name1[6];
+    uint8_t unused1[2];
+    char16_t name2[2];
+  } __attribute__((packed)) name;
+};
 /*----------------------------------------------------------------------------*/
 /* Boot sector */
 struct BootSectorImage
@@ -187,21 +203,6 @@ struct InfoSectorImage
   char unused1[14];
   uint16_t bootSignature;
 } __attribute__((packed));
-/*----------------------------------------------------------------------------*/
-#ifdef FAT_LFN
-/* Long file name entry */
-struct LfnEntryImage
-{
-  uint8_t ordinal;
-  char16_t name0[5];
-  uint8_t flags;
-  uint8_t unused0;
-  uint8_t checksum;
-  char16_t name1[6];
-  uint8_t unused1[2];
-  char16_t name2[2];
-} __attribute__((packed));
-#endif
 /*----------------------------------------------------------------------------*/
 /*------------------Inline functions------------------------------------------*/
 static inline bool clusterFree(uint32_t);
