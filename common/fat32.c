@@ -300,7 +300,6 @@ static enum result fetchEntry(struct FatHandle *handle,
         found == longName.length)
     {
       readLongName(handle, &longName, nameBuffer);
-//       printf("Read cluster %u, index %u, name: %s\n", longName.cluster, longName.index, nameBuffer);
     }
     else
       extractShortName(ptr, nameBuffer);
@@ -330,7 +329,6 @@ static const char *followPath(struct FatHandle *handle, struct FatObject *item,
   item->index = 0;
   while (!fetchEntry(handle, item, entryName))
   {
-    printf("Comparing: %s and %s\n", entryName, name);
     if (!strcmp(entryName, name))
       return path;
     item->index++;
