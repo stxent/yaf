@@ -138,40 +138,45 @@ struct LfnObject
 /*----------------------------------------------------------------------------*/
 /*------------------Specific FAT32 memory structures--------------------------*/
 /* Directory entry or long file name entry*/
-union DirEntryImage
+struct DirEntryImage
 {
-  /* Directory entry */
-  struct DirEntry
+  union
   {
-    union
+    char filename[11];
+    struct
     {
-      char filename[11];
-      struct
-      {
-        char name[8];
-        char extension[3];
-      } __attribute__((packed));
-    };
-    uint8_t flags;
-    char unused[8];
-    uint16_t clusterHigh; /* Starting cluster high word */
-    uint16_t time;
-    uint16_t date;
-    uint16_t clusterLow; /* Starting cluster low word */
-    uint32_t size;
-  } __attribute__((packed)) dir;
-  /* Long file name entry */
-  struct NameEntry
+      char name[8];
+      char extension[3];
+    } __attribute__((packed));
+    struct
+    {
+      uint8_t ordinal; /* LFN entry ordinal */
+      char16_t longName0[5]; /* First part of unicode name */
+    } __attribute__((packed));
+  };
+  uint8_t flags;
+  char unused1;
+  uint8_t checksum; /* LFN entry checksum, not used in directory entries */
+  union
   {
-    uint8_t ordinal;
-    char16_t name0[5];
-    uint8_t flags;
-    uint8_t unused0;
-    uint8_t checksum;
-    char16_t name1[6];
-    uint8_t unused1[2];
-    char16_t name2[2];
-  } __attribute__((packed)) name;
+    /* Directory entry fields */
+    struct
+    {
+      char unused2[6];
+      uint16_t clusterHigh; /* Starting cluster high word */
+      uint16_t time;
+      uint16_t date;
+      uint16_t clusterLow; /* Starting cluster low word */
+      uint32_t size;
+    } __attribute__((packed));
+    /* Long file name entry fields */
+    struct
+    {
+      char16_t longName1[6];
+      uint8_t unused3[2];
+      char16_t longName2[2];
+    } __attribute__((packed));
+  };
 };
 /*----------------------------------------------------------------------------*/
 /* Boot sector */
