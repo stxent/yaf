@@ -241,12 +241,13 @@ static enum result readLongName(struct FatHandle *handle,
 static enum result fetchEntry(struct FatHandle *handle,
     struct FatObject *entry, char *nameBuffer)
 {
-  struct DirEntryImage *ptr;
+  struct DirEntryImage *dirEntry;
   enum result res;
   uint32_t sector;
 #ifdef FAT_LFN
-  uint8_t found = 0; /* Found name chunks count */
+  struct LfnEntryImage *nameEntry; //TODO union with dir entry
   struct LfnObject longName;
+  uint8_t found = 0; /* Long name chunks */
 #endif
 
   entry->attribute = 0;
@@ -265,46 +266,51 @@ static enum result fetchEntry(struct FatHandle *handle,
         ((entry->parent - 2) << handle->clusterSize);
     if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
       return res;
-    ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
-    if ((ptr->flags & FLAG_LFN) == FLAG_LFN)
+    dirEntry = (struct DirEntryImage *)(handle->buffer +
+        E_OFFSET(entry->index));
+    if ((dirEntry->flags & FLAG_LFN) == FLAG_LFN)
     {
 #ifdef FAT_LFN
-      if (((struct LfnEntryImage *)ptr)->ordinal & LFN_LAST)
+      nameEntry = (struct LfnEntryImage *)dirEntry;
+      if (!(nameEntry->ordinal & LFN_DELETED))
       {
-        found = 1;
-        longName.length = ((struct LfnEntryImage *)ptr)->ordinal & ~LFN_LAST;
-        longName.checksum = ((struct LfnEntryImage *)ptr)->checksum;
-        longName.index = entry->index;
-        longName.cluster = entry->parent;
+        if (nameEntry->ordinal & LFN_LAST)
+        {
+          found = 1;
+          longName.length = nameEntry->ordinal & ~LFN_LAST;
+          longName.checksum = nameEntry->checksum;
+          longName.index = entry->index;
+          longName.cluster = entry->parent;
+        }
+        else if (found)
+          found++;
       }
-      else if (found)
-        found++;
 #endif
       entry->index++;
       continue;
     }
-    if (!ptr->name[0]) /* No more entries */
+    if (!dirEntry->name[0]) /* No more entries */
       return E_EOF;
-    if (ptr->name[0] != E_FLAG_EMPTY) /* Entry exists */
+    if (dirEntry->name[0] != E_FLAG_EMPTY) /* Entry exists */
       break;
     entry->index++;
   }
-  entry->attribute = ptr->flags;
-  entry->size = ptr->size;
-  entry->cluster = ptr->clusterHigh << 16 | ptr->clusterLow;
+  entry->attribute = dirEntry->flags;
+  entry->size = dirEntry->size;
+  entry->cluster = dirEntry->clusterHigh << 16 | dirEntry->clusterLow;
 
   if (nameBuffer)
   {
 #ifdef FAT_LFN
-    if (found && longName.checksum == getChecksum(ptr) &&
+    if (found && longName.checksum == getChecksum(dirEntry) &&
         found == longName.length)
     {
       readLongName(handle, &longName, nameBuffer);
     }
     else
-      extractShortName(ptr, nameBuffer);
+      extractShortName(dirEntry, nameBuffer);
 #else
-    extractShortName(ptr, nameBuffer);
+    extractShortName(dirEntry, nameBuffer);
 #endif
   }
   return E_OK;
@@ -417,7 +423,7 @@ static enum result allocateCluster(struct FatHandle *handle, uint32_t *cluster)
 /* Create new entry inside entry->parent chain */
 /* Members entry->parent and entry->attribute have to be initialized */
 static enum result createEntry(struct FatHandle *handle,
-    struct FatObject *entry, const char *name)
+    struct FatObject *entry, /*uint8_t chainLength*/const char *name)
 {
   /*
    * Officially maximum directory capacity is 2^16 entries
@@ -426,7 +432,7 @@ static enum result createEntry(struct FatHandle *handle,
   struct DirEntryImage *ptr;
   enum result res;
   uint32_t sector;
-  uint8_t pos;
+  uint8_t pos/*, chunks = 0*/;
 
   entry->cluster = 0;
   entry->index = 0;
@@ -445,17 +451,14 @@ static enum result createEntry(struct FatHandle *handle,
       {
         if ((res = allocateCluster(handle, &entry->parent)) != E_OK)
           return res;
-        else
+        sector = getSector(handle, entry->parent);
+        memset(handle->buffer, 0, SECTOR_SIZE);
+        for (pos = 0; pos < (1 << handle->clusterSize); pos++)
         {
-          sector = getSector(handle, entry->parent);
-          memset(handle->buffer, 0, SECTOR_SIZE);
-          for (pos = 0; pos < (1 << handle->clusterSize); pos++)
+          if ((res = writeSector(handle, sector + pos,
+              handle->buffer, 1)) != E_OK)
           {
-            if ((res = writeSector(handle, sector + pos,
-                handle->buffer, 1)) != E_OK)
-            {
-              return res;
-            }
+            return res;
           }
         }
       }
@@ -468,9 +471,13 @@ static enum result createEntry(struct FatHandle *handle,
     if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
       return res;
     ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
-    /* Empty or removed entry */
-    if (!ptr->name[0] || ptr->name[0] == E_FLAG_EMPTY)
+    /* Empty entry, deleted entry or deleted long file name entry */
+    if (!ptr->name[0] || ptr->name[0] == E_FLAG_EMPTY ||
+        ((ptr->flags & FLAG_LFN) == FLAG_LFN &&
+        ((struct LfnEntryImage *)ptr)->ordinal & LFN_DELETED))
+    {
       break;
+    }
     entry->index++;
   }
 
