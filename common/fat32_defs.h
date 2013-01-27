@@ -27,10 +27,13 @@
 #ifdef FAT_LFN
 /* Buffer size in code points for internal long file name processing */
 #define FILE_NAME_BUFFER        128
-/* Length in bytes for short names and UTF-8 entry names */
+/* Length in bytes for short names and UTF-8 long file names */
 #define FILE_NAME_MAX           256
 /* Long file name entry length: 13 UTF-16LE characters */
 #define LFN_ENTRY_LENGTH        13
+#else
+/* Length in bytes for short names */
+#define FILE_NAME_MAX           13
 #endif /* FAT_LFN */
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
@@ -153,12 +156,20 @@ struct DirEntryImage
     struct
     {
       uint8_t ordinal; /* LFN entry ordinal */
+#ifdef FAT_LFN
       char16_t longName0[5]; /* First part of unicode name */
+#else
+      char unused2[10];
+#endif
     } __attribute__((packed));
   };
   uint8_t flags;
   char unused0;
+#ifdef FAT_LFN
   uint8_t checksum; /* LFN entry checksum, not used in directory entries */
+#else
+  char unused3;
+#endif
   union
   {
     /* Directory entry fields */
@@ -171,13 +182,15 @@ struct DirEntryImage
       uint16_t clusterLow; /* Starting cluster low word */
       uint32_t size;
     } __attribute__((packed));
+#ifdef FAT_LFN
     /* Long file name entry fields */
     struct
     {
       char16_t longName1[6];
-      uint8_t unused2[2];
+      uint8_t unused4[2];
       char16_t longName2[2];
     } __attribute__((packed));
+#endif
   };
 };
 /*----------------------------------------------------------------------------*/

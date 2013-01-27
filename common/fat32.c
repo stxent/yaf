@@ -400,8 +400,7 @@ static enum result createEntry(struct FatHandle *handle,
     ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
     /* Empty entry, deleted entry or deleted long file name entry */
     if (!ptr->name[0] || ptr->name[0] == E_FLAG_EMPTY ||
-        ((ptr->flags & FLAG_LFN) == FLAG_LFN &&
-        (ptr->ordinal & LFN_DELETED)))
+        ((ptr->flags & FLAG_LFN) == FLAG_LFN && (ptr->ordinal & LFN_DELETED)))
     {
       break;
     }
