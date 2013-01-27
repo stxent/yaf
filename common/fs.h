@@ -20,7 +20,6 @@
 #include "interface.h"
 /*----------------------------------------------------------------------------*/
 /* Type represents address space width */
-/* Must be greater or equal to used underlying device address space */
 typedef int64_t asize_t;
 /*----------------------------------------------------------------------------*/
 enum fsMode

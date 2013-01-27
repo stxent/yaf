@@ -10,10 +10,6 @@
 #include "fat32.h"
 #include "fat32_defs.h"
 /*----------------------------------------------------------------------------*/
-#ifdef FAT_TIME
-#include "rtc.h"
-#endif
-/*----------------------------------------------------------------------------*/
 #ifdef DEBUG
 #include <stdio.h>
 #include <stdlib.h>
@@ -93,7 +89,36 @@ static const struct FsHandleClass fatHandleTable = {
 const struct FsHandleClass *FatHandle = (void *)&fatHandleTable;
 /*----------------------------------------------------------------------------*/
 /*------------------Specific FAT32 functions----------------------------------*/
-//TODO rewrite to support LFN
+/*----------------------------------------------------------------------------*/
+static void extractShortName(const struct DirEntryImage *entry, char *str)
+{
+  uint8_t counter = 0;
+  char *src = str, *dest = str;
+
+  /* Copy entry name */
+  memcpy(str, entry->name, sizeof(entry->name));
+  /* Add dot, when entry is not directory or extension exists */
+  if (!(entry->flags & FLAG_DIR) && entry->extension[0] != ' ')
+  {
+    str[8] = '.';
+    /* Copy entry extension */
+    memcpy(str + 9, entry->extension, sizeof(entry->extension));
+    str[12] = '\0';
+  }
+  else
+    str[8] = '\0';
+
+  //TODO Optimize
+  while (*src && counter++ < 12)
+  {
+    if (*src != ' ')
+      *dest++ = *src++;
+    else
+      src++;
+  }
+  *dest = '\0';
+}
+/*----------------------------------------------------------------------------*/
 /* dest length is 13: 8 name + dot + 3 extension + null */
 static const char *getChunk(const char *src, char *dest)
 {
@@ -109,15 +134,11 @@ static const char *getChunk(const char *src, char *dest)
   }
   while (*src && counter++ < FILE_NAME_MAX - 1)
   {
+    //TODO optimize
     if (*src == '/')
     {
       src++;
       break;
-    }
-    if (*src == ' ')
-    {
-      src++;
-      continue;
     }
     *dest++ = *src++;
   }
@@ -146,12 +167,17 @@ static enum result getNextCluster(struct FatHandle *handle, uint32_t *cluster)
 }
 /*----------------------------------------------------------------------------*/
 /* Members entry->index and entry->parent have to be initialized */
-/* Pointer nameBuffer must be at least FILE_NAME_MAX length or zero */
+/* Name buffer must be at least FILE_NAME_MAX length or zero */
 static enum result fetchEntry(struct FatHandle *handle,
-    struct FatObject *entry, char *nameBuffer)
+    struct FatObject *entry, char *entryName)
 {
   struct DirEntryImage *ptr;
+  enum result res;
   uint32_t sector;
+#ifdef FAT_LFN
+  struct LfnObject longName;
+  uint8_t found = 0; /* Long name chunks */
+#endif
 
   entry->attribute = 0;
   entry->cluster = 0;
@@ -161,15 +187,35 @@ static enum result fetchEntry(struct FatHandle *handle,
     if (entry->index >= entryCount(handle))
     {
       /* Check clusters until end of directory (EOC entry in FAT) */
-      if (getNextCluster(handle, &entry->parent))
-        return E_INTERFACE;
+      if ((res = getNextCluster(handle, &entry->parent)) != E_OK)
+        return res;
       entry->index = 0;
     }
     sector = handle->dataSector + E_SECTOR(entry->index) +
         ((entry->parent - 2) << handle->clusterSize);
-    if (readSector(handle, sector, handle->buffer, 1))
-      return E_INTERFACE;
+    if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
+      return res;
     ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
+    if ((ptr->flags & FLAG_LFN) == FLAG_LFN)
+    {
+#ifdef FAT_LFN
+      if (!(ptr->ordinal & LFN_DELETED))
+      {
+        if (ptr->ordinal & LFN_LAST)
+        {
+          found = 1;
+          longName.length = ptr->ordinal & ~LFN_LAST;
+          longName.checksum = ptr->checksum;
+          longName.index = entry->index;
+          longName.cluster = entry->parent;
+        }
+        else if (found)
+          found++;
+      }
+#endif
+      entry->index++;
+      continue;
+    }
     if (!ptr->name[0]) /* No more entries */
       return E_EOF;
     if (ptr->name[0] != E_FLAG_EMPTY) /* Entry exists */
@@ -179,22 +225,20 @@ static enum result fetchEntry(struct FatHandle *handle,
   entry->attribute = ptr->flags;
   entry->size = ptr->size;
   entry->cluster = ptr->clusterHigh << 16 | ptr->clusterLow;
-  if (nameBuffer)
+
+  if (entryName)
   {
-    /* Copy entry name */
-    memcpy(nameBuffer, ptr->name, sizeof(ptr->name));
-    /* Add dot, when entry is not directory or extension exists */
-    if (!(entry->attribute & FLAG_DIR) && ptr->extension[0] != ' ')
+#ifdef FAT_LFN
+    if (found && longName.checksum == getChecksum(ptr) &&
+        found == longName.length)
     {
-      //TODO add LFN support
-      nameBuffer[8] = '.';
-      /* Copy entry extension */
-      memcpy(nameBuffer + 9, ptr->extension, sizeof(ptr->extension));
-      nameBuffer[12] = '\0';
+      readLongName(handle, &longName, entryName);
     }
     else
-      nameBuffer[8] = '\0';
-    getChunk(nameBuffer, nameBuffer);
+      extractShortName(ptr, entryName);
+#else
+    extractShortName(ptr, entryName);
+#endif
   }
   return E_OK;
 }
@@ -306,7 +350,7 @@ static enum result allocateCluster(struct FatHandle *handle, uint32_t *cluster)
 /* Create new entry inside entry->parent chain */
 /* Members entry->parent and entry->attribute have to be initialized */
 static enum result createEntry(struct FatHandle *handle,
-    struct FatObject *entry, const char *name)
+    struct FatObject *entry, /*uint8_t chainLength*/const char *name)
 {
   /*
    * Officially maximum directory capacity is 2^16 entries
@@ -315,7 +359,7 @@ static enum result createEntry(struct FatHandle *handle,
   struct DirEntryImage *ptr;
   enum result res;
   uint32_t sector;
-  uint8_t pos;
+  uint8_t pos/*, chunks = 0*/;
 
   entry->cluster = 0;
   entry->index = 0;
@@ -334,17 +378,14 @@ static enum result createEntry(struct FatHandle *handle,
       {
         if ((res = allocateCluster(handle, &entry->parent)) != E_OK)
           return res;
-        else
+        sector = getSector(handle, entry->parent);
+        memset(handle->buffer, 0, SECTOR_SIZE);
+        for (pos = 0; pos < (1 << handle->clusterSize); pos++)
         {
-          sector = getSector(handle, entry->parent);
-          memset(handle->buffer, 0, SECTOR_SIZE);
-          for (pos = 0; pos < (1 << handle->clusterSize); pos++)
+          if ((res = writeSector(handle, sector + pos,
+              handle->buffer, 1)) != E_OK)
           {
-            if ((res = writeSector(handle, sector + pos,
-                handle->buffer, 1)) != E_OK)
-            {
-              return res;
-            }
+            return res;
           }
         }
       }
@@ -357,9 +398,13 @@ static enum result createEntry(struct FatHandle *handle,
     if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
       return res;
     ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
-    /* Empty or removed entry */
-    if (!ptr->name[0] || ptr->name[0] == E_FLAG_EMPTY)
+    /* Empty entry, deleted entry or deleted long file name entry */
+    if (!ptr->name[0] || ptr->name[0] == E_FLAG_EMPTY ||
+        ((ptr->flags & FLAG_LFN) == FLAG_LFN &&
+        (ptr->ordinal & LFN_DELETED)))
+    {
       break;
+    }
     entry->index++;
   }
 
@@ -373,7 +418,7 @@ static enum result createEntry(struct FatHandle *handle,
       ptr->extension[pos] = *name++;
   }
   /* Fill entry fields with zeros */
-  memset(ptr->unused, 0, sizeof(ptr->unused));
+//   memset(ptr->unused, 0, sizeof(ptr->unused));
   ptr->flags = entry->attribute;
   ptr->clusterHigh = 0;
   ptr->clusterLow = 0;
@@ -492,8 +537,8 @@ static enum result truncate(struct FatFile *fileHandle)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-/* Copy current sector into FAT sectors located at offset */
 #ifdef FAT_WRITE
+/* Copy current sector into FAT sectors located at offset */
 static enum result updateTable(struct FatHandle *handle, uint32_t offset)
 {
   enum result res;
@@ -511,6 +556,73 @@ static enum result updateTable(struct FatHandle *handle, uint32_t offset)
 }
 #endif
 /*----------------------------------------------------------------------------*/
+#ifdef FAT_LFN
+/* Extract 13 unicode characters from LFN entry */
+static void extractLongName(const struct DirEntryImage *entry, char16_t *str)
+{
+  memcpy(str, entry->longName0, sizeof(entry->longName0));
+  str += sizeof(entry->longName0) / sizeof(char16_t);
+  memcpy(str, entry->longName1, sizeof(entry->longName1));
+  str += sizeof(entry->longName1) / sizeof(char16_t);
+  memcpy(str, entry->longName2, sizeof(entry->longName2));
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_LFN
+/* Calculate entry name checksum for long file name support */
+static uint8_t getChecksum(const struct DirEntryImage *entry)
+{
+  const char *ptr = entry->filename;
+  uint8_t sum = 0, pos;
+
+  for (pos = 0; pos < sizeof(entry->filename); pos++)
+    sum = ((sum >> 1) | (sum << 7)) + *ptr++;
+  return sum;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_LFN
+static enum result readLongName(struct FatHandle *handle,
+    struct LfnObject *entry, char *entryName)
+{
+  struct DirEntryImage *ptr;
+  uint8_t chunks = 0;
+  uint32_t sector;
+  enum result res;
+
+  while (1)
+  {
+    if (entry->index >= entryCount(handle))
+    {
+      /* Check clusters until end of directory (EOC entry in FAT) */
+      if ((res = getNextCluster(handle, &entry->cluster)) != E_OK)
+        return res;
+      entry->index = 0;
+    }
+    sector = handle->dataSector + E_SECTOR(entry->index) +
+        ((entry->cluster - 2) << handle->clusterSize);
+    if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
+      return res;
+    ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
+    if ((ptr->flags & FLAG_LFN) == FLAG_LFN)
+    {
+      chunks++;
+      extractLongName(ptr, handle->nameBuffer +
+          ((ptr->ordinal & ~LFN_LAST) - 1) * LFN_ENTRY_LENGTH);
+      entry->index++;
+      continue;
+    }
+    else
+      break; /* No more consecutive long file name entries */
+    entry->index++;
+  }
+  if (!chunks || entry->length != chunks)
+    return E_ERROR;
+  uFromUtf16(entryName, handle->nameBuffer, FILE_NAME_MAX);
+  return E_OK;
+}
+#endif
+/*----------------------------------------------------------------------------*/
 /*------------------Implemented filesystem methods----------------------------*/
 static enum result fatInit(void *object, const void *cdata)
 {
@@ -518,15 +630,20 @@ static enum result fatInit(void *object, const void *cdata)
   struct FatHandle *handle = object;
   struct BootSectorImage *boot;
   enum result res;
+  uint16_t tmp;
 #ifdef FAT_WRITE
   struct InfoSectorImage *info;
 #endif
-  uint16_t tmp;
 
   /* Initialize buffer variables */
   handle->buffer = malloc(SECTOR_SIZE);
   if (!handle->buffer)
     return E_MEMORY;
+#ifdef FAT_LFN
+  handle->nameBuffer = malloc(FILE_NAME_BUFFER * sizeof(char16_t));
+  if (!handle->nameBuffer)
+    return E_MEMORY;
+#endif
   handle->bufferedSector = (uint32_t)(-1);
 
   handle->parent.dev = config->interface;

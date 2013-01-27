@@ -12,10 +12,27 @@
 /*----------------------------------------------------------------------------*/
 #include "fs.h"
 /*----------------------------------------------------------------------------*/
+#ifdef FAT_TIME
+#include "rtc.h"
+#endif
 /*----------------------------------------------------------------------------*/
+#ifdef FAT_LFN
+#include "unicode.h"
+#endif
+/*----------------------------------------------------------------------------*/
+#define SECTOR_SIZE             (1 << SECTOR_POW) /* Sector size in bytes */
 /* Sector size may be 512, 1024, 2048, 4096 bytes, default is 512 */
 #define SECTOR_POW              9 /* Sector size in power of 2 */
-#define SECTOR_SIZE             (1 << SECTOR_POW) /* Sector size in bytes */
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_LFN
+/* Buffer size in code points for internal long file name processing */
+#define FILE_NAME_BUFFER        128
+/* Length in bytes for short names and UTF-8 entry names */
+#define FILE_NAME_MAX           256
+/* Long file name entry length: 13 UTF-16LE characters */
+#define LFN_ENTRY_LENGTH        13
+#endif /* FAT_LFN */
+/*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 #define FLAG_RO                 (uint8_t)0x01 /* Read only */
 #define FLAG_HIDDEN             (uint8_t)0x02
@@ -23,13 +40,15 @@
 #define FLAG_VOLUME             (uint8_t)0x08 /* Volume name */
 #define FLAG_DIR                (uint8_t)0x10 /* Subdirectory */
 #define FLAG_ARCHIVE            (uint8_t)0x20
-#define FLAG_LFN                (uint8_t)0x0F /* Long file name */
+#define FLAG_LFN                (uint8_t)0x0F /* Long file name chunk */
+/*----------------------------------------------------------------------------*/
+#define LFN_DELETED             (uint8_t)0x80 /* Deleted LFN entry */
+#define LFN_LAST                (uint8_t)0x40 /* Last LFN entry */
 /*----------------------------------------------------------------------------*/
 #define E_FLAG_EMPTY            (char)0xE5 /* Directory entry is free */
 /*----------------------------------------------------------------------------*/
 #define CLUSTER_EOC_VAL         (uint32_t)0x0FFFFFF8
 #define FILE_SIZE_MAX           (uint32_t)0xFFFFFFFF
-#define FILE_NAME_MAX           13 /* Name + dot + extension + null character */
 /*----------------------------------------------------------------------------*/
 /* File or directory entry size power */
 #define E_POW                   (SECTOR_POW - 5)
@@ -94,9 +113,12 @@ struct FatHandle
   uint8_t *buffer;
   uint32_t bufferedSector;
   /* bool staticAlloc; *//* TODO Add */
+#ifdef FAT_LFN
+  char16_t *nameBuffer;
+#endif
 };
 /*----------------------------------------------------------------------------*/
-/*------------------Directory entry structure---------------------------------*/
+/* Directory entry descriptor */
 struct FatObject
 {
   uint8_t attribute; /* File or directory attributes */
@@ -106,8 +128,18 @@ struct FatObject
   uint32_t size; /* File size or zero for directories */
 };
 /*----------------------------------------------------------------------------*/
+#ifdef FAT_LFN
+/* Long file name entry descriptor */
+struct LfnObject
+{
+  uint8_t checksum, length;
+  uint16_t index; /* Entry position in parent cluster */
+  uint32_t cluster; /* Directory cluster where entry located */
+};
+#endif
+/*----------------------------------------------------------------------------*/
 /*------------------Specific FAT32 memory structures--------------------------*/
-/* Directory entry */
+/* Directory entry or long file name entry*/
 struct DirEntryImage
 {
   union
@@ -118,15 +150,36 @@ struct DirEntryImage
       char name[8];
       char extension[3];
     } __attribute__((packed));
+    struct
+    {
+      uint8_t ordinal; /* LFN entry ordinal */
+      char16_t longName0[5]; /* First part of unicode name */
+    } __attribute__((packed));
   };
   uint8_t flags;
-  char unused[8];
-  uint16_t clusterHigh; /* Starting cluster high word */
-  uint16_t time;
-  uint16_t date;
-  uint16_t clusterLow; /* Starting cluster low word */
-  uint32_t size;
-} __attribute__((packed));
+  char unused0;
+  uint8_t checksum; /* LFN entry checksum, not used in directory entries */
+  union
+  {
+    /* Directory entry fields */
+    struct
+    {
+      char unused1[6];
+      uint16_t clusterHigh; /* Starting cluster high word */
+      uint16_t time;
+      uint16_t date;
+      uint16_t clusterLow; /* Starting cluster low word */
+      uint32_t size;
+    } __attribute__((packed));
+    /* Long file name entry fields */
+    struct
+    {
+      char16_t longName1[6];
+      uint8_t unused2[2];
+      char16_t longName2[2];
+    } __attribute__((packed));
+  };
+};
 /*----------------------------------------------------------------------------*/
 /* Boot sector */
 struct BootSectorImage
@@ -166,6 +219,7 @@ static inline uint32_t getSector(struct FatHandle *, uint32_t);
 static inline uint16_t entryCount(struct FatHandle *);
 /*----------------------------------------------------------------------------*/
 /*------------------Specific FAT32 functions----------------------------------*/
+static void extractShortName(const struct DirEntryImage *, char *);
 static const char *getChunk(const char *, char *);
 static enum result getNextCluster(struct FatHandle *, uint32_t *);
 static enum result fetchEntry(struct FatHandle *, struct FatObject *, char *);
@@ -184,6 +238,11 @@ static enum result writeSector(struct FatHandle *, uint32_t, const uint8_t *,
     uint8_t);
 static enum result truncate(struct FatFile *);
 static enum result updateTable(struct FatHandle *, uint32_t);
+#endif
+#ifdef FAT_LFN
+static void extractLongName(const struct DirEntryImage *, char16_t *);
+static uint8_t getChecksum(const struct DirEntryImage *);
+static enum result readLongName(struct FatHandle *, struct LfnObject *, char *);
 #endif
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
