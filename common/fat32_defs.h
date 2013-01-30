@@ -243,7 +243,9 @@ static enum result readSector(struct FatHandle *, uint32_t, uint8_t *,
 /* Functions with write access */
 #ifdef FAT_WRITE
 static enum result allocateCluster(struct FatHandle *, uint32_t *);
-static enum result createEntry(struct FatHandle *, struct FatObject *,
+static enum result allocateEntry(struct FatHandle *, struct FatObject *,
+    uint8_t);
+static enum result createEntry(struct FatHandle *, const struct FatObject *,
     const char *);
 static enum result freeChain(struct FatHandle *, uint32_t);
 static enum result markFree(struct FatHandle *, struct FatObject *);
