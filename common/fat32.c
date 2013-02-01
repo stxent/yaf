@@ -462,7 +462,7 @@ static enum result createEntry(struct FatHandle *handle,
     /* Calculate checksum for short name */
     checksum = getChecksum(shortName, sizeof(ptr->filename));
     /* Convert file name to UTF-16 */
-    length = uToUtf16(handle->nameBuffer, name, FILE_NAME_BUFFER);
+    length = uToUtf16(handle->nameBuffer, name, FILE_NAME_BUFFER) + 1;
     /* Calculate long file name length in entries */
     chunks = length / LFN_ENTRY_LENGTH;
     if (length > chunks * LFN_ENTRY_LENGTH) /* When fractional part exists */
@@ -605,7 +605,6 @@ static bool fillShortName(char *shortName, const char *name, bool isDir)
 static enum result freeChain(struct FatHandle *handle, uint32_t cluster)
 {
   struct InfoSectorImage *info;
-  uint8_t *dbuf = handle->buffer;
   uint32_t freeCount = 0; /* Freed clusters count */
   uint32_t next, current = cluster;
   enum result res;
@@ -621,8 +620,8 @@ static enum result freeChain(struct FatHandle *handle, uint32_t cluster)
       return res;
     }
     /* Free cluster */
-    next = *(uint32_t *)(dbuf + TE_OFFSET(current));
-    *(uint32_t *)(dbuf + TE_OFFSET(current)) = 0;
+    next = *(uint32_t *)(handle->buffer + TE_OFFSET(current));
+    *(uint32_t *)(handle->buffer + TE_OFFSET(current)) = 0;
 #ifdef DEBUG
     if (current >> TE_COUNT != next >> TE_COUNT)
     {
@@ -642,7 +641,7 @@ static enum result freeChain(struct FatHandle *handle, uint32_t cluster)
   /* Update information sector */
   if ((res = readSector(handle, handle->infoSector, handle->buffer, 1)) != E_OK)
     return res;
-  info = (struct InfoSectorImage *)dbuf;
+  info = (struct InfoSectorImage *)handle->buffer;
   /* Set free clusters count */
   info->freeClusters += freeCount;
   if ((res = writeSector(handle,
@@ -996,11 +995,8 @@ static enum result fatOpen(void *handleObject, void *fileObject,
       item.cluster = 0;
       item.size = 0;
       //TODO Initialize parent and index
-      if (/*(res = allocateEntry(handle, &item, 1)) != E_OK ||*/
-          (res = createEntry(handle, &item, path)) != E_OK)
-      {
+      if ((res = createEntry(handle, &item, path)) != E_OK)
         return res;
-      }
     }
     else
       return E_NONEXISTENT;
@@ -1089,11 +1085,8 @@ static enum result fatMove(void *object, const char *src, const char *dest)
   item.cluster = oldItem.cluster;
   item.size = oldItem.size;
   //TODO Initialize parent and index
-  if (/*(res = allocateEntry(handle, &item, 1)) != E_OK ||*/
-      (res = createEntry(handle, &item, dest)) != E_OK)
-  {
+  if ((res = createEntry(handle, &item, dest)) != E_OK)
     return res;
-  }
 
   if ((res = markFree(handle, &oldItem)) != E_OK)
     return res;
@@ -1484,7 +1477,6 @@ static enum result fatMakeDir(void *object, const char *path)
   if (!*path) /* Entry with same name exists */
     return E_ERROR;
 
-  //TODO change order
   /* Allocate cluster for directory entries */
   if ((res = allocateCluster(handle, &item.cluster)) != E_OK)
     return res;
@@ -1494,7 +1486,11 @@ static enum result fatMakeDir(void *object, const char *path)
   item.size = 0;
   //TODO Initialize parent and index
   if ((res = createEntry(handle, &item, path)) != E_OK)
-    return res; /* TODO Remove allocated cluster */
+  {
+    /* TODO Add return value checking */
+    freeChain(handle, item.cluster);
+    return res;
+  }
 
   sector = getSector(handle, item.cluster);
   /* Fill cluster with zeros */

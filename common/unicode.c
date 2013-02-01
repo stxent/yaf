@@ -115,35 +115,23 @@ uint16_t uToUtf16(char16_t *dest, const char *src, uint16_t maxLength)
   {
     if (!(value & 0x80)) /* U+007F */
     {
-      *dest++ = value;
+      *dest++ = (char16_t)value;
       count++;
     }
     if ((value & 0xE0) == 0xC0) /* U+07FF */
     {
       code = (char16_t)(value & 0x1F) << 6;
-      value = *src++;
-      if ((value & 0xC0) == 0x80)
-      {
-        code |= (char16_t)(value & 0x3F);
-        *dest++ = value;
-        count++;
-      }
+      code |= (char16_t)(*src++ & 0x3F);
+      *dest++ = code;
+      count++;
     }
     if ((value & 0xF0) == 0xE0) /* U+FFFF */
     {
       code = (char16_t)(value & 0x0F) << 12;
-      value = *src++;
-      if ((value & 0xC0) == 0x80)
-      {
-        code |= (char16_t)(value & 0x3F) << 6;
-        value = *src++;
-        if ((value & 0xC0) == 0x80)
-        {
-          code |= (char16_t)(value & 0x3F);
-          *dest++ = value;
-          count++;
-        }
-      }
+      code |= (char16_t)(*src++ & 0x3F) << 6;
+      code |= (char16_t)(*src++ & 0x3F);
+      *dest++ = code;
+      count++;
     }
   }
   *dest = '\0';
