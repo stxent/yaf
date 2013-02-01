@@ -193,15 +193,11 @@ static enum result mmiSetOpt(void *object, enum ifOption option,
       {
 #ifdef DEBUG
         printf("mmaped_io: out of bounds, position 0x%012lX, size 0x%012lX\n",
-            (unsigned long)dev->position, (unsigned long)dev->size);
+            (unsigned long)(newPos + dev->offset), (unsigned long)dev->size);
 #endif
         return E_ERROR;
       }
       dev->position = newPos;
-/* #ifdef DEBUG
-      printf("mmaped_io: position set to 0x%08X\n",
-          (unsigned int)dev->position);
-#endif */
       return E_OK;
     default:
       return E_ERROR;

@@ -192,8 +192,7 @@ static enum result fetchEntry(struct FatHandle *handle,
         return res;
       entry->index = 0;
     }
-    sector = handle->dataSector + E_SECTOR(entry->index) +
-        ((entry->parent - 2) << handle->clusterSize);
+    sector = getSector(handle, entry->parent) + E_SECTOR(entry->index);
     if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
       return res;
     ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
@@ -348,7 +347,6 @@ static enum result allocateCluster(struct FatHandle *handle, uint32_t *cluster)
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
-//FIXME Rename
 /* Allocate single entry or entry chain inside entry->parent chain */
 /* Members entry->parent and entry->index have to be initialized */
 /* Returns entry position in entry->parent and entry->index */
@@ -391,18 +389,17 @@ static enum result allocateEntry(struct FatHandle *handle,
         if (!chunks)
         {
           /* We have enough free space at the and of directory chain */
-          chunks = chainLength;
-          index = 0; //FIXME
-          parent = entry->parent;
+          /* Parent sector have already been initialized */
+          entry->index = 0;
+          return E_OK;
         }
         break;
       }
       else if (res != E_OK)
         return res;
-      entry->index = 0; //FIXME
+      entry->index = 0;
     }
-    sector = handle->dataSector + E_SECTOR(entry->index) +
-        ((entry->parent - 2) << handle->clusterSize);
+    sector = getSector(handle, entry->parent) + E_SECTOR(entry->index);
     if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
       return res;
     ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
@@ -419,16 +416,17 @@ static enum result allocateEntry(struct FatHandle *handle,
       else
         chunks++;
       if (chunks == chainLength) /* Found enough free entries */
-        break;
+      {
+        entry->index = index;
+        entry->parent = parent;
+        return E_OK;
+      }
     }
     else
       chunks = 0;
     entry->index++;
   }
-
-  entry->index = index;
-  entry->parent = parent;
-  return E_OK;
+  return E_ERROR;
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -458,7 +456,6 @@ static enum result createEntry(struct FatHandle *handle,
 #ifdef FAT_LFN
   if (!valid)
   {
-    printf("Creating LFN\n");
     /* Calculate checksum for short name */
     checksum = getChecksum(shortName, sizeof(ptr->filename));
     /* Convert file name to UTF-16 */
@@ -485,8 +482,7 @@ static enum result createEntry(struct FatHandle *handle,
         return res;
       entry->index = 0;
     }
-    sector = handle->dataSector + E_SECTOR(entry->index) +
-        ((entry->parent - 2) << handle->clusterSize);
+    sector = getSector(handle, entry->parent) + E_SECTOR(entry->index);
     if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
       return res;
     ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
@@ -790,8 +786,7 @@ static enum result readLongName(struct FatHandle *handle,
         return res;
       entry->index = 0;
     }
-    sector = handle->dataSector + E_SECTOR(entry->index) +
-        ((entry->cluster - 2) << handle->clusterSize);
+    sector = getSector(handle, entry->cluster) + E_SECTOR(entry->index);
     if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
       return res;
     ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
@@ -1481,7 +1476,7 @@ static enum result fatMakeDir(void *object, const char *path)
   if ((res = allocateCluster(handle, &item.cluster)) != E_OK)
     return res;
 
-  /* Create directory entry, file name already converted */
+  /* Create directory entry, file name have already been converted */
   item.attribute = FLAG_DIR; /* Create entry with directory attribute */
   item.size = 0;
   //TODO Initialize parent and index
