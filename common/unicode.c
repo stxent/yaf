@@ -63,7 +63,8 @@ static void dumpChar8String(char *str)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-/* Convert a string in UTF-16LE terminated with 0 to UTF-8 string */
+/* TODO Add surrogate pairs support */
+/* Convert the string from UTF-16LE terminated with 0 to UTF-8 string */
 uint16_t uFromUtf16(char *dest, const char16_t *src, uint16_t maxLength)
 {
   char16_t value;
@@ -74,7 +75,7 @@ uint16_t uFromUtf16(char *dest, const char16_t *src, uint16_t maxLength)
   dumpChar16String(src);
 #endif
 
-  while ((value = *src++) && ptr - dest < maxLength)
+  while ((value = *src++) && ptr - dest < maxLength - 1)
   {
     if (value <= 0x007F)
     {
@@ -102,15 +103,48 @@ uint16_t uFromUtf16(char *dest, const char16_t *src, uint16_t maxLength)
   return (uint16_t)(ptr - dest);
 }
 /*----------------------------------------------------------------------------*/
-//FIXME Rewrite
+/* TODO Add surrogate pairs support */
+/* Convert the string from UTF-8 terminated with 0 to UTF-16LE string */
 uint16_t uToUtf16(char16_t *dest, const char *src, uint16_t maxLength)
 {
   uint16_t count = 0;
+  char16_t code;
+  uint8_t value;
 
-  while (*src && count < maxLength - 1)
+  while ((value = *src++) && count < maxLength - 1)
   {
-    *dest++ = *src++;
-    count++;
+    if (!(value & 0x80)) /* U+007F */
+    {
+      *dest++ = value;
+      count++;
+    }
+    if ((value & 0xE0) == 0xC0) /* U+07FF */
+    {
+      code = (char16_t)(value & 0x1F) << 6;
+      value = *src++;
+      if ((value & 0xC0) == 0x80)
+      {
+        code |= (char16_t)(value & 0x3F);
+        *dest++ = value;
+        count++;
+      }
+    }
+    if ((value & 0xF0) == 0xE0) /* U+FFFF */
+    {
+      code = (char16_t)(value & 0x0F) << 12;
+      value = *src++;
+      if ((value & 0xC0) == 0x80)
+      {
+        code |= (char16_t)(value & 0x3F) << 6;
+        value = *src++;
+        if ((value & 0xC0) == 0x80)
+        {
+          code |= (char16_t)(value & 0x3F);
+          *dest++ = value;
+          count++;
+        }
+      }
+    }
   }
   *dest = '\0';
   return count;
