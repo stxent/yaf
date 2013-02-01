@@ -395,10 +395,6 @@ static enum result allocateEntry(struct FatHandle *handle,
           index = 0; //FIXME
           parent = entry->parent;
         }
-        //FIXME
-#ifdef DEBUG
-        printf("createEntry: free space at the end of chain %u:%u\n", parent, index);
-#endif
         break;
       }
       else if (res != E_OK)
@@ -419,27 +415,14 @@ static enum result allocateEntry(struct FatHandle *handle,
         chunks = 1;
         index = entry->index;
         parent = entry->parent;
-#ifdef DEBUG
-        printf("createEntry: start space inside the chain %u:%u\n", parent, index);
-#endif
       }
       else
         chunks++;
       if (chunks == chainLength) /* Found enough free entries */
-      {
-#ifdef DEBUG
-        printf("createEntry: free space inside the chain %u:%u\n", parent, index);
-#endif
         break;
-      }
     }
     else
-    {
       chunks = 0;
-#ifdef DEBUG
-      printf("createEntry: reset at %u:%u\n", entry->parent, entry->index);
-#endif
-    }
     entry->index++;
   }
 
@@ -448,45 +431,6 @@ static enum result allocateEntry(struct FatHandle *handle,
   return E_OK;
 }
 #endif
-/*----------------------------------------------------------------------------*/
-/* TODO Refactor */
-#ifdef FAT_LFN
-/* Save 13 unicode characters to long file name entry */
-static void writeLongName(struct DirEntryImage *entry, char16_t *str)
-{
-  //FIXME Add string end checking
-  memcpy(entry->longName0, str, sizeof(entry->longName0));
-  str += sizeof(entry->longName0) / sizeof(char16_t);
-  memcpy(entry->longName1, str, sizeof(entry->longName1));
-  str += sizeof(entry->longName1) / sizeof(char16_t);
-  memcpy(entry->longName2, str, sizeof(entry->longName2));
-}
-#endif
-/*----------------------------------------------------------------------------*/
-/* TODO Refactor */
-static void fillShortName(char *shortName, const char *name, bool isDir)
-{
-  uint8_t pos;
-
-  /* Clear name and extension */
-  memset(shortName, ' ', sizeof(((struct DirEntryImage *)0)->filename));
-  /* Fill name */
-  for (pos = 0; *name && *name != '.' &&
-      pos < sizeof(((struct DirEntryImage *)0)->name); pos++)
-  {
-    shortName[pos] = *name++;
-  }
-  /* Fill extension when the entry is the regular file and extension exists */
-  if (!isDir && *name == '.')
-  {
-    shortName += sizeof(((struct DirEntryImage *)0)->name);
-    for (pos = 0, name++; *name &&
-        pos < sizeof(((struct DirEntryImage *)0)->extension); pos++)
-    {
-      shortName[pos] = *name++;
-    }
-  }
-}
 /*----------------------------------------------------------------------------*/
 static enum result createEntry(struct FatHandle *handle,
     struct FatObject *entry, const char *name)
@@ -497,23 +441,28 @@ static enum result createEntry(struct FatHandle *handle,
   uint32_t sector;
   uint8_t chunks = 0;
 #ifdef FAT_LFN
+  bool validShort, lastEntry = true;
+  uint8_t checksum = 0;
   uint16_t length;
-  uint8_t checksum;
-  bool lastEntry = true;
 #endif
 
-  fillShortName(shortName, name, ((entry->attribute & FLAG_DIR) != 0));
+  validShort = fillShortName(shortName, name,
+      ((entry->attribute & FLAG_DIR) != 0));
   /* TODO Check for duplicates */
 
 #ifdef FAT_LFN
-  /* Calculate checksum for short name */
-  checksum = getChecksum(shortName, sizeof(ptr->filename));
-  /* Convert file name to UTF-16 */
-  length = uToUtf16(handle->nameBuffer, name, FILE_NAME_BUFFER);
-  /* Calculate long file name length in entries */
-  chunks = length / LFN_ENTRY_LENGTH;
-  if (length > chunks * LFN_ENTRY_LENGTH) /* When fractional part exists */
-    chunks++;
+  if (!validShort)
+  {
+    printf("Creating LFN\n");
+    /* Calculate checksum for short name */
+    checksum = getChecksum(shortName, sizeof(ptr->filename));
+    /* Convert file name to UTF-16 */
+    length = uToUtf16(handle->nameBuffer, name, FILE_NAME_BUFFER);
+    /* Calculate long file name length in entries */
+    chunks = length / LFN_ENTRY_LENGTH;
+    if (length > chunks * LFN_ENTRY_LENGTH) /* When fractional part exists */
+      chunks++;
+  }
 #endif
 
   /* Find suitable space within the directory */
@@ -580,6 +529,66 @@ static enum result createEntry(struct FatHandle *handle,
     return res;
   return E_OK;
 }
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_WRITE
+/*
+ * Returns true when entry is valid short name
+ * Otherwise long file name entries are expected
+ */
+static bool fillShortName(char *shortName, const char *name, bool isDir)
+{
+  char symbol, converted;
+  bool valid = true;
+  uint8_t pos = 0;
+
+  /* TODO Add special case for 0xE5 to 0x05 mapping in first symbol */
+  /* Clear name and extension */
+  memset(shortName, ' ', sizeof(((struct DirEntryImage *)0)->filename));
+  /* Fill name */
+  /* TODO Optimize */
+  while ((symbol = *name++) && (symbol != '.'))
+  {
+    /* Process character */
+    converted = processCharacter(symbol);
+    if (converted != symbol)
+      valid = false;
+    if (!converted)
+      continue;
+    shortName[pos++] = converted;
+    if (pos >= sizeof(((struct DirEntryImage *)0)->name))
+    {
+      /* We reached the end of short name but not the end of file name */
+      if (*name)
+        valid = false;
+      break;
+    }
+  }
+  /* Fill extension when the entry is the regular file and extension exists */
+  if (!isDir && *name == '.')
+  {
+    shortName += sizeof(((struct DirEntryImage *)0)->name);
+    pos = 0;
+    while ((symbol = *name++))
+    {
+      /* Process character */
+      converted = processCharacter(symbol);
+      if (converted != symbol)
+        valid = false;
+      if (!converted)
+        continue;
+      shortName[pos++] = converted;
+    if (pos >= sizeof(((struct DirEntryImage *)0)->extension))
+    {
+      /* We reached the end of short name but not the end of file extension */
+      if (*name)
+        valid = false;
+      break;
+    }
+    }
+  }
+  return valid;
+}
+#endif
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
 static enum result freeChain(struct FatHandle *handle, uint32_t cluster)
@@ -650,6 +659,32 @@ static enum result markFree(struct FatHandle *handle, struct FatObject *entry)
   if ((res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
     return res;
   return E_OK;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_WRITE
+/* Returns zero when character is not allowed or processed character code */
+static char processCharacter(char value)
+{
+  /* All slashes are already removed while file path being calculated */
+  /* Drop all multi-byte UTF-8 code points */
+  if (value & 0x80)
+    return 0;
+  /* Replace spaces with underscores */
+  if (value == ' ')
+    return '_';
+  /* Convert lower case characters to upper case */
+  if (value >= 'a' && value <= 'z')
+    return value - 32;
+  /* Check specific FAT32 ranges */
+  if (value > 0x20 && value != 0x22 && value != 0x7C &&
+      !(value >= 0x2A && value <= 0x2F) &&
+      !(value >= 0x3A && value <= 0x3F) &&
+      !(value >= 0x5B && value <= 0x5D))
+  {
+    return value;
+  }
+  return 0;
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -766,6 +801,19 @@ static enum result readLongName(struct FatHandle *handle,
     return E_ERROR;
   uFromUtf16(entryName, handle->nameBuffer, FILE_NAME_MAX);
   return E_OK;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#if defined(FAT_WRITE) && defined(FAT_LFN)
+/* Save 13 unicode characters to long file name entry */
+static void writeLongName(struct DirEntryImage *entry, char16_t *str)
+{
+  //FIXME Add string end checking
+  memcpy(entry->longName0, str, sizeof(entry->longName0));
+  str += sizeof(entry->longName0) / sizeof(char16_t);
+  memcpy(entry->longName1, str, sizeof(entry->longName1));
+  str += sizeof(entry->longName1) / sizeof(char16_t);
+  memcpy(entry->longName2, str, sizeof(entry->longName2));
 }
 #endif
 /*----------------------------------------------------------------------------*/

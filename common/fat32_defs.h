@@ -247,8 +247,10 @@ static enum result allocateEntry(struct FatHandle *, struct FatObject *,
     uint8_t);
 static enum result createEntry(struct FatHandle *, struct FatObject *,
     const char *);
+static bool fillShortName(char *, const char *, bool);
 static enum result freeChain(struct FatHandle *, uint32_t);
 static enum result markFree(struct FatHandle *, struct FatObject *);
+static char processCharacter(char);
 static enum result writeSector(struct FatHandle *, uint32_t, const uint8_t *,
     uint8_t);
 static enum result truncate(struct FatFile *);
@@ -258,6 +260,9 @@ static enum result updateTable(struct FatHandle *, uint32_t);
 static void extractLongName(const struct DirEntryImage *, char16_t *);
 static uint8_t getChecksum(const char *, uint8_t);
 static enum result readLongName(struct FatHandle *, struct LfnObject *, char *);
+#endif
+#if defined(FAT_WRITE) && defined(FAT_LFN)
+static void writeLongName(struct DirEntryImage *, char16_t *);
 #endif
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
