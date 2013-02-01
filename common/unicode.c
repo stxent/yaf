@@ -64,17 +64,17 @@ static void dumpChar8String(char *str)
 #endif
 /*----------------------------------------------------------------------------*/
 /* Convert a string in UTF-16LE terminated with 0 to UTF-8 string */
-uint16_t uFromUtf16(char *result, char16_t *str, uint16_t maxLength)
+uint16_t uFromUtf16(char *dest, const char16_t *src, uint16_t maxLength)
 {
   char16_t value;
-  char *ptr = result;
+  char *ptr = dest;
 
 #ifdef DEBUG
   printf("Src string: ");
-  dumpChar16String(str);
+  dumpChar16String(src);
 #endif
 
-  while ((value = *str++) && ptr - result < maxLength)
+  while ((value = *src++) && ptr - dest < maxLength)
   {
     if (value <= 0x007F)
     {
@@ -96,8 +96,22 @@ uint16_t uFromUtf16(char *result, char16_t *str, uint16_t maxLength)
 
 #ifdef DEBUG
   printf("Dest string: ");
-  dumpChar8String(result);
+  dumpChar8String(dest);
 #endif
 
-  return (uint16_t)(ptr - result);
+  return (uint16_t)(ptr - dest);
+}
+/*----------------------------------------------------------------------------*/
+//FIXME Rewrite
+uint16_t uToUtf16(char16_t *dest, const char *src, uint16_t maxLength)
+{
+  uint16_t count = 0;
+
+  while (*src && count < maxLength - 1)
+  {
+    *dest++ = *src++;
+    count++;
+  }
+  *dest = '\0';
+  return count;
 }
