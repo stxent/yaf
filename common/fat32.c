@@ -432,26 +432,31 @@ static enum result allocateEntry(struct FatHandle *handle,
 }
 #endif
 /*----------------------------------------------------------------------------*/
+#ifdef FAT_WRITE
 static enum result createEntry(struct FatHandle *handle,
     struct FatObject *entry, const char *name)
 {
   struct DirEntryImage *ptr;
   char shortName[sizeof(ptr->filename)];
-  enum result res;
-  uint32_t sector;
   uint8_t chunks = 0;
+  uint32_t sector;
+  enum result res;
 #ifdef FAT_LFN
-  bool validShort, lastEntry = true;
+  bool valid; /* Is file name valid for use as short name */
+  bool lastEntry = true;
   uint8_t checksum = 0;
   uint16_t length;
 #endif
 
-  validShort = fillShortName(shortName, name,
-      ((entry->attribute & FLAG_DIR) != 0));
+#ifdef FAT_LFN
+  valid = fillShortName(shortName, name, ((entry->attribute & FLAG_DIR) != 0));
+#else
+  fillShortName(shortName, name, ((entry->attribute & FLAG_DIR) != 0));
+#endif
   /* TODO Check for duplicates */
 
 #ifdef FAT_LFN
-  if (!validShort)
+  if (!valid)
   {
     printf("Creating LFN\n");
     /* Calculate checksum for short name */
@@ -529,6 +534,7 @@ static enum result createEntry(struct FatHandle *handle,
     return res;
   return E_OK;
 }
+#endif
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
 /*
@@ -564,26 +570,31 @@ static bool fillShortName(char *shortName, const char *name, bool isDir)
     }
   }
   /* Fill extension when the entry is the regular file and extension exists */
-  if (!isDir && *name == '.')
+  if (!isDir)
   {
-    shortName += sizeof(((struct DirEntryImage *)0)->name);
-    pos = 0;
-    while ((symbol = *name++))
+    /* Find first character of extension */
+    while (*name && *name != '.')
+      name++;
+    if (*name == '.')
     {
-      /* Process character */
-      converted = processCharacter(symbol);
-      if (converted != symbol)
-        valid = false;
-      if (!converted)
-        continue;
-      shortName[pos++] = converted;
-    if (pos >= sizeof(((struct DirEntryImage *)0)->extension))
-    {
-      /* We reached the end of short name but not the end of file extension */
-      if (*name)
-        valid = false;
-      break;
-    }
+      shortName += sizeof(((struct DirEntryImage *)0)->name);
+      pos = 0;
+      while ((symbol = *name++))
+      {
+        /* Process character */
+        converted = processCharacter(symbol);
+        if (converted != symbol)
+          valid = false;
+        if (!converted)
+          continue;
+        shortName[pos++] = converted;
+        if (pos >= sizeof(((struct DirEntryImage *)0)->extension))
+        {
+          if (*name)
+            valid = false;
+          break;
+        }
+      }
     }
   }
   return valid;
