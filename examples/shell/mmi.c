@@ -4,13 +4,15 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#include <sys/mman.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdlib.h>
-#include <stdint.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include "mmi.h"
+#include "mutex.h"
 /*----------------------------------------------------------------------------*/
 #ifdef DEBUG
 #include <stdio.h>
@@ -18,9 +20,6 @@
 #endif
 /*----------------------------------------------------------------------------*/
 #define MMI_SECTOR_POW 9
-/*----------------------------------------------------------------------------*/
-#include "mmi.h"
-#include "mutex.h"
 /*----------------------------------------------------------------------------*/
 static enum result mmiInit(void *, const void *);
 static void mmiDeinit(void *);

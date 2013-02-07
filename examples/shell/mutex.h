@@ -7,11 +7,11 @@
 #ifndef MUTEX_H_
 #define MUTEX_H_
 /*----------------------------------------------------------------------------*/
-#include <stdbool.h>
 #include <pthread.h>
+#include <stdbool.h>
 /*----------------------------------------------------------------------------*/
 #define MUTEX_UNLOCKED                  PTHREAD_MUTEX_INITIALIZER
-// #define MUTEX_LOCKED                    PTHREAD_MUTEX_INITIALIZER
+/* #define MUTEX_LOCKED                    PTHREAD_MUTEX_INITIALIZER */
 /*----------------------------------------------------------------------------*/
 typedef pthread_mutex_t Mutex;
 /*----------------------------------------------------------------------------*/

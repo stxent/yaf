@@ -5,21 +5,18 @@
  */
 
 #include <cstdio>
-#include <iostream>
-#include <fstream>
 #include <cstdlib>
-#include <ctime>
-#include <sstream>
 #include <cstring>
-
+#include <ctime>
+#include <fstream>
+#include <iostream>
+#include <sstream>
 #include <algorithm>
 #include <map>
 #include <vector>
-//------------------------------------------------------------------------------
-#include <openssl/md5.h>
-//------------------------------------------------------------------------------
 #include <boost/regex.hpp>
 #include <boost/lexical_cast.hpp>
+#include <openssl/md5.h>
 //------------------------------------------------------------------------------
 extern "C"
 {
@@ -97,8 +94,7 @@ string int2str(long int val, int base = 10)
 string time2str(uint64_t tm)
 {
   char tbuf[24];
-  strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M:%S",
-      gmtime((time_t *)&tm));
+  strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M:%S", gmtime((time_t *)&tm));
   return (string)tbuf;
 }
 //------------------------------------------------------------------------------
@@ -300,7 +296,7 @@ enum cResult util_rmdir(struct FsHandle *handler, const vector<string> &args,
   return res;
 }
 #endif
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 #ifdef FAT_WRITE
 enum cResult util_mv(struct FsHandle *handler, const vector<string> &args,
     string &loc)
@@ -336,7 +332,7 @@ enum cResult util_mv(struct FsHandle *handler, const vector<string> &args,
   }
 }
 #endif
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //Write file from host filesystem to opened volume
 #ifdef FAT_WRITE
 enum cResult util_put(struct FsHandle *handler, const vector<string> &args,
@@ -603,8 +599,8 @@ enum cResult util_dd(struct FsHandle *handler, const vector<string> &args,
 #ifdef DEBUG
   cout << "dd: input: " << src << ", output: " << dst << endl;
   cout << "dd: block size: " << blockSize << ", length: " << length << endl;
-  cout << "dd: origin: " << originValues[origin] <<
-      ", offset: " << offset << ", position: " << position << endl;
+  cout << "dd: origin: " << originValues[origin]
+      << ", offset: " << offset << ", position: " << position << endl;
 #endif
 
   struct FsFile *srcFile, *dstFile;
@@ -743,8 +739,7 @@ void util_autotest(FsHandle *handler, const vector<string> &args)
     string::const_iterator dataStart = data.begin();
     string::const_iterator dataEnd = data.end();
 
-    string comStr = "";
-    string argStr = "";
+    string comStr = "", argStr = "";
 
     while (regex_search(dataStart, dataEnd, results, parser))
     {
@@ -770,10 +765,9 @@ void util_autotest(FsHandle *handler, const vector<string> &args)
     }
   }
   testbench.close();
-  cout << "/*--------------------------------------";
-  cout << "--------------------------------------*/" << endl;
-  cout << "Test result: total " << total << ", passed " << passed <<
-      ", failed " << failed << endl;
+  cout << "/*" << string(78, '*') << "*/" << endl;
+  cout << "Test result: total " << total << ", passed " << passed
+      << ", failed " << failed << endl;
 }
 //------------------------------------------------------------------------------
 enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
@@ -848,7 +842,8 @@ enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
         if (retvals[pos] == (*i)["name"])
           found++;
         else
-          cout << "ls: " << retvals[pos] << ": No such file or directory" << endl;
+          cout << "ls: " << retvals[pos]
+              << ": No such file or directory" << endl;
       }
 
       if (found != retvals.size())
@@ -953,9 +948,9 @@ enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
           found++;
         else
         {
-          cout << "md5sum: " << (*i)["name"] <<
-              ": Checksum difference, expected " << retvals[pos] <<
-              ", got " << (*i)["checksum"] << endl;
+          cout << "md5sum: " << (*i)["name"]
+              << ": Checksum difference, expected " << retvals[pos]
+              << ", got " << (*i)["checksum"] << endl;
           break;
         }
       }
@@ -966,7 +961,9 @@ enum cResult commandParser(FsHandle *handler, string &loc, const string &str,
         return C_ERROR;
       }
       else
+      {
         cout << "md5sum: completed successfully" << endl;
+      }
     }
 //     vector<string> required;
 //     required.push_back(args[i]);

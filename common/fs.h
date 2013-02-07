@@ -12,11 +12,11 @@
 #ifndef FS_H_
 #define FS_H_
 /*----------------------------------------------------------------------------*/
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 /*----------------------------------------------------------------------------*/
-#include "error.h"
 #include "entity.h"
+#include "error.h"
 #include "interface.h"
 /*----------------------------------------------------------------------------*/
 /* Type represents address space width */

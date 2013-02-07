@@ -4,9 +4,8 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#include <string.h>
 #include <stdlib.h>
-/*----------------------------------------------------------------------------*/
+#include <string.h>
 #include "fat32.h"
 #include "fat32_defs.h"
 /*----------------------------------------------------------------------------*/
@@ -89,7 +88,6 @@ static const struct FsHandleClass fatHandleTable = {
 const struct FsHandleClass *FatHandle = (void *)&fatHandleTable;
 /*----------------------------------------------------------------------------*/
 /*------------------Specific FAT32 functions----------------------------------*/
-/*----------------------------------------------------------------------------*/
 static void extractShortName(const struct DirEntryImage *entry, char *str)
 {
   uint8_t counter = 0;
@@ -120,7 +118,7 @@ static void extractShortName(const struct DirEntryImage *entry, char *str)
   *dest = '\0';
 }
 /*----------------------------------------------------------------------------*/
-/* dest length is 13: 8 name + dot + 3 extension + null */
+/* Destination string buffer should be at least FILE_NAME_MAX characters long */
 static const char *getChunk(const char *src, char *dest)
 {
   uint8_t counter = 0;
@@ -167,8 +165,11 @@ static enum result getNextCluster(struct FatHandle *handle, uint32_t *cluster)
     return E_EOF;
 }
 /*----------------------------------------------------------------------------*/
-/* Members entry->index and entry->parent have to be initialized */
-/* Name buffer must be at least FILE_NAME_MAX length or zero */
+/*
+ * Members entry->index and entry->parent have to be initialized.
+ * Name buffer must be at least FILE_NAME_MAX long.
+ * Set name buffer to zero when entry name is not needed.
+ */
 static enum result fetchEntry(struct FatHandle *handle,
     struct FatObject *entry, char *entryName)
 {
@@ -283,11 +284,12 @@ static enum result readSector(struct FatHandle *handle,
 static enum result allocateCluster(struct FatHandle *handle, uint32_t *cluster)
 {
   struct InfoSectorImage *info;
+  uint32_t current;
   uint16_t offset;
-  uint32_t current = handle->lastAllocated + 1;
   enum result res;
 
-  for (; current != handle->lastAllocated; current++)
+  current = handle->lastAllocated + 1;
+  while (current != handle->lastAllocated)
   {
 #ifdef DEBUG
     if (current == handle->clusterCount)
@@ -305,15 +307,15 @@ static enum result allocateCluster(struct FatHandle *handle, uint32_t *cluster)
     if (clusterFree(*(uint32_t *)(handle->buffer + offset)))
     {
       *(uint32_t *)(handle->buffer + offset) = CLUSTER_EOC_VAL;
-      if ((!*cluster || (*cluster >> TE_COUNT != current >> TE_COUNT)) &&
-          (res = updateTable(handle, current >> TE_COUNT)) != E_OK)
+      if ((!*cluster || (*cluster >> TE_COUNT != current >> TE_COUNT))
+          && (res = updateTable(handle, current >> TE_COUNT)) != E_OK)
       {
         return res;
       }
       if (*cluster)
       {
-        if ((res = readSector(handle, handle->tableSector +
-            (*cluster >> TE_COUNT), handle->buffer, 1)) != E_OK)
+        if ((res = readSector(handle, handle->tableSector
+            + (*cluster >> TE_COUNT), handle->buffer, 1)) != E_OK)
         {
           return res;
         }
@@ -338,6 +340,7 @@ static enum result allocateCluster(struct FatHandle *handle, uint32_t *cluster)
         return res;
       return E_OK;
     }
+    current++;
   }
 #ifdef DEBUG
   printf("Allocation error, possibly partition is full\n");
@@ -347,15 +350,17 @@ static enum result allocateCluster(struct FatHandle *handle, uint32_t *cluster)
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
-/* Allocate single entry or entry chain inside entry->parent chain */
-/* Members entry->parent and entry->index have to be initialized */
-/* Returns entry position in entry->parent and entry->index */
+/*
+ * Allocate single entry or entry chain inside entry->parent chain.
+ * Members entry->parent and entry->index have to be initialized.
+ * Returns the position of the new entry in entry->parent and entry->index.
+ */
 static enum result allocateEntry(struct FatHandle *handle,
     struct FatObject *entry, uint8_t chainLength)
 {
   /*
-   * Officially maximum directory capacity is 2^16 entries
-   * but technically there is no such limit
+   * Officially maximum directory capacity is 2^16 entries,
+   * but technically there is no such limit.
    */
   struct DirEntryImage *ptr;
   enum result res;
@@ -388,9 +393,9 @@ static enum result allocateEntry(struct FatHandle *handle,
         }
         if (!chunks)
         {
-          /* We have enough free space at the and of directory chain */
-          /* Parent sector have already been initialized */
+          /* There is enough free space at the and of directory chain */
           entry->index = 0;
+          /* Parent sector have already been initialized */
           return E_OK;
         }
         break;
@@ -404,8 +409,9 @@ static enum result allocateEntry(struct FatHandle *handle,
       return res;
     ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
     /* Empty entry, deleted entry or deleted long file name entry */
-    if (!ptr->name[0] || ptr->name[0] == E_FLAG_EMPTY ||
-        ((ptr->flags & FLAG_LFN) == FLAG_LFN && (ptr->ordinal & LFN_DELETED)))
+    if (!ptr->name[0] || ptr->name[0] == E_FLAG_EMPTY
+        || ((ptr->flags & FLAG_LFN) == FLAG_LFN
+        && (ptr->ordinal & LFN_DELETED)))
     {
       if (!chunks) /* Found first free entry */
       {
@@ -507,8 +513,8 @@ static enum result createEntry(struct FatHandle *handle,
     entry->index++;
 #ifdef FAT_LFN
     /* Write back updated sector when switching sectors */
-    if (entry->index >= entryCount(handle) &&
-        (res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
+    if (entry->index >= entryCount(handle)
+        && (res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
     {
         return res;
     }
@@ -534,8 +540,8 @@ static enum result createEntry(struct FatHandle *handle,
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
 /*
- * Returns true when entry is valid short name
- * Otherwise long file name entries are expected
+ * Returns true when entry is valid short name.
+ * Otherwise long file name entries are expected.
  */
 static bool fillShortName(char *shortName, const char *name, bool isDir)
 {
@@ -564,7 +570,7 @@ static bool fillShortName(char *shortName, const char *name, bool isDir)
     shortName[pos++] = converted;
     if (pos >= sizeof(((struct DirEntryImage *)0)->name))
     {
-      /* We reached the end of short name but not the end of file name */
+      /* Reached the end of short name but not the end of file name */
       if (*name)
         valid = false;
       break;
@@ -638,8 +644,8 @@ static enum result freeChain(struct FatHandle *handle, uint32_t cluster)
     }
     printf("Cleared cluster: %u\n", current);
 #endif
-    if (current >> TE_COUNT != next >> TE_COUNT &&
-        (res = updateTable(handle, current >> TE_COUNT)) != E_OK)
+    if (current >> TE_COUNT != next >> TE_COUNT
+        && (res = updateTable(handle, current >> TE_COUNT)) != E_OK)
     {
       return res;
     }
@@ -695,10 +701,10 @@ static char processCharacter(char value)
   if (value >= 'a' && value <= 'z')
     return value - 32;
   /* Check specific FAT32 ranges */
-  if (value > 0x20 && value != 0x22 && value != 0x7C &&
-      !(value >= 0x2A && value <= 0x2F) &&
-      !(value >= 0x3A && value <= 0x3F) &&
-      !(value >= 0x5B && value <= 0x5D))
+  if (value > 0x20 && value != 0x22 && value != 0x7C
+      && !(value >= 0x2A && value <= 0x2F)
+      && !(value >= 0x3A && value <= 0x3F)
+      && !(value >= 0x5B && value <= 0x5D))
   {
     return value;
   }
@@ -746,8 +752,8 @@ static enum result updateTable(struct FatHandle *handle, uint32_t offset)
 
   for (fat = 0; fat < handle->tableCount; fat++)
   {
-    if ((res = writeSector(handle, handle->tableSector + (uint32_t)fat *
-        handle->tableSize + offset, handle->buffer, 1)) != E_OK)
+    if ((res = writeSector(handle, offset + handle->tableSector
+        + (uint32_t)fat * handle->tableSize, handle->buffer, 1)) != E_OK)
     {
       return res;
     }
@@ -887,8 +893,8 @@ static enum result fatInit(void *object, const void *cdata)
 #ifdef FAT_WRITE
   handle->tableCount = boot->fatCopies;
   handle->tableSize = boot->fatSize;
-  handle->clusterCount = ((boot->partitionSize -
-      handle->dataSector) >> handle->clusterSize) + 2;
+  handle->clusterCount = ((boot->partitionSize
+      - handle->dataSector) >> handle->clusterSize) + 2;
   handle->infoSector = boot->infoSector;
 #ifdef DEBUG
   printf("Info sector:        %u\n", (unsigned int)handle->infoSector);
@@ -1026,8 +1032,8 @@ static enum result fatOpen(void *handleObject, void *fileObject,
   fileHandle->parentCluster = item.parent;
   fileHandle->parentIndex = item.index;
 
-  if (mode == FS_WRITE && !*path && fileHandle->size &&
-      (res = truncate(fileHandle)) != E_OK)
+  if (mode == FS_WRITE && !*path && fileHandle->size
+      && (res = truncate(fileHandle)) != E_OK)
   {
     return res;
   }
@@ -1191,8 +1197,8 @@ static uint32_t fatRead(void *object, uint8_t *buffer, uint32_t count)
       /* Length of remaining sector space */
       chunk = SECTOR_SIZE - offset;
       chunk = count < chunk ? count : chunk;
-      if (readSector(handle, getSector(handle, fileHandle->currentCluster) +
-          fileHandle->currentSector, handle->buffer, 1) != E_OK)
+      if (readSector(handle, getSector(handle, fileHandle->currentCluster)
+          + fileHandle->currentSector, handle->buffer, 1) != E_OK)
       {
         return 0;
       }
@@ -1203,8 +1209,8 @@ static uint32_t fatRead(void *object, uint8_t *buffer, uint32_t count)
     else /* Position aligned with start of sector */
     {
       /* Length of remaining cluster space */
-      chunk = (SECTOR_SIZE << handle->clusterSize) -
-          (fileHandle->currentSector << SECTOR_POW);
+      chunk = (SECTOR_SIZE << handle->clusterSize)
+          - (fileHandle->currentSector << SECTOR_POW);
       chunk = (count < chunk) ? count & ~(SECTOR_SIZE - 1) : chunk;
       if (readSector(handle, getSector(handle,
           fileHandle->currentCluster) + fileHandle->currentSector,
@@ -1250,8 +1256,8 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
     {
       /* Allocate new cluster when next cluster does not exist */
       res = getNextCluster(handle, &fileHandle->currentCluster);
-      if ((res != E_EOF && res != E_OK) || (res == E_EOF &&
-          allocateCluster(handle, &fileHandle->currentCluster) != E_OK))
+      if ((res != E_EOF && res != E_OK) || (res == E_EOF
+          && allocateCluster(handle, &fileHandle->currentCluster) != E_OK))
       {
           return 0;
       }
@@ -1265,8 +1271,8 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
       /* Length of remaining sector space */
       chunk = SECTOR_SIZE - offset;
       chunk = (count < chunk) ? count : chunk;
-      sector = getSector(handle, fileHandle->currentCluster) +
-          fileHandle->currentSector;
+      sector = getSector(handle, fileHandle->currentCluster)
+          + fileHandle->currentSector;
       if (readSector(handle, sector, handle->buffer, 1) != E_OK)
         return 0;
       memcpy(handle->buffer + offset, buffer + written, chunk);
@@ -1278,8 +1284,8 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
     else /* Position aligned with start of sector */
     {
       /* Length of remaining cluster space */
-      chunk = (SECTOR_SIZE << handle->clusterSize) -
-          (fileHandle->currentSector << SECTOR_POW);
+      chunk = (SECTOR_SIZE << handle->clusterSize)
+          - (fileHandle->currentSector << SECTOR_POW);
       chunk = (count < chunk) ? count & ~(SECTOR_SIZE - 1) : chunk;
       if (writeSector(handle, getSector(handle,
           fileHandle->currentCluster) + fileHandle->currentSector,
@@ -1318,13 +1324,13 @@ static enum result fatFlush(void *object)
 
   if (fileHandle->parent.mode == FS_READ)
     return E_ERROR;
-  sector = getSector(handle, fileHandle->parentCluster) +
-      E_SECTOR(fileHandle->parentIndex);
+  sector = getSector(handle, fileHandle->parentCluster)
+      + E_SECTOR(fileHandle->parentIndex);
   if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
     return res;
   /* Pointer to entry position in sector */
-  ptr = (struct DirEntryImage *)(handle->buffer +
-      E_OFFSET(fileHandle->parentIndex));
+  ptr = (struct DirEntryImage *)(handle->buffer
+      + E_OFFSET(fileHandle->parentIndex));
   /* Update first cluster when writing to empty file or truncating file */
   ptr->clusterHigh = fileHandle->cluster >> 16;
   ptr->clusterLow = fileHandle->cluster;
@@ -1561,7 +1567,7 @@ static enum result fatRemoveDir(void *object, const char *path)
     path = followPath(handle, &item, path);
   if (!path)
     return E_NONEXISTENT;
-  /* Not directory or volume name */
+  /* Regular file or volume name */
   if (!(item.attribute & FLAG_DIR) || item.attribute & FLAG_VOLUME)
     return E_NONEXISTENT;
 
@@ -1607,8 +1613,8 @@ uint32_t countFree(void *object)
     count[fat] = 0;
     for (current = 0; current < handle->clusterCount; current++)
     {
-      if (readSector(handle, handle->tableSector +
-          (current >> TE_COUNT), handle->buffer, 1) != E_OK)
+      if (readSector(handle, handle->tableSector
+          + (current >> TE_COUNT), handle->buffer, 1) != E_OK)
       {
         return freeCount;
       }

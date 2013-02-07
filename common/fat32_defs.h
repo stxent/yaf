@@ -7,15 +7,13 @@
 #ifndef FAT32_DEFS_H_
 #define FAT32_DEFS_H_
 /*----------------------------------------------------------------------------*/
-#include <stdint.h>
 #include <stdbool.h>
-/*----------------------------------------------------------------------------*/
+#include <stdint.h>
 #include "fs.h"
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_TIME
 #include "rtc.h"
 #endif
-/*----------------------------------------------------------------------------*/
 #ifdef FAT_LFN
 #include "unicode.h"
 #endif
@@ -35,7 +33,6 @@
 /* Length in bytes for short names */
 #define FILE_NAME_MAX           13
 #endif /* FAT_LFN */
-/*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 #define FLAG_RO                 (uint8_t)0x01 /* Read only */
 #define FLAG_HIDDEN             (uint8_t)0x02
@@ -265,7 +262,7 @@ static enum result readLongName(struct FatHandle *, struct LfnObject *, char *);
 static void writeLongName(struct DirEntryImage *, char16_t *);
 #endif
 /*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+/*------------------Filesystem functions--------------------------------------*/
 /* Constructor and destructor */
 static enum result fatInit(void *, const void *);
 static void fatDeinit(void *);
