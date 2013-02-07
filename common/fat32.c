@@ -556,7 +556,7 @@ static bool fillShortName(char *shortName, const char *name, bool isDir)
   /* TODO Optimize */
   while ((symbol = *name++))
   {
-    if (symbol == '.')
+    if (!isDir && symbol == '.')
     {
       extension = true;
       break;
@@ -1479,7 +1479,6 @@ static enum result fatMakeDir(void *object, const char *path)
   struct FatObject item;
   const char *followedPath;
   uint32_t sector, parent = handle->rootCluster;
-  uint8_t pos;
   enum result res;
 
   while (*path && (followedPath = followPath(handle, &item, path)))
@@ -1505,13 +1504,14 @@ static enum result fatMakeDir(void *object, const char *path)
     return res;
   }
 
-  sector = getSector(handle, item.cluster);
   /* Fill cluster with zeros */
   memset(handle->buffer, 0, SECTOR_SIZE);
-  for (pos = (1 << handle->clusterSize) - 1; pos > 0; pos--)
+  sector = getSector(handle, item.cluster + 1) - 1;
+  while (sector & ((1 << handle->clusterSize) - 1))
   {
-    if ((res = writeSector(handle, sector + pos, handle->buffer, 1)) != E_OK)
+    if ((res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
       return res;
+    sector--;
   }
 
   /* Current directory entry . */
