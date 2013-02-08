@@ -91,31 +91,32 @@ static inline uint16_t entryCount(struct FatHandle *handle)
 static void extractShortName(const struct DirEntryImage *entry, char *str)
 {
   uint8_t counter = 0;
-  char *src = str, *dest = str;
+  const char *src = entry->name;
+  char *dest = str;
 
-  /* Copy entry name */
-  memcpy(str, entry->name, sizeof(entry->name));
+  while (*src && counter++ <= sizeof(entry->name))
+  {
+    if (*src != ' ')
+      *dest++ = *src;
+    src++;
+  }
   /* Add dot, when entry is not directory or extension exists */
   if (!(entry->flags & FLAG_DIR) && entry->extension[0] != ' ')
   {
-    str[sizeof(entry->name)] = '.';
+    *dest++ = '.';
     /* Copy entry extension */
-    memcpy(str + sizeof(entry->name) + 1, entry->extension,
-        sizeof(entry->extension));
-    str[sizeof(entry->name) + sizeof(entry->extension) + 1] = '\0';
+    counter = 0;
+    src = entry->extension;
+    while (*src && counter++ <= sizeof(entry->extension))
+    {
+      if (*src != ' ')
+        *dest++ = *src;
+      src++;
+    }
+    *dest = '\0';
   }
   else
-    str[sizeof(entry->name)] = '\0';
-
-  //TODO Optimize
-  while (*src && counter++ <= sizeof(entry->name) + sizeof(entry->extension))
-  {
-    if (*src != ' ')
-      *dest++ = *src++;
-    else
-      src++;
-  }
-  *dest = '\0';
+    *dest = '\0';
 }
 /*----------------------------------------------------------------------------*/
 /* Destination string buffer should be at least FILE_NAME_MAX characters long */
@@ -133,7 +134,6 @@ static const char *getChunk(const char *src, char *dest)
   }
   while (*src && counter++ < FILE_NAME_MAX - 1)
   {
-    //TODO optimize
     if (*src == '/')
     {
       src++;
