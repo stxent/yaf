@@ -197,7 +197,7 @@ static enum result fetchEntry(struct FatHandle *handle,
     if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
       return res;
     ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
-    if ((ptr->flags & FLAG_LFN) == FLAG_LFN)
+    if ((ptr->flags & MASK_LFN) == MASK_LFN)
     {
 #ifdef FAT_LFN
       if (!(ptr->ordinal & LFN_DELETED))
@@ -410,7 +410,7 @@ static enum result allocateEntry(struct FatHandle *handle,
     ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
     /* Empty entry, deleted entry or deleted long file name entry */
     if (!ptr->name[0] || ptr->name[0] == E_FLAG_EMPTY
-        || ((ptr->flags & FLAG_LFN) == FLAG_LFN
+        || ((ptr->flags & MASK_LFN) == MASK_LFN
         && (ptr->ordinal & LFN_DELETED)))
     {
       if (!chunks) /* Found first free entry */
@@ -453,16 +453,19 @@ static enum result createEntry(struct FatHandle *handle,
 #endif
 
 #ifdef FAT_LFN
-  valid = fillShortName(shortName, name, ((entry->attribute & FLAG_DIR) != 0));
+  valid = fillShortName(shortName, name);
 #else
-  fillShortName(shortName, name, ((entry->attribute & FLAG_DIR) != 0));
+  fillShortName(shortName, name);
 #endif
   /* TODO Check for duplicates */
 
 #ifdef FAT_LFN
   if (!valid)
   {
-    /* Calculate checksum for short name */
+    /* Clear extension when new entry is directory */
+    if ((entry->attribute & FLAG_DIR))
+      memset(shortName + sizeof(ptr->name), ' ', sizeof(ptr->extension));
+    /* Calculate check sum for short name */
     checksum = getChecksum(shortName, sizeof(ptr->filename));
     /* Convert file name to UTF-16 */
     length = uToUtf16(handle->nameBuffer, name, FILE_NAME_BUFFER) + 1;
@@ -497,7 +500,7 @@ static enum result createEntry(struct FatHandle *handle,
       break;
 
 #ifdef FAT_LFN
-    ptr->flags = FLAG_LFN;
+    ptr->flags = MASK_LFN;
     ptr->checksum = checksum;
     ptr->ordinal = chunks--;
     if (lastEntry)
@@ -540,76 +543,64 @@ static enum result createEntry(struct FatHandle *handle,
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
 /*
- * Returns true when entry is valid short name.
+ * Returns true when entry is a valid short name.
  * Otherwise long file name entries are expected.
  */
-static bool fillShortName(char *shortName, const char *name, bool isDir)
+static bool fillShortName(char *shortName, const char *name)
 {
-  bool valid = true, extension = false;
-  char symbol, converted;
-  uint8_t pos = 0;
+  const uint8_t nameLength = sizeof(((struct DirEntryImage *)0)->name);
+  const uint8_t fullLength = sizeof(((struct DirEntryImage *)0)->filename);
 
-  /* TODO Add special case for 0xE5 to 0x05 mapping in first symbol */
-  /* Clear name and extension */
-  memset(shortName, ' ', sizeof(((struct DirEntryImage *)0)->filename));
-  /* Fill name */
-  /* TODO Optimize */
-  while ((symbol = *name++))
+  const char *dot;
+  char symbol, converted;
+  uint16_t length;
+  uint8_t pos = 0;
+  bool valid = true;
+
+  length = strlen(name);
+  for (dot = name + length - 1; dot >= name && *dot != '.'; dot--);
+  if (dot < name)
   {
-    if (!isDir && symbol == '.')
+    if (length > nameLength)
+      valid = false;
+    dot = 0;
+  }
+  else if (dot > name + nameLength
+      || length - (dot - name) > fullLength - nameLength)
+  {
+    /* The length of file name or extension is greater than maximum allowed */
+    valid = false;
+  }
+
+  memset(shortName, ' ', fullLength);
+  while ((symbol = *name))
+  {
+    if (dot && name == dot)
     {
-      extension = true;
-      break;
+      pos = nameLength;
+      name++;
+      continue;
     }
-    /* Process character */
+    name++;
     converted = processCharacter(symbol);
     if (converted != symbol)
       valid = false;
     if (!converted)
       continue;
     shortName[pos++] = converted;
-    if (pos >= sizeof(((struct DirEntryImage *)0)->name))
-    {
-      /* Reached the end of short name but not the end of file name */
-      if (*name)
-        valid = false;
-      break;
-    }
-  }
 
-  /* Find first character of extension */
-  if (!isDir && !extension)
-    while (*name)
+    if (pos == nameLength)
     {
-      if (*name == '.')
+      if (dot) /* Check whether extension exists */
       {
-        extension = true;
-        break;
-      }
-      name++;
-    }
-
-  /* Fill extension when the entry is the regular file and extension exists */
-  if (!isDir && extension)
-  {
-    shortName += sizeof(((struct DirEntryImage *)0)->name);
-    pos = 0;
-    while ((symbol = *name++))
-    {
-      /* Process character */
-      converted = processCharacter(symbol);
-      if (converted != symbol)
-        valid = false;
-      if (!converted)
+        name = dot + 1;
         continue;
-      shortName[pos++] = converted;
-      if (pos >= sizeof(((struct DirEntryImage *)0)->extension))
-      {
-        if (*name)
-          valid = false;
-        break;
       }
+      else
+        break;
     }
+    if (pos == fullLength)
+      break;
   }
   return valid;
 }
@@ -808,7 +799,7 @@ static enum result readLongName(struct FatHandle *handle,
     if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
       return res;
     ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
-    if ((ptr->flags & FLAG_LFN) == FLAG_LFN)
+    if ((ptr->flags & MASK_LFN) == MASK_LFN)
     {
       chunks++;
       extractLongName(ptr, handle->nameBuffer +

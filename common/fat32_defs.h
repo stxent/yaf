@@ -40,7 +40,7 @@
 #define FLAG_VOLUME             (uint8_t)0x08 /* Volume name */
 #define FLAG_DIR                (uint8_t)0x10 /* Subdirectory */
 #define FLAG_ARCHIVE            (uint8_t)0x20
-#define FLAG_LFN                (uint8_t)0x0F /* Long file name chunk */
+#define MASK_LFN                (uint8_t)0x0F /* Long file name chunk */
 /*----------------------------------------------------------------------------*/
 #define LFN_DELETED             (uint8_t)0x80 /* Deleted LFN entry */
 #define LFN_LAST                (uint8_t)0x40 /* Last LFN entry */
@@ -244,7 +244,7 @@ static enum result allocateEntry(struct FatHandle *, struct FatObject *,
     uint8_t);
 static enum result createEntry(struct FatHandle *, struct FatObject *,
     const char *);
-static bool fillShortName(char *, const char *, bool);
+static bool fillShortName(char *, const char *);
 static enum result freeChain(struct FatHandle *, uint32_t);
 static enum result markFree(struct FatHandle *, struct FatObject *);
 static char processCharacter(char);
