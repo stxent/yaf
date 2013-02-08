@@ -14,35 +14,6 @@
 #include <stdlib.h>
 #endif
 /*----------------------------------------------------------------------------*/
-/*------------------Inline functions------------------------------------------*/
-static inline bool clusterFree(uint32_t cluster)
-{
-  return !(cluster & (uint32_t)0x0FFFFFFF);
-}
-/*----------------------------------------------------------------------------*/
-static inline bool clusterEOC(uint32_t cluster)
-{
-  return (cluster & (uint32_t)0x0FFFFFF8) == (uint32_t)0x0FFFFFF8;
-}
-/*----------------------------------------------------------------------------*/
-static inline bool clusterUsed(uint32_t cluster)
-{
-  return (cluster & (uint32_t)0x0FFFFFFF) >= (uint32_t)0x00000002 &&
-      (cluster & (uint32_t)0x0FFFFFFF) <= (uint32_t)0x0FFFFFEF;
-}
-/*----------------------------------------------------------------------------*/
-/* Calculate sector position from cluster */
-static inline uint32_t getSector(struct FatHandle *handle, uint32_t cluster)
-{
-  return handle->dataSector + (((cluster) - 2) << handle->clusterSize);
-}
-/*----------------------------------------------------------------------------*/
-/* File or directory entries per directory cluster */
-static inline uint16_t entryCount(struct FatHandle *handle)
-{
-  return 1 << E_POW << handle->clusterSize;
-}
-/*----------------------------------------------------------------------------*/
 /*------------------Class descriptors-----------------------------------------*/
 static const struct FsFileClass fatFileTable = {
     .size = sizeof(struct FatFile),
@@ -86,6 +57,35 @@ static const struct FsHandleClass fatHandleTable = {
 };
 /*----------------------------------------------------------------------------*/
 const struct FsHandleClass *FatHandle = (void *)&fatHandleTable;
+/*----------------------------------------------------------------------------*/
+/*------------------Inline functions------------------------------------------*/
+static inline bool clusterFree(uint32_t cluster)
+{
+  return !(cluster & (uint32_t)0x0FFFFFFF);
+}
+/*----------------------------------------------------------------------------*/
+static inline bool clusterEOC(uint32_t cluster)
+{
+  return (cluster & (uint32_t)0x0FFFFFF8) == (uint32_t)0x0FFFFFF8;
+}
+/*----------------------------------------------------------------------------*/
+static inline bool clusterUsed(uint32_t cluster)
+{
+  return (cluster & (uint32_t)0x0FFFFFFF) >= (uint32_t)0x00000002 &&
+      (cluster & (uint32_t)0x0FFFFFFF) <= (uint32_t)0x0FFFFFEF;
+}
+/*----------------------------------------------------------------------------*/
+/* Calculate sector position from cluster */
+static inline uint32_t getSector(struct FatHandle *handle, uint32_t cluster)
+{
+  return handle->dataSector + (((cluster) - 2) << handle->clusterSize);
+}
+/*----------------------------------------------------------------------------*/
+/* File or directory entries per directory cluster */
+static inline uint16_t entryCount(struct FatHandle *handle)
+{
+  return 1 << E_POW << handle->clusterSize;
+}
 /*----------------------------------------------------------------------------*/
 /*------------------Specific FAT32 functions----------------------------------*/
 static void extractShortName(const struct DirEntryImage *entry, char *str)
@@ -486,8 +486,7 @@ static enum result createEntry(struct FatHandle *handle,
     if (entry->index >= entryCount(handle))
     {
       /* Try to get next cluster */
-      res = getNextCluster(handle, &entry->parent);
-      if (res != E_OK)
+      if ((res = getNextCluster(handle, &entry->parent)) != E_OK)
         return res;
       entry->index = 0;
     }
@@ -525,6 +524,16 @@ static enum result createEntry(struct FatHandle *handle,
   }
 
   memcpy(ptr->filename, shortName, sizeof(ptr->filename));
+  fillDirEntry(ptr, entry);
+  if ((res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
+    return res;
+  return E_OK;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_WRITE
+static void fillDirEntry(struct DirEntryImage *ptr, struct FatObject *entry)
+{
   ptr->flags = entry->attribute;
   ptr->clusterHigh = entry->cluster >> 16;
   ptr->clusterLow = entry->cluster;
@@ -535,9 +544,6 @@ static enum result createEntry(struct FatHandle *handle,
   ptr->time = rtcGetTime();
   ptr->date = rtcGetDate();
 #endif
-  if ((res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
-    return res;
-  return E_OK;
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -682,7 +688,7 @@ static enum result markFree(struct FatHandle *handle, struct FatObject *entry)
 static char processCharacter(char value)
 {
   /* All slashes are already removed while file path being calculated */
-  /* Drop all multi-byte UTF-8 code points */
+  /* Drop all multibyte UTF-8 code points */
   if (value & 0x80)
     return 0;
   /* Replace spaces with underscores */
@@ -1505,35 +1511,21 @@ static enum result fatMakeDir(void *object, const char *path)
     sector--;
   }
 
+  item.size = 0;
+  item.attribute = FLAG_DIR;
+
   /* Current directory entry . */
   ptr = (struct DirEntryImage *)handle->buffer;
-  /* Fill name and extension with spaces */
   memset(ptr->filename, ' ', sizeof(ptr->filename));
   ptr->name[0] = '.';
-  ptr->flags = FLAG_DIR;
-  ptr->clusterHigh = item.cluster >> 16;
-  ptr->clusterLow = item.cluster;
-#ifdef FAT_TIME
-  //FIXME rewrite
-  ptr->time = rtcGetTime();
-  ptr->date = rtcGetDate();
-#endif
+  fillDirEntry(ptr, &item);
 
   /* Parent directory entry .. */
   ptr++;
-  /* Fill name and extension with spaces */
   memset(ptr->filename, ' ', sizeof(ptr->filename));
   ptr->name[0] = ptr->name[1] = '.';
-  ptr->flags = FLAG_DIR;
-  if (parent != handle->rootCluster)
-  {
-    ptr->clusterHigh = parent >> 16;
-    ptr->clusterLow = parent;
-  }
-#ifdef FAT_TIME
-  ptr->time = (ptr - 1)->time;
-  ptr->date = (ptr - 1)->date;
-#endif
+  item.cluster = parent == handle->rootCluster ? 0 : parent;
+  fillDirEntry(ptr, &item);
 
   if ((res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
     return res;

@@ -244,6 +244,7 @@ static enum result allocateEntry(struct FatHandle *, struct FatObject *,
     uint8_t);
 static enum result createEntry(struct FatHandle *, struct FatObject *,
     const char *);
+static inline void fillDirEntry(struct DirEntryImage *, struct FatObject *);
 static bool fillShortName(char *, const char *);
 static enum result freeChain(struct FatHandle *, uint32_t);
 static enum result markFree(struct FatHandle *, struct FatObject *);

@@ -765,7 +765,7 @@ void util_autotest(FsHandle *handler, const vector<string> &args)
     }
   }
   testbench.close();
-  cout << "/*" << string(78, '*') << "*/" << endl;
+  cout << '/' << string(78, '*') << '/' << endl;
   cout << "Test result: total " << total << ", passed " << passed
       << ", failed " << failed << endl;
 }
