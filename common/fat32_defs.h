@@ -241,8 +241,14 @@ static const char *followPath(struct FatHandle *, struct FatObject *,
     const char *);
 static enum result readSector(struct FatHandle *, uint32_t, uint8_t *,
     uint8_t);
-/* Functions with write access */
+#ifdef FAT_LFN
+/* Function for long file name support */
+static void extractLongName(const struct DirEntryImage *, char16_t *);
+static uint8_t getChecksum(const char *, uint8_t);
+static enum result readLongName(struct FatHandle *, struct LfnObject *, char *);
+#endif
 #ifdef FAT_WRITE
+/* Functions with write access */
 static enum result allocateCluster(struct FatHandle *, uint32_t *);
 static enum result allocateEntry(struct FatHandle *, struct FatObject *,
     uint8_t);
@@ -258,13 +264,8 @@ static enum result writeSector(struct FatHandle *, uint32_t, const uint8_t *,
 static enum result truncate(struct FatFile *);
 static enum result updateTable(struct FatHandle *, uint32_t);
 #endif
-#ifdef FAT_LFN
-static void extractLongName(const struct DirEntryImage *, char16_t *);
-static uint8_t getChecksum(const char *, uint8_t);
-static enum result readLongName(struct FatHandle *, struct LfnObject *, char *);
-#endif
 #if defined(FAT_WRITE) && defined(FAT_LFN)
-static void writeLongName(struct DirEntryImage *, char16_t *);
+static void fillLongName(struct DirEntryImage *, char16_t *);
 #endif
 /*----------------------------------------------------------------------------*/
 /*------------------Filesystem functions--------------------------------------*/
