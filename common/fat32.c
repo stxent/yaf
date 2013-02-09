@@ -436,7 +436,7 @@ static enum result allocateEntry(struct FatHandle *handle,
   uint16_t index = entry->index; /* New entry position in cluster */
   uint32_t parent = entry->parent; /* Cluster where new entry will be placed */
   uint32_t sector;
-  uint8_t pos, chunks = 0;
+  uint8_t chunks = 0;
 
   while (1)
   {
@@ -449,25 +449,20 @@ static enum result allocateEntry(struct FatHandle *handle,
         //FIXME Alloc 2 512-byte clusters for names longer than 195 characters
         if ((res = allocateCluster(handle, &entry->parent)) != E_OK)
           return res;
-        sector = getSector(handle, entry->parent);
         memset(handle->buffer, 0, SECTOR_SIZE);
-        //FIXME Move to inline?
-        for (pos = 0; pos < (1 << handle->clusterSize); pos++)
+        sector = getSector(handle, entry->parent + 1) - 1;
+        do
         {
-          if ((res = writeSector(handle, sector + pos,
-              handle->buffer, 1)) != E_OK)
-          {
+          if ((res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
             return res;
-          }
+          sector--;
         }
-        if (!chunks)
-        {
-          /* There is enough free space at the and of directory chain */
-          entry->index = 0;
-          /* Parent sector have already been initialized */
-          return E_OK;
-        }
-        break;
+        while (sector & ((1 << handle->clusterSize) - 1));
+
+        /* There is enough free space at the and of directory chain */
+        entry->index = 0;
+        /* Parent sector have already been initialized */
+        return E_OK;
       }
       else if (res != E_OK)
         return res;
