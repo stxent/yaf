@@ -62,6 +62,22 @@
 #define E_OFFSET(index)         (((index) << 5) & (SECTOR_SIZE - 1))
 /*----------------------------------------------------------------------------*/
 /*------------------Filesystem classes----------------------------------------*/
+struct FatConfig
+{
+  struct Interface *interface;
+  uint8_t *buffer;
+};
+/*----------------------------------------------------------------------------*/
+struct FatDir
+{
+  struct FsDir parent;
+
+  /* Filesystem-specific fields */
+  uint32_t cluster; /* First cluster of directory data */
+  uint16_t currentIndex; /* Entry in current cluster */
+  uint32_t currentCluster;
+};
+/*----------------------------------------------------------------------------*/
 struct FatFile
 {
   struct FsFile parent;
@@ -76,22 +92,6 @@ struct FatFile
   uint16_t parentIndex; /* Entry position in parent cluster */
   uint32_t parentCluster; /* Directory cluster where entry located */
 #endif
-};
-/*----------------------------------------------------------------------------*/
-struct FatDir
-{
-  struct FsDir parent;
-
-  /* Filesystem-specific fields */
-  uint32_t cluster; /* First cluster of directory data */
-  uint16_t currentIndex; /* Entry in current cluster */
-  uint32_t currentCluster;
-};
-/*----------------------------------------------------------------------------*/
-struct FatConfig
-{
-  struct Interface *interface;
-  uint8_t *buffer;
 };
 /*----------------------------------------------------------------------------*/
 struct FatHandle
@@ -122,10 +122,14 @@ struct FatHandle
 struct FatObject
 {
   uint8_t attribute; /* File or directory attributes */
-  uint16_t index; /* Entry position in parent cluster */
-  uint32_t cluster; /* First cluster of entry */
-  uint32_t parent; /* Directory cluster where entry located */
+  uint32_t cluster; /* First cluster of the entry */
   uint32_t size; /* File size or zero for directories */
+  uint16_t index; /* Entry position in the parent cluster */
+  uint32_t parent; /* Directory cluster of the entry */
+#ifdef FAT_LFN
+  uint16_t nameIndex; /* First name entry position in the parent cluster */
+  uint32_t nameParent; /* Directory cluster of the first name entry */
+#endif
 };
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_LFN
@@ -134,7 +138,7 @@ struct LfnObject
 {
   uint8_t checksum, length;
   uint16_t index; /* Entry position in parent cluster */
-  uint32_t cluster; /* Directory cluster where entry located */
+  uint32_t parent; /* Directory cluster where entry located */
 };
 #endif
 /*----------------------------------------------------------------------------*/
