@@ -739,7 +739,7 @@ static enum result markFree(struct FatHandle *handle, struct FatObject *entry)
   struct DirEntryImage *ptr;
   uint16_t index; /* Entry position in cluster */
   uint32_t cluster; /* Entry cluster */
-  uint32_t sector, nextSector, lastSector;
+  uint32_t sector, lastSector;
   enum result res;
 
 #ifdef FAT_LFN
@@ -749,9 +749,6 @@ static enum result markFree(struct FatHandle *handle, struct FatObject *entry)
   index = entry->index;
   cluster = entry->parent;
 #endif
-  sector = getSector(handle, cluster) + E_SECTOR(index);
-  if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
-    return res;
   lastSector = getSector(handle, entry->parent) + E_SECTOR(entry->index);
   do
   {
@@ -762,18 +759,19 @@ static enum result markFree(struct FatHandle *handle, struct FatObject *entry)
         return res;
       index = 0;
     }
-    if ((nextSector = getSector(handle, cluster) + E_SECTOR(index)) != sector)
-    {
-      /* Write back updated sector when switching sectors and read next */
-      if ((res = writeSector(handle, sector, handle->buffer, 1)) != E_OK
-          || (res = readSector(handle, nextSector, handle->buffer, 1)) != E_OK)
-        return res;
-      sector = nextSector;
-    }
+    sector = getSector(handle, cluster) + E_SECTOR(index);
+    if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
+      return res;
     ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(index));
     /* Mark the directory entry or the long file name entry as deleted */
     ptr->name[0] = E_FLAG_EMPTY;
     index++;
+    /* Write back updated sector when switching sectors */
+    if (!(index & (E_POW - 1))
+        && (res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
+    {
+        return res;
+    }
   }
   while (sector != lastSector || index <= entry->index);
 
