@@ -450,12 +450,11 @@ static enum result allocateEntry(struct FatHandle *handle,
         if ((res = allocateCluster(handle, &entry->parent)) != E_OK)
           return res;
         memset(handle->buffer, 0, SECTOR_SIZE);
-        sector = getSector(handle, entry->parent + 1) - 1; //TODO Check bounds
+        sector = getSector(handle, entry->parent + 1); //TODO Check bounds
         do
         {
-          if ((res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
+          if ((res = writeSector(handle, --sector, handle->buffer, 1)) != E_OK)
             return res;
-          sector--;
         }
         while (sector & ((1 << handle->clusterSize) - 1));
 
@@ -1534,13 +1533,10 @@ static enum result fatMakeDir(void *object, const char *path)
 
   /* Fill cluster with zeros */
   memset(handle->buffer, 0, SECTOR_SIZE);
-  sector = getSector(handle, item.cluster + 1) - 1;
-  while (sector & ((1 << handle->clusterSize) - 1))
-  {
+  sector = getSector(handle, item.cluster + 1); //TODO Check range
+  while (--sector & ((1 << handle->clusterSize) - 1))
     if ((res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
       return res;
-    sector--;
-  }
 
   item.size = 0;
   item.attribute = FLAG_DIR;
