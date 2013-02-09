@@ -450,7 +450,7 @@ static enum result allocateEntry(struct FatHandle *handle,
         if ((res = allocateCluster(handle, &entry->parent)) != E_OK)
           return res;
         memset(handle->buffer, 0, SECTOR_SIZE);
-        sector = getSector(handle, entry->parent + 1) - 1;
+        sector = getSector(handle, entry->parent + 1) - 1; //TODO Check bounds
         do
         {
           if ((res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
@@ -459,9 +459,17 @@ static enum result allocateEntry(struct FatHandle *handle,
         }
         while (sector & ((1 << handle->clusterSize) - 1));
 
+        if (!chunks)
+        {
+          /* Parent is already initialized */
+          entry->index = 0;
+        }
+        else
+        {
+          entry->index = index;
+          entry->parent = parent;
+        }
         /* There is enough free space at the and of directory chain */
-        entry->index = 0;
-        /* Parent sector have already been initialized */
         return E_OK;
       }
       else if (res != E_OK)
