@@ -94,7 +94,7 @@ static void extractShortName(const struct DirEntryImage *entry, char *str)
   uint8_t counter = 0;
   char *dest = str;
 
-  while (*src && counter++ <= sizeof(entry->name))
+  while (counter++ < sizeof(entry->name))
   {
     if (*src != ' ')
       *dest++ = *src;
@@ -107,7 +107,7 @@ static void extractShortName(const struct DirEntryImage *entry, char *str)
     /* Copy entry extension */
     counter = 0;
     src = entry->extension;
-    while (*src && counter++ <= sizeof(entry->extension))
+    while (counter++ < sizeof(entry->extension))
     {
       if (*src != ' ')
         *dest++ = *src;
@@ -267,7 +267,7 @@ static const char *followPath(struct FatHandle *handle, struct FatObject *item,
   item->index = 0;
   while (!fetchEntry(handle, item, entryName))
   {
-    if (!strcmp(entryName, name))
+    if (!strcmp(name, entryName))
       return path;
     item->index++;
   }
@@ -511,6 +511,7 @@ static enum result allocateEntry(struct FatHandle *handle,
 static enum result createEntry(struct FatHandle *handle,
     struct FatObject *entry, const char *name)
 {
+  const char *str = name;
   enum result res;
   struct DirEntryImage *ptr;
   uint8_t chunks = 0;
@@ -522,6 +523,11 @@ static enum result createEntry(struct FatHandle *handle,
   bool lastEntry = true;
   uint16_t length;
 #endif
+
+  /* Check path for nonexistent directories */
+  while (*str)
+    if (*str++ == '/')
+      return E_NONEXISTENT;
 
   /* Check whether the file name is valid for use as short name */
   valid = fillShortName(shortName, name);
@@ -548,16 +554,8 @@ static enum result createEntry(struct FatHandle *handle,
   if ((res = allocateEntry(handle, entry, chunks + 1)) != E_OK)
     return res;
 
-#ifdef FAT_LFN
   while (1)
   {
-    if (entry->index >= entryCount(handle))
-    {
-      /* Try to get next cluster */
-      if ((res = getNextCluster(handle, &entry->parent)) != E_OK)
-        return res;
-      entry->index = 0;
-    }
     /* Entry fields index and parent are initialized after entry allocation */
     sector = getSector(handle, entry->parent) + E_SECTOR(entry->index);
     if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
@@ -567,6 +565,7 @@ static enum result createEntry(struct FatHandle *handle,
     if (!chunks)
       break;
 
+#ifdef FAT_LFN
     /* TODO Possibly memset for the first time all bytes to zero */
     ptr->flags = MASK_LFN;
     ptr->checksum = checksum;
@@ -587,8 +586,15 @@ static enum result createEntry(struct FatHandle *handle,
     {
         return res;
     }
-  }
+    if (entry->index >= entryCount(handle))
+    {
+      /* Try to get next cluster */
+      if ((res = getNextCluster(handle, &entry->parent)) != E_OK)
+        return res;
+      entry->index = 0;
+    }
 #endif
+  }
 
   memcpy(ptr->filename, shortName, sizeof(ptr->filename));
   fillDirEntry(ptr, entry);
