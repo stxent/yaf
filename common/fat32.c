@@ -90,8 +90,8 @@ static inline uint16_t entryCount(struct FatHandle *handle)
 /*------------------Specific FAT32 functions----------------------------------*/
 static void extractShortName(const struct DirEntryImage *entry, char *str)
 {
-  uint8_t counter = 0;
   const char *src = entry->name;
+  uint8_t counter = 0;
   char *dest = str;
 
   while (*src && counter++ <= sizeof(entry->name))
@@ -145,8 +145,8 @@ static const char *getChunk(const char *src, char *dest)
 /*----------------------------------------------------------------------------*/
 static enum result getNextCluster(struct FatHandle *handle, uint32_t *cluster)
 {
-  uint32_t nextCluster;
   enum result res;
+  uint32_t nextCluster;
 
   if ((res = readSector(handle, handle->tableSector + (*cluster >> TE_COUNT),
       handle->buffer, 1)) != E_OK)
@@ -171,8 +171,8 @@ static enum result getNextCluster(struct FatHandle *handle, uint32_t *cluster)
 static enum result fetchEntry(struct FatHandle *handle,
     struct FatObject *entry, char *entryName)
 {
-  struct DirEntryImage *ptr;
   enum result res;
+  struct DirEntryImage *ptr;
   uint32_t sector;
 #ifdef FAT_LFN
   struct LfnObject longName;
@@ -251,7 +251,7 @@ static enum result fetchEntry(struct FatHandle *handle,
 static const char *followPath(struct FatHandle *handle, struct FatObject *item,
     const char *path)
 {
-  char name[FILE_NAME_MAX], entryName[FILE_NAME_MAX];
+  char entryName[FILE_NAME_MAX], name[FILE_NAME_MAX];
 
   path = getChunk(path, name);
   if (!strlen(name))
@@ -300,7 +300,7 @@ static void extractLongName(const struct DirEntryImage *entry, char16_t *str)
 /* Calculate entry name checksum for long file name support */
 static uint8_t getChecksum(const char *str, uint8_t length)
 {
-  uint8_t sum = 0, pos = 0;
+  uint8_t pos = 0, sum = 0;
 
   for (; pos < length; pos++)
     sum = ((sum >> 1) | (sum << 7)) + *str++;
@@ -312,10 +312,10 @@ static uint8_t getChecksum(const char *str, uint8_t length)
 static enum result readLongName(struct FatHandle *handle,
     struct LfnObject *entry, char *entryName)
 {
+  enum result res;
   struct DirEntryImage *ptr;
   uint8_t chunks = 0;
   uint32_t sector;
-  enum result res;
 
   while (1)
   {
@@ -352,10 +352,10 @@ static enum result readLongName(struct FatHandle *handle,
 #ifdef FAT_WRITE
 static enum result allocateCluster(struct FatHandle *handle, uint32_t *cluster)
 {
+  enum result res;
   struct InfoSectorImage *info;
   uint32_t current;
   uint16_t offset;
-  enum result res;
 
   current = handle->lastAllocated + 1;
   while (current != handle->lastAllocated)
@@ -431,12 +431,12 @@ static enum result allocateEntry(struct FatHandle *handle,
    * Officially maximum directory capacity is 2^16 entries,
    * but technically there is no such limit.
    */
-  struct DirEntryImage *ptr;
   enum result res;
+  struct DirEntryImage *ptr;
+  uint8_t chunks = 0;
   uint16_t index = entry->index; /* New entry position in cluster */
   uint32_t parent = entry->parent; /* Cluster where new entry will be placed */
   uint32_t sector;
-  uint8_t chunks = 0;
 
   while (1)
   {
@@ -511,15 +511,15 @@ static enum result allocateEntry(struct FatHandle *handle,
 static enum result createEntry(struct FatHandle *handle,
     struct FatObject *entry, const char *name)
 {
-  struct DirEntryImage *ptr;
-  char shortName[sizeof(ptr->filename)];
-  uint32_t sector;
-  uint8_t chunks = 0;
-  bool valid;
   enum result res;
+  struct DirEntryImage *ptr;
+  uint8_t chunks = 0;
+  uint32_t sector;
+  char shortName[sizeof(ptr->filename)];
+  bool valid;
 #ifdef FAT_LFN
-  bool lastEntry = true;
   uint8_t checksum = 0;
+  bool lastEntry = true;
   uint16_t length;
 #endif
 
@@ -624,9 +624,8 @@ static bool fillShortName(char *shortName, const char *name)
 {
   const uint8_t nameLength = sizeof(((struct DirEntryImage *)0)->name);
   const uint8_t fullLength = sizeof(((struct DirEntryImage *)0)->filename);
-
   const char *dot;
-  char symbol, converted;
+  char converted, symbol;
   uint16_t length;
   uint8_t pos = 0;
   bool valid = true;
@@ -683,10 +682,9 @@ static bool fillShortName(char *shortName, const char *name)
 #ifdef FAT_WRITE
 static enum result freeChain(struct FatHandle *handle, uint32_t cluster)
 {
-  struct InfoSectorImage *info;
-  uint32_t freeCount = 0; /* Freed clusters count */
-  uint32_t next, current = cluster;
   enum result res;
+  struct InfoSectorImage *info;
+  uint32_t current = cluster, next, released = 0;
 
   if (!current)
     return E_OK; /* Already empty */
@@ -714,7 +712,7 @@ static enum result freeChain(struct FatHandle *handle, uint32_t cluster)
     {
       return res;
     }
-    freeCount++;
+    released++;
     current = next;
   }
   /* Update information sector */
@@ -722,7 +720,7 @@ static enum result freeChain(struct FatHandle *handle, uint32_t cluster)
     return res;
   info = (struct InfoSectorImage *)handle->buffer;
   /* Set free clusters count */
-  info->freeClusters += freeCount;
+  info->freeClusters += released;
   if ((res = writeSector(handle,
       handle->infoSector, handle->buffer, 1)) != E_OK)
   {
@@ -735,11 +733,10 @@ static enum result freeChain(struct FatHandle *handle, uint32_t cluster)
 #ifdef FAT_WRITE
 static enum result markFree(struct FatHandle *handle, struct FatObject *entry)
 {
-  struct DirEntryImage *ptr;
-  uint16_t index; /* Entry position in cluster */
-  uint32_t cluster; /* Entry cluster */
-  uint32_t sector, lastSector;
   enum result res;
+  struct DirEntryImage *ptr;
+  uint32_t cluster, lastSector, sector;
+  uint16_t index; /* Entry position in cluster */
 
 #ifdef FAT_LFN
   index = entry->nameIndex;
@@ -873,10 +870,10 @@ static void fillLongName(struct DirEntryImage *entry, char16_t *str)
 static enum result fatInit(void *object, const void *cdata)
 {
   const struct Fat32Config *config = cdata;
-  struct FatHandle *handle = object;
-  struct BootSectorImage *boot;
   enum result res;
-  uint16_t tmp;
+  struct BootSectorImage *boot;
+  struct FatHandle *handle = object;
+  uint16_t sizePow;
 #ifdef FAT_WRITE
   struct InfoSectorImage *info;
 #endif
@@ -905,9 +902,9 @@ static enum result fatInit(void *object, const void *cdata)
   if (boot->bytesPerSector != SECTOR_SIZE)
     return E_ERROR;
   /* Calculate sectors per cluster count */
-  tmp = boot->sectorsPerCluster;
+  sizePow = boot->sectorsPerCluster;
   handle->clusterSize = 0;
-  while (tmp >>= 1)
+  while (sizePow >>= 1)
     handle->clusterSize++;
 
   handle->tableSector = boot->reservedSectors;
@@ -962,10 +959,10 @@ static void fatDeinit(void *object)
 static enum result fatStat(void *object, struct FsStat *result,
     const char *path)
 {
+  const char *followedPath;
+  enum result res;
   struct FatHandle *handle = object;
   struct FatObject item;
-  enum result res;
-  const char *followedPath;
   uint32_t sector;
 #ifdef FAT_TIME
   struct DirEntryImage *ptr;
@@ -1015,10 +1012,10 @@ static enum result fatStat(void *object, struct FsStat *result,
 static enum result fatOpen(void *handleObject, void *fileObject,
     const char *path, enum fsMode mode)
 {
-  struct FatHandle *handle = handleObject;
-  struct FatFile *fileHandle = fileObject;
-  struct FatObject item;
   const char *followedPath;
+  struct FatFile *fileHandle = fileObject;
+  struct FatHandle *handle = handleObject;
+  struct FatObject item;
 #ifdef FAT_WRITE
   enum result res;
 #endif
@@ -1077,8 +1074,8 @@ static enum result fatOpen(void *handleObject, void *fileObject,
 static enum result fatOpenDir(void *handleObject, void *dirObject,
     const char *path)
 {
-  struct FatHandle *handle = handleObject;
   struct FatDir *dirHandle = dirObject;
+  struct FatHandle *handle = handleObject;
   struct FatObject item;
 
   dirHandle->parent.descriptor = 0;
@@ -1101,10 +1098,10 @@ static enum result fatOpenDir(void *handleObject, void *dirObject,
 #ifdef FAT_WRITE
 static enum result fatMove(void *object, const char *src, const char *dest)
 {
+  const char *followedPath;
+  enum result res;
   struct FatHandle *handle = object;
   struct FatObject item, oldItem;
-  enum result res;
-  const char *followedPath;
 
   while (src && *src)
     src = followPath(handle, &item, src);
@@ -1147,9 +1144,9 @@ static enum result fatMove(void *object __attribute__((unused)),
 #ifdef FAT_WRITE
 static enum result fatRemove(void *object, const char *path)
 {
+  enum result res;
   struct FatHandle *handle = object;
   struct FatObject item;
-  enum result res;
 
   while (path && *path)
     path = followPath(handle, &item, path);
@@ -1259,11 +1256,11 @@ static uint32_t fatRead(void *object, uint8_t *buffer, uint32_t count)
 #ifdef FAT_WRITE
 static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
 {
+  enum result res;
   struct FatFile *fileHandle = object;
   struct FatHandle *handle = (struct FatHandle *)fileHandle->parent.descriptor;
   uint16_t chunk, offset;
   uint32_t sector, written = 0;
-  enum result res;
 
   if (fileHandle->parent.mode == FS_READ)
     return 0;
@@ -1343,11 +1340,11 @@ static uint32_t fatWrite(void *object __attribute__((unused)),
 #ifdef FAT_WRITE
 static enum result fatFlush(void *object)
 {
+  enum result res;
   struct FatFile *fileHandle = object;
   struct FatHandle *handle = (struct FatHandle *)fileHandle->parent.descriptor;
   struct DirEntryImage *ptr;
   uint32_t sector;
-  enum result res;
 
   if (fileHandle->parent.mode == FS_READ)
     return E_ERROR;
@@ -1384,10 +1381,10 @@ static enum result fatFlush(void *object __attribute__((unused)))
 static enum result fatSeek(void *object, asize_t offset,
     enum fsSeekOrigin origin)
 {
+  enum result res;
   struct FatFile *fileHandle = object;
   struct FatHandle *handle = (struct FatHandle *)fileHandle->parent.descriptor;
   uint32_t clusterCount, current;
-  enum result res;
 
   switch (origin)
   {
@@ -1440,10 +1437,10 @@ static void fatCloseDir(void *object)
 /*----------------------------------------------------------------------------*/
 static enum result fatReadDir(void *object, char *name)
 {
+  enum result res;
   struct FatDir *dirHandle = object;
   struct FatObject item;
   char entryName[FILE_NAME_MAX];
-  enum result res;
 
   item.parent = dirHandle->currentCluster;
   /* Fetch next entry */
@@ -1501,12 +1498,12 @@ static enum result fatReadDir(void *object, char *name)
 #ifdef FAT_WRITE
 static enum result fatMakeDir(void *object, const char *path)
 {
-  struct FatHandle *handle = object;
-  struct DirEntryImage *ptr;
-  struct FatObject item;
   const char *followedPath;
-  uint32_t sector, parent = handle->rootCluster;
   enum result res;
+  struct FatHandle *handle = object;
+  struct FatObject item;
+  struct DirEntryImage *ptr;
+  uint32_t parent = handle->rootCluster, sector;
 
   while (*path && (followedPath = followPath(handle, &item, path)))
   {
@@ -1569,9 +1566,9 @@ static enum result fatMakeDir(void *object __attribute__((unused)),
 #ifdef FAT_WRITE
 static enum result fatRemoveDir(void *object, const char *path)
 {
-  struct FatHandle *handle = object;
-  struct FatObject item, dirItem;
   enum result res;
+  struct FatObject dirItem, item;
+  struct FatHandle *handle = object;
 
   while (path && *path)
     path = followPath(handle, &item, path);
@@ -1609,7 +1606,7 @@ static enum result fatRemoveDir(void *object __attribute__((unused)),
 uint32_t countFree(void *object)
 {
   struct FatHandle *handle = object;
-  uint32_t freeCount = 0, current;
+  uint32_t current, empty = 0;
   uint32_t *count = malloc(sizeof(uint32_t) * handle->tableCount);
   uint8_t fat, i, j;
   uint16_t offset;
@@ -1624,7 +1621,7 @@ uint32_t countFree(void *object)
       if (readSector(handle, handle->tableSector
           + (current >> TE_COUNT), handle->buffer, 1) != E_OK)
       {
-        return freeCount;
+        return empty;
       }
       offset = (current & ((1 << TE_COUNT) - 1)) << 2;
       if (clusterFree(*(uint32_t *)(handle->buffer + offset)))
@@ -1637,8 +1634,8 @@ uint32_t countFree(void *object)
       {
         printf("FAT records count differs: %u and %u\n", count[i], count[j]);
       }
-  freeCount = count[0];
+  empty = count[0];
   free(count);
-  return freeCount;
+  return empty;
 }
 #endif

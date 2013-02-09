@@ -72,10 +72,10 @@ void mmiGetStat(void *object, uint64_t *results)
 #ifdef DEBUG
 void getSizeStr(uint64_t size, char *str)
 {
-  const unsigned short suffixCount = 4;
   const char *suffix[] = {"KiB", "MiB", "GiB", "TiB"};
-  unsigned short selectedSuffix = 0;
+  const unsigned short suffixCount = 4;
   double remainder;
+  unsigned short selectedSuffix = 0;
 
   remainder = (double)size / 1024.0;
   while (remainder >= 1024.0)
@@ -213,8 +213,8 @@ static void mmiDeinit(void *object)
 /*----------------------------------------------------------------------------*/
 enum result mmiSetPartition(void *object, struct MbrDescriptor *desc)
 {
-  struct Mmi *dev = object;
   const char validTypes[] = {0x0B, 0x0C, 0x1B, 0x1C, 0x00};
+  struct Mmi *dev = object;
 
   if (!strchr(validTypes, desc->type))
     return E_ERROR;
@@ -232,8 +232,8 @@ enum result mmiReadTable(void *object, uint32_t sector, uint8_t index,
     struct MbrDescriptor *desc)
 {
   struct Mmi *dev = object;
-  uint64_t position = sector << MMI_SECTOR_POW;
   uint8_t buffer[1 << MMI_SECTOR_POW];
+  uint64_t position = sector << MMI_SECTOR_POW;
   uint8_t *ptr;
 
   dev->offset = 0;
