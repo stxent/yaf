@@ -75,7 +75,7 @@ static inline bool clusterUsed(uint32_t cluster)
       (cluster & (uint32_t)0x0FFFFFFF) <= (uint32_t)0x0FFFFFEF;
 }
 /*----------------------------------------------------------------------------*/
-/* Calculate sector position from cluster */
+/* Calculate first sector number of the cluster */
 static inline uint32_t getSector(struct FatHandle *handle, uint32_t cluster)
 {
   return handle->dataSector + (((cluster) - 2) << handle->clusterSize);
@@ -85,6 +85,12 @@ static inline uint32_t getSector(struct FatHandle *handle, uint32_t cluster)
 static inline uint16_t entryCount(struct FatHandle *handle)
 {
   return 1 << E_POW << handle->clusterSize;
+}
+/*----------------------------------------------------------------------------*/
+/* Calculate current sector in data cluster for read or write operations */
+static inline uint8_t sectorInCluster(struct FatHandle *handle, uint32_t offset)
+{
+  return (offset >> SECTOR_POW) & ((1 << handle->clusterSize) - 1);
 }
 /*----------------------------------------------------------------------------*/
 /*------------------Specific FAT32 functions----------------------------------*/
@@ -833,7 +839,6 @@ static enum result truncate(struct FatFile *fileHandle)
 
   fileHandle->cluster = 0;
   fileHandle->currentCluster = 0;
-  fileHandle->currentSector = 0;
   fileHandle->size = 0;
   fileHandle->position = 0;
   return E_OK;
@@ -1058,7 +1063,6 @@ static enum result fatOpen(void *handleObject, void *fileObject,
   fileHandle->size = item.size;
   fileHandle->cluster = item.cluster;
   fileHandle->currentCluster = item.cluster;
-  fileHandle->currentSector = 0;
 
 #ifdef FAT_WRITE
   fileHandle->parentCluster = item.parent;
@@ -1199,6 +1203,7 @@ static uint32_t fatRead(void *object, uint8_t *buffer, uint32_t count)
   struct FatFile *fileHandle = object;
   struct FatHandle *handle = (struct FatHandle *)fileHandle->parent.descriptor;
   uint16_t chunk, offset;
+  uint8_t current;
   uint32_t read = 0;
 
   if (fileHandle->parent.mode != FS_READ &&
@@ -1211,14 +1216,17 @@ static uint32_t fatRead(void *object, uint8_t *buffer, uint32_t count)
   if (!count)
     return 0;
 
-  while (count)
+  current = sectorInCluster(handle, fileHandle->position);
+  while (1)
   {
-    if (fileHandle->currentSector >= (1 << handle->clusterSize))
+    if (current >= (1 << handle->clusterSize))
     {
       if (getNextCluster(handle, &fileHandle->currentCluster) != E_OK)
         return 0; /* Sector read error or end-of-file */
-      fileHandle->currentSector = 0;
+      current = 0;
     }
+    if (!count)
+      break;
 
     /* Position in sector */
     offset = (fileHandle->position + read) & (SECTOR_SIZE - 1);
@@ -1228,27 +1236,25 @@ static uint32_t fatRead(void *object, uint8_t *buffer, uint32_t count)
       chunk = SECTOR_SIZE - offset;
       chunk = count < chunk ? count : chunk;
       if (readSector(handle, getSector(handle, fileHandle->currentCluster)
-          + fileHandle->currentSector, handle->buffer, 1) != E_OK)
+          + current, handle->buffer, 1) != E_OK)
       {
         return 0;
       }
       memcpy(buffer + read, handle->buffer + offset, chunk);
       if (chunk + offset >= SECTOR_SIZE)
-        fileHandle->currentSector++;
+        current++;
     }
     else /* Position aligned with start of sector */
     {
       /* Length of remaining cluster space */
-      chunk = (SECTOR_SIZE << handle->clusterSize)
-          - (fileHandle->currentSector << SECTOR_POW);
+      chunk = (SECTOR_SIZE << handle->clusterSize) - (current << SECTOR_POW);
       chunk = (count < chunk) ? count & ~(SECTOR_SIZE - 1) : chunk;
-      if (readSector(handle, getSector(handle,
-          fileHandle->currentCluster) + fileHandle->currentSector,
-          buffer + read, chunk >> SECTOR_POW) != E_OK)
+      if (readSector(handle, getSector(handle, fileHandle->currentCluster)
+          + current, buffer + read, chunk >> SECTOR_POW) != E_OK)
       {
         return 0;
       }
-      fileHandle->currentSector += chunk >> SECTOR_POW;
+      current += chunk >> SECTOR_POW;
     }
 
     read += chunk;
@@ -1266,6 +1272,7 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
   struct FatFile *fileHandle = object;
   struct FatHandle *handle = (struct FatHandle *)fileHandle->parent.descriptor;
   uint16_t chunk, offset;
+  uint8_t current; /* Current sector of the data cluster */
   uint32_t sector, written = 0;
 
   if (fileHandle->parent.mode == FS_READ)
@@ -1280,9 +1287,10 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
   if (fileHandle->size + count > FILE_SIZE_MAX)
     count = FILE_SIZE_MAX - fileHandle->size;
 
-  while (count)
+  current = sectorInCluster(handle, fileHandle->position);
+  while (1)
   {
-    if (fileHandle->currentSector >= (1 << handle->clusterSize))
+    if (current >= (1 << handle->clusterSize))
     {
       /* Allocate new cluster when next cluster does not exist */
       res = getNextCluster(handle, &fileHandle->currentCluster);
@@ -1291,8 +1299,10 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
       {
           return 0;
       }
-      fileHandle->currentSector = 0;
+      current = 0;
     }
+    if (!count)
+      break;
 
     /* Position in sector */
     offset = (fileHandle->position + written) & (SECTOR_SIZE - 1);
@@ -1301,29 +1311,26 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
       /* Length of remaining sector space */
       chunk = SECTOR_SIZE - offset;
       chunk = (count < chunk) ? count : chunk;
-      sector = getSector(handle, fileHandle->currentCluster)
-          + fileHandle->currentSector;
+      sector = getSector(handle, fileHandle->currentCluster) + current;
       if (readSector(handle, sector, handle->buffer, 1) != E_OK)
         return 0;
       memcpy(handle->buffer + offset, buffer + written, chunk);
       if (writeSector(handle, sector, handle->buffer, 1) != E_OK)
         return 0;
       if (chunk + offset >= SECTOR_SIZE)
-        fileHandle->currentSector++;
+        current++;
     }
     else /* Position aligned with start of sector */
     {
       /* Length of remaining cluster space */
-      chunk = (SECTOR_SIZE << handle->clusterSize)
-          - (fileHandle->currentSector << SECTOR_POW);
+      chunk = (SECTOR_SIZE << handle->clusterSize) - (current << SECTOR_POW);
       chunk = (count < chunk) ? count & ~(SECTOR_SIZE - 1) : chunk;
-      if (writeSector(handle, getSector(handle,
-          fileHandle->currentCluster) + fileHandle->currentSector,
-          buffer + written, chunk >> SECTOR_POW) != E_OK)
+      if (writeSector(handle, getSector(handle, fileHandle->currentCluster)
+          + current, buffer + written, chunk >> SECTOR_POW) != E_OK)
       {
         return 0;
       }
-      fileHandle->currentSector += chunk >> SECTOR_POW;
+      current += chunk >> SECTOR_POW;
     }
 
     written += chunk;
@@ -1422,9 +1429,6 @@ static enum result fatSeek(void *object, asize_t offset,
   }
   fileHandle->position = offset;
   fileHandle->currentCluster = current;
-  /* TODO add macro */
-  fileHandle->currentSector =
-      (offset >> SECTOR_POW) & ((1 << handle->clusterSize) - 1);
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/

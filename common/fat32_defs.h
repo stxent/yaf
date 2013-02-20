@@ -84,10 +84,8 @@ struct FatFile
 
   uint32_t size; /* File size */
   uint32_t position; /* Position in file */
-
   uint32_t cluster; /* First cluster of file data */
   uint32_t currentCluster;
-  uint8_t currentSector; /* Sector in current cluster */ //FIXME Rewrite
 #ifdef FAT_WRITE
   uint16_t parentIndex; /* Entry position in parent cluster */
   uint32_t parentCluster; /* Directory cluster where entry located */
@@ -231,6 +229,7 @@ static inline bool clusterEOC(uint32_t);
 static inline bool clusterUsed(uint32_t);
 static inline uint32_t getSector(struct FatHandle *, uint32_t);
 static inline uint16_t entryCount(struct FatHandle *);
+static inline uint8_t sectorInCluster(struct FatHandle *, uint32_t);
 /*----------------------------------------------------------------------------*/
 /*------------------Specific FAT32 functions----------------------------------*/
 static void extractShortName(const struct DirEntryImage *, char *);
