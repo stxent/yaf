@@ -511,12 +511,12 @@ static enum result allocateEntry(struct FatHandle *handle,
 static enum result createEntry(struct FatHandle *handle,
     struct FatObject *entry, const char *name)
 {
-  const char *str = name;
   enum result res;
   struct DirEntryImage *ptr;
   uint8_t chunks = 0;
   uint32_t sector;
   char shortName[sizeof(ptr->filename)];
+  const char *str = name;
   bool valid;
 #ifdef FAT_LFN
   uint8_t checksum = 0;
@@ -630,8 +630,8 @@ static bool fillShortName(char *shortName, const char *name)
 {
   const uint8_t nameLength = sizeof(((struct DirEntryImage *)0)->name);
   const uint8_t fullLength = sizeof(((struct DirEntryImage *)0)->filename);
-  const char *dot;
   char converted, symbol;
+  const char *dot;
   uint16_t length;
   uint8_t pos = 0;
   bool valid = true;
@@ -965,10 +965,10 @@ static void fatDeinit(void *object)
 static enum result fatStat(void *object, struct FsStat *result,
     const char *path)
 {
-  const char *followedPath;
   enum result res;
   struct FatHandle *handle = object;
   struct FatObject item;
+  const char *followedPath;
   uint32_t sector;
 #ifdef FAT_TIME
   struct DirEntryImage *ptr;
@@ -1018,10 +1018,10 @@ static enum result fatStat(void *object, struct FsStat *result,
 static enum result fatOpen(void *handleObject, void *fileObject,
     const char *path, enum fsMode mode)
 {
-  const char *followedPath;
   struct FatFile *fileHandle = fileObject;
   struct FatHandle *handle = handleObject;
   struct FatObject item;
+  const char *followedPath;
 #ifdef FAT_WRITE
   enum result res;
 #endif
@@ -1104,10 +1104,10 @@ static enum result fatOpenDir(void *handleObject, void *dirObject,
 #ifdef FAT_WRITE
 static enum result fatMove(void *object, const char *src, const char *dest)
 {
-  const char *followedPath;
   enum result res;
   struct FatHandle *handle = object;
   struct FatObject item, oldItem;
+  const char *followedPath;
 
   while (src && *src)
     src = followPath(handle, &item, src);
@@ -1504,11 +1504,11 @@ static enum result fatReadDir(void *object, char *name)
 #ifdef FAT_WRITE
 static enum result fatMakeDir(void *object, const char *path)
 {
-  const char *followedPath;
   enum result res;
   struct FatHandle *handle = object;
   struct FatObject item;
   struct DirEntryImage *ptr;
+  const char *followedPath;
   uint32_t parent = handle->rootCluster, sector;
 
   while (*path && (followedPath = followPath(handle, &item, path)))

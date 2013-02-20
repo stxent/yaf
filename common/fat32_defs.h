@@ -73,9 +73,9 @@ struct FatDir
   struct FsDir parent;
 
   /* Filesystem-specific fields */
-  uint32_t cluster; /* First cluster of directory data */
   uint16_t currentIndex; /* Entry in current cluster */
   uint32_t currentCluster;
+  uint32_t cluster; /* First cluster of directory data */
 };
 /*----------------------------------------------------------------------------*/
 struct FatFile
@@ -86,8 +86,8 @@ struct FatFile
   uint32_t position; /* Position in file */
 
   uint32_t cluster; /* First cluster of file data */
-  uint8_t currentSector; /* Sector in current cluster */
   uint32_t currentCluster;
+  uint8_t currentSector; /* Sector in current cluster */ //FIXME Rewrite
 #ifdef FAT_WRITE
   uint16_t parentIndex; /* Entry position in parent cluster */
   uint32_t parentCluster; /* Directory cluster where entry located */
@@ -99,13 +99,13 @@ struct FatHandle
   struct FsHandle parent;
 
   /* Filesystem-specific fields */
-  /* For FAT32 cluster size may be 1, 2, 4, 8, 16, 32, 64, 128 sectors */
-  uint8_t clusterSize; /* Sectors per cluster power */
   uint32_t currentSector, rootCluster, dataSector, tableSector;
+  /* For FAT32 cluster size may be 1, 2, 4, 8, 16, 32, 64, 128 sectors */
+  uint8_t clusterSize; /* Sectors per cluster value power */
 #ifdef FAT_WRITE
   uint8_t tableCount; /* FAT tables count */
-  uint32_t tableSize; /* Size in sectors of each FAT table */
   uint16_t infoSector;
+  uint32_t tableSize; /* Size in sectors of each FAT table */
   uint32_t clusterCount; /* Number of clusters */
   uint32_t lastAllocated; /* Last allocated cluster */
 #endif
@@ -122,10 +122,10 @@ struct FatHandle
 struct FatObject
 {
   uint8_t attribute; /* File or directory attributes */
+  uint16_t index; /* Entry position in the parent cluster */
+  uint32_t parent; /* Directory cluster where the entry is located */
   uint32_t cluster; /* First cluster of the entry */
   uint32_t size; /* File size or zero for directories */
-  uint16_t index; /* Entry position in the parent cluster */
-  uint32_t parent; /* Directory cluster of the entry */
 #ifdef FAT_LFN
   uint16_t nameIndex; /* First name entry position in the parent cluster */
   uint32_t nameParent; /* Directory cluster of the first name entry */
@@ -193,7 +193,7 @@ struct DirEntryImage /* TODO Rename some fields */
     } __attribute__((packed));
 #endif
   };
-};
+} __attribute__((packed));
 /*----------------------------------------------------------------------------*/
 /* Boot sector */
 struct BootSectorImage
