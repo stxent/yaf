@@ -232,9 +232,9 @@ enum result mmiReadTable(void *object, uint32_t sector, uint8_t index,
     struct MbrDescriptor *desc)
 {
   struct Mmi *dev = object;
-  uint8_t buffer[1 << MMI_SECTOR_POW];
-  uint64_t position = sector << MMI_SECTOR_POW;
   uint8_t *ptr;
+  uint64_t position = sector << MMI_SECTOR_POW;
+  uint8_t buffer[1 << MMI_SECTOR_POW];
 
   dev->offset = 0;
   if (ifSetOpt(object, IF_ADDRESS, &position) != E_OK)
