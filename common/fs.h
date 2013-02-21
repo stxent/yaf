@@ -24,15 +24,15 @@ typedef int64_t asize_t;
 /*----------------------------------------------------------------------------*/
 enum fsMode
 {
-    FS_NONE = 0,
+    FS_NONE   = 0x00,
     /** Open file for reading. */
-    FS_READ,
+    FS_READ   = 0x01,
     /** Truncate to zero length or create file for writing. */
-    FS_WRITE,
+    FS_WRITE  = 0x02,
     /** Append, open file for writing at end-of-file. */
-    FS_APPEND,
+    FS_APPEND = 0x04,
     /** Open file for update: reading and writing. */
-    FS_UPDATE
+    FS_UPDATE = 0x08
 };
 /*----------------------------------------------------------------------------*/
 enum fsSeekOrigin
@@ -81,7 +81,7 @@ struct FsFileClass
 {
   CLASS_GENERATOR
 
-  /* Virtual methods */
+  /* Virtual functions */
   void (*close)(void *);
   bool (*eof)(void *);
   enum result (*flush)(void *);
@@ -96,7 +96,6 @@ struct FsFile
   struct Entity parent;
 
   struct FsHandle *descriptor;
-  enum fsMode mode; /* Access mode: read, write or append */
 };
 /*----------------------------------------------------------------------------*/
 struct FsDirClass
@@ -116,7 +115,6 @@ struct FsDir
   struct Entity parent;
 
   struct FsHandle *descriptor;
-  /* uint16_t position; TODO */
 };
 /*----------------------------------------------------------------------------*/
 struct FsHandleClass

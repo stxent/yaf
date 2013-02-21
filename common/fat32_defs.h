@@ -72,10 +72,9 @@ struct FatDir
 {
   struct FsDir parent;
 
-  /* Filesystem-specific fields */
-  uint16_t currentIndex; /* Entry in current cluster */
   uint32_t currentCluster;
   uint32_t cluster; /* First cluster of directory data */
+  uint16_t currentIndex; /* Entry in current cluster */
 };
 /*----------------------------------------------------------------------------*/
 struct FatFile
@@ -87,56 +86,54 @@ struct FatFile
   uint32_t cluster; /* First cluster of file data */
   uint32_t currentCluster;
 #ifdef FAT_WRITE
-  uint16_t parentIndex; /* Entry position in parent cluster */
   uint32_t parentCluster; /* Directory cluster where entry located */
+  uint16_t parentIndex; /* Entry position in parent cluster */
 #endif
+  enum fsMode mode; /* Access mode: read, write or append */
 };
 /*----------------------------------------------------------------------------*/
 struct FatHandle
 {
   struct FsHandle parent;
 
-  /* Filesystem-specific fields */
-  uint32_t currentSector, rootCluster, dataSector, tableSector;
-  /* For FAT32 cluster size may be 1, 2, 4, 8, 16, 32, 64, 128 sectors */
-  uint8_t clusterSize; /* Sectors per cluster value power */
-#ifdef FAT_WRITE
-  uint8_t tableCount; /* FAT tables count */
-  uint16_t infoSector;
-  uint32_t tableSize; /* Size in sectors of each FAT table */
-  uint32_t clusterCount; /* Number of clusters */
-  uint32_t lastAllocated; /* Last allocated cluster */
-#endif
-  /* Buffer variables */
   uint8_t *buffer;
-  uint32_t bufferedSector;
-  /* bool staticAlloc; *//* TODO Add */
 #ifdef FAT_LFN
   char16_t *nameBuffer;
 #endif
+  uint32_t currentSector, dataSector, rootCluster, tableSector;
+  uint32_t bufferedSector; /* Number of sector that is stored in buffer */
+#ifdef FAT_WRITE
+  uint32_t tableSize; /* Size in sectors of each FAT table */
+  uint32_t clusterCount; /* Number of clusters */
+  uint32_t lastAllocated; /* Last allocated cluster */
+  uint16_t infoSector;
+  uint8_t tableCount; /* FAT tables count */
+#endif
+  /* Sectors per cluster, in FAT32 cluster may contain up to 128 sectors */
+  uint8_t clusterSize; /* Power of 2 */
 };
 /*----------------------------------------------------------------------------*/
 /* Directory entry descriptor */
 struct FatObject
 {
-  uint8_t attribute; /* File or directory attributes */
-  uint16_t index; /* Entry position in the parent cluster */
   uint32_t parent; /* Directory cluster where the entry is located */
   uint32_t cluster; /* First cluster of the entry */
   uint32_t size; /* File size or zero for directories */
 #ifdef FAT_LFN
-  uint16_t nameIndex; /* First name entry position in the parent cluster */
   uint32_t nameParent; /* Directory cluster of the first name entry */
+  uint16_t nameIndex; /* First name entry position in the parent cluster */
 #endif
+  uint16_t index; /* Entry position in the parent cluster */
+  uint8_t attribute; /* File or directory attributes */
 };
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_LFN
 /* Long file name entry descriptor */
 struct LfnObject
 {
-  uint8_t checksum, length;
-  uint16_t index; /* Entry position in parent cluster */
   uint32_t parent; /* Directory cluster where entry located */
+  uint16_t index; /* Entry position in parent cluster */
+  uint8_t checksum, length;
 };
 #endif
 /*----------------------------------------------------------------------------*/

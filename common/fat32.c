@@ -828,8 +828,6 @@ static enum result truncate(struct FatFile *fileHandle)
 {
   enum result res;
 
-  if (fileHandle->parent.mode == FS_READ)
-    return E_ERROR; /* TODO Add access denied message */
   if ((res = freeChain((struct FatHandle *)fileHandle->parent.descriptor,
       fileHandle->cluster)) != E_OK)
   {
@@ -1031,7 +1029,7 @@ static enum result fatOpen(void *handleObject, void *fileObject,
 #endif
 
   fileHandle->parent.descriptor = 0;
-  fileHandle->parent.mode = mode;
+  fileHandle->mode = mode;
   while (*path && (followedPath = followPath(handle, &item, path)))
     path = followedPath;
   /* Non-zero when entry not found */
@@ -1182,12 +1180,12 @@ static enum result fatRemove(void *object __attribute__((unused)),
 /*------------------File functions--------------------------------------------*/
 static void fatClose(void *object)
 {
-  struct FsFile *file = object;
+  struct FatFile *fileHandle = object;
 
   /* Write changes when file was opened for writing or updating */
-  if (file->mode != FS_READ)
+  if (fileHandle->mode != FS_READ)
     fatFlush(object);
-  file->descriptor = 0;
+  fileHandle->parent.descriptor = 0;
 }
 /*----------------------------------------------------------------------------*/
 static bool fatEof(void *object)
@@ -1205,11 +1203,8 @@ static uint32_t fatRead(void *object, uint8_t *buffer, uint32_t count)
   uint8_t current = 0;
   uint32_t read = 0;
 
-  if (fileHandle->parent.mode != FS_READ && //FIXME Rewrite enum
-      fileHandle->parent.mode != FS_UPDATE)
-  {
+  if (!(fileHandle->mode & (FS_READ | FS_UPDATE)))
     return 0;
-  }
   if (count > fileHandle->size - fileHandle->position)
     count = fileHandle->size - fileHandle->position;
 
@@ -1275,12 +1270,8 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
   uint8_t current = 0; /* Current sector of the data cluster */
   uint32_t sector, written = 0;
 
-  if (fileHandle->parent.mode != FS_WRITE //FIXME Rewrite enum
-      && fileHandle->parent.mode != FS_APPEND
-      && fileHandle->parent.mode != FS_UPDATE)
-  {
+  if (!(fileHandle->mode & (FS_WRITE | FS_APPEND | FS_UPDATE)))
     return 0;
-  }
   if (!fileHandle->size)
   {
     if (allocateCluster(handle, &fileHandle->cluster) != E_OK)
@@ -1299,7 +1290,7 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
   }
   while (count)
   {
-    if (current >= (1 << handle->clusterSize)) //FIXME Rewrite
+    if (current >= (1 << handle->clusterSize))
     {
       /* Allocate new cluster when next cluster does not exist */
       res = getNextCluster(handle, &fileHandle->currentCluster);
@@ -1366,7 +1357,7 @@ static enum result fatFlush(void *object)
   struct DirEntryImage *ptr;
   uint32_t sector;
 
-  if (fileHandle->parent.mode == FS_READ)
+  if (!(fileHandle->mode & (FS_WRITE | FS_APPEND | FS_UPDATE)))
     return E_ERROR;
   sector = getSector(handle, fileHandle->parentCluster)
       + E_SECTOR(fileHandle->parentIndex);
@@ -1429,7 +1420,7 @@ static enum result fatSeek(void *object, asize_t offset,
   else
     current = fileHandle->cluster;
   clusterCount >>= handle->clusterSize + SECTOR_POW;
-  while (clusterCount--)
+  while (clusterCount)
   {
     if ((res = getNextCluster(handle, &current)) != E_OK)
       return E_INTERFACE;
