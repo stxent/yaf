@@ -165,8 +165,7 @@ static enum result getNextCluster(struct FatHandle *handle, uint32_t *cluster)
     *cluster = nextCluster;
     return E_OK;
   }
-  else
-    return E_EOF;
+  return E_EOF;
 }
 /*----------------------------------------------------------------------------*/
 /*
@@ -1203,21 +1202,24 @@ static uint32_t fatRead(void *object, uint8_t *buffer, uint32_t count)
   struct FatFile *fileHandle = object;
   struct FatHandle *handle = (struct FatHandle *)fileHandle->parent.descriptor;
   uint16_t chunk, offset;
-  uint8_t current;
+  uint8_t current = 0;
   uint32_t read = 0;
 
-  if (fileHandle->parent.mode != FS_READ &&
+  if (fileHandle->parent.mode != FS_READ && //FIXME Rewrite enum
       fileHandle->parent.mode != FS_UPDATE)
   {
     return 0;
   }
   if (count > fileHandle->size - fileHandle->position)
     count = fileHandle->size - fileHandle->position;
-  if (!count)
-    return 0;
 
-  current = sectorInCluster(handle, fileHandle->position);
-  while (1)
+  if (fileHandle->position)
+  {
+    current = sectorInCluster(handle, fileHandle->position);
+    if (!(fileHandle->position & ((SECTOR_SIZE << handle->clusterSize) - 1)))
+      current++;
+  }
+  while (count)
   {
     if (current >= (1 << handle->clusterSize))
     {
@@ -1225,8 +1227,6 @@ static uint32_t fatRead(void *object, uint8_t *buffer, uint32_t count)
         return 0; /* Sector read error or end-of-file */
       current = 0;
     }
-    if (!count)
-      break;
 
     /* Position in sector */
     offset = (fileHandle->position + read) & (SECTOR_SIZE - 1);
@@ -1272,11 +1272,15 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
   struct FatFile *fileHandle = object;
   struct FatHandle *handle = (struct FatHandle *)fileHandle->parent.descriptor;
   uint16_t chunk, offset;
-  uint8_t current; /* Current sector of the data cluster */
+  uint8_t current = 0; /* Current sector of the data cluster */
   uint32_t sector, written = 0;
 
-  if (fileHandle->parent.mode == FS_READ)
+  if (fileHandle->parent.mode != FS_WRITE //FIXME Rewrite enum
+      && fileHandle->parent.mode != FS_APPEND
+      && fileHandle->parent.mode != FS_UPDATE)
+  {
     return 0;
+  }
   if (!fileHandle->size)
   {
     if (allocateCluster(handle, &fileHandle->cluster) != E_OK)
@@ -1287,10 +1291,15 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
   if (fileHandle->size + count > FILE_SIZE_MAX)
     count = FILE_SIZE_MAX - fileHandle->size;
 
-  current = sectorInCluster(handle, fileHandle->position);
-  while (1)
+  if (fileHandle->position)
   {
-    if (current >= (1 << handle->clusterSize))
+    current = sectorInCluster(handle, fileHandle->position);
+    if (!(fileHandle->position & ((SECTOR_SIZE << handle->clusterSize) - 1)))
+      current++;
+  }
+  while (count)
+  {
+    if (current >= (1 << handle->clusterSize)) //FIXME Rewrite
     {
       /* Allocate new cluster when next cluster does not exist */
       res = getNextCluster(handle, &fileHandle->currentCluster);
@@ -1301,8 +1310,6 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
       }
       current = 0;
     }
-    if (!count)
-      break;
 
     /* Position in sector */
     offset = (fileHandle->position + written) & (SECTOR_SIZE - 1);
