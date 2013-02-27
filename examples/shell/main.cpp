@@ -20,15 +20,15 @@
 //------------------------------------------------------------------------------
 extern "C"
 {
+#include "fat32.h"
 #include "fs.h"
-#include "rtc.h"
 #include "interface.h"
 #include "mmi.h"
-#include "fat32.h"
+#include "rtc.h"
 }
 //------------------------------------------------------------------------------
-using namespace std;
 using namespace boost;
+using namespace std;
 //------------------------------------------------------------------------------
 enum cResult {
   C_OK = 0,

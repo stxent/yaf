@@ -13,7 +13,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #endif
-/*----------------------------------------------------------------------------*/
 /*------------------Class descriptors-----------------------------------------*/
 static const struct FsFileClass fatFileTable = {
     .size = sizeof(struct FatFile),
@@ -165,7 +164,7 @@ static enum result getNextCluster(struct FatHandle *handle, uint32_t *cluster)
     *cluster = nextCluster;
     return E_OK;
   }
-  return E_EOF;
+  return E_FAULT;
 }
 /*----------------------------------------------------------------------------*/
 /*
@@ -221,7 +220,7 @@ static enum result fetchEntry(struct FatHandle *handle,
       continue;
     }
     if (!ptr->name[0]) /* No more entries */
-      return E_EOF;
+      return E_FAULT;
     if (ptr->name[0] != E_FLAG_EMPTY) /* Entry exists */
       break;
     entry->index++;
@@ -449,7 +448,7 @@ static enum result allocateEntry(struct FatHandle *handle,
     {
       /* Try to get next cluster or allocate new cluster for directory */
       res = getNextCluster(handle, &entry->parent);
-      if (res == E_EOF)
+      if (res == E_FAULT)
       {
         //FIXME Alloc 2 512-byte clusters for names longer than 195 characters
         if ((res = allocateCluster(handle, &entry->parent)) != E_OK)
@@ -532,7 +531,7 @@ static enum result createEntry(struct FatHandle *handle,
   /* Check path for nonexistent directories */
   while (*str)
     if (*str++ == '/')
-      return E_NONEXISTENT;
+      return E_ENTRY;
 
   /* Check whether the file name is valid for use as short name */
   valid = fillShortName(shortName, name);
@@ -983,7 +982,7 @@ static enum result fatStat(void *object, struct FsStat *result,
     path = followedPath;
   /* Non-zero when entry not found */
   if (*path)
-    return E_NONEXISTENT;
+    return E_ENTRY;
 
   sector = getSector(object, item.parent) + E_SECTOR(item.index);
   if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
@@ -1048,14 +1047,14 @@ static enum result fatOpen(void *handleObject, void *fileObject,
         return res;
     }
     else
-      return E_NONEXISTENT;
+      return E_ENTRY;
 #else
-    return E_NONEXISTENT;
+    return E_ENTRY;
 #endif
   }
   /* Not found if volume name, system or directory entry */
   if (item.attribute & (FLAG_VOLUME | FLAG_DIR))
-    return E_NONEXISTENT;
+    return E_ENTRY;
   fileHandle->parent.descriptor = handleObject;
 
   fileHandle->position = 0;
@@ -1091,10 +1090,10 @@ static enum result fatOpenDir(void *handleObject, void *dirObject,
   while (path && *path)
     path = followPath(handle, &item, path);
   if (!path)
-    return E_NONEXISTENT;
+    return E_ENTRY;
   /* Not directory or volume name */
   if (!(item.attribute & FLAG_DIR) || item.attribute & FLAG_VOLUME)
-    return E_NONEXISTENT;
+    return E_ENTRY;
 
   dirHandle->cluster = item.cluster;
   dirHandle->currentCluster = item.cluster;
@@ -1115,11 +1114,11 @@ static enum result fatMove(void *object, const char *src, const char *dest)
   while (src && *src)
     src = followPath(handle, &item, src);
   if (!src)
-    return E_NONEXISTENT;
+    return E_ENTRY;
 
   /* Volume entries are invisible */
   if (item.attribute & FLAG_VOLUME)
-    return E_NONEXISTENT;
+    return E_ENTRY;
 
   /* Save old entry data */
   oldItem = item;
@@ -1161,7 +1160,7 @@ static enum result fatRemove(void *object, const char *path)
     path = followPath(handle, &item, path);
   /* Not found, directory or volume name */
   if (!path || item.attribute & (FLAG_VOLUME | FLAG_DIR))
-    return E_NONEXISTENT;
+    return E_ENTRY;
 
   /* Mark file table clusters as free */
   if ((res = freeChain(handle, item.cluster)) != E_OK)
@@ -1296,7 +1295,7 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
     {
       /* Allocate new cluster when next cluster does not exist */
       res = getNextCluster(handle, &fileHandle->currentCluster);
-      if ((res != E_EOF && res != E_OK) || (res == E_EOF
+      if ((res != E_FAULT && res != E_OK) || (res == E_FAULT
           && allocateCluster(handle, &fileHandle->currentCluster) != E_OK))
       {
           return 0;
@@ -1460,7 +1459,7 @@ static enum result fatReadDir(void *object, char *name)
     if ((res = fetchEntry((struct FatHandle *)dirHandle->parent.descriptor,
         &item, entryName)) != E_OK)
     {
-      return E_NONEXISTENT;
+      return E_ENTRY;
     }
     item.index++;
   }
@@ -1584,7 +1583,7 @@ static enum result fatRemoveDir(void *object, const char *path)
     path = followPath(handle, &item, path);
   /* Not found, regular file or volume name */
   if (!path || !(item.attribute & FLAG_DIR) || item.attribute & FLAG_VOLUME)
-    return E_NONEXISTENT;
+    return E_ENTRY;
 
   /* Check if directory not empty */
   dirItem = item;
@@ -1593,7 +1592,7 @@ static enum result fatRemoveDir(void *object, const char *path)
   res = fetchEntry(handle, &dirItem, 0);
   if (res == E_OK)
     return E_ERROR;
-  else if (res != E_EOF)
+  else if (res != E_FAULT)
     return res;
 
   /* Mark file table clusters as free */
