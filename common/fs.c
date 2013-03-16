@@ -21,7 +21,7 @@
 enum result fsBlockRead(void *interface, asize_t address,
     uint8_t *buffer, uint32_t length)
 {
-  if (ifSetOpt(interface, IF_ADDRESS, &address) != E_OK)
+  if (ifSet(interface, IF_ADDRESS, &address) != E_OK)
     return E_DEVICE;
   if (ifRead(interface, buffer, length) != length)
     return E_INTERFACE;
@@ -38,7 +38,7 @@ enum result fsBlockRead(void *interface, asize_t address,
 enum result fsBlockWrite(void *interface, asize_t address,
     const uint8_t *buffer, uint32_t size)
 {
-  if (ifSetOpt(interface, IF_ADDRESS, &address) != E_OK)
+  if (ifSet(interface, IF_ADDRESS, &address) != E_OK)
     return E_ERROR;
   if (ifWrite(interface, buffer, size) != size)
     return E_ERROR;

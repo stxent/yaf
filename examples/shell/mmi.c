@@ -25,8 +25,8 @@ static enum result mmiInit(void *, const void *);
 static void mmiDeinit(void *);
 static uint32_t mmiRead(void *, uint8_t *, uint32_t);
 static uint32_t mmiWrite(void *, const uint8_t *, uint32_t);
-static enum result mmiGetOpt(void *, enum ifOption, void *);
-static enum result mmiSetOpt(void *, enum ifOption, const void *);
+static enum result mmiGet(void *, enum ifOption, void *);
+static enum result mmiSet(void *, enum ifOption, const void *);
 /*----------------------------------------------------------------------------*/
 struct Mmi
 {
@@ -51,8 +51,8 @@ static const struct InterfaceClass mmiTable = {
 
     .read = mmiRead,
     .write = mmiWrite,
-    .getopt = mmiGetOpt,
-    .setopt = mmiSetOpt
+    .get = mmiGet,
+    .set = mmiSet
 };
 /*----------------------------------------------------------------------------*/
 const struct InterfaceClass *Mmi = &mmiTable;
@@ -164,7 +164,7 @@ static uint32_t mmiWrite(void *object, const uint8_t *buffer, uint32_t length)
   return length;
 }
 /*----------------------------------------------------------------------------*/
-static enum result mmiGetOpt(void *object, enum ifOption option, void *data)
+static enum result mmiGet(void *object, enum ifOption option, void *data)
 {
   struct Mmi *dev = object;
 
@@ -178,7 +178,7 @@ static enum result mmiGetOpt(void *object, enum ifOption option, void *data)
   }
 }
 /*----------------------------------------------------------------------------*/
-static enum result mmiSetOpt(void *object, enum ifOption option,
+static enum result mmiSet(void *object, enum ifOption option,
     const void *data)
 {
   struct Mmi *dev = object;
@@ -237,7 +237,7 @@ enum result mmiReadTable(void *object, uint32_t sector, uint8_t index,
   uint8_t buffer[1 << MMI_SECTOR_POW];
 
   dev->offset = 0;
-  if (ifSetOpt(object, IF_ADDRESS, &position) != E_OK)
+  if (ifSet(object, IF_ADDRESS, &position) != E_OK)
     return E_INTERFACE;
   if (ifRead(object, buffer, sizeof(buffer)) != sizeof(buffer))
     return E_INTERFACE;
