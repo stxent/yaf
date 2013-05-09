@@ -116,7 +116,7 @@ static void extractShortName(const struct DirEntryImage *entry, char *str)
     {
       if (*src != ' ')
         *dest++ = *src;
-      src++;
+      ++src;
     }
   }
   *dest = '\0';
@@ -139,7 +139,7 @@ static const char *getChunk(const char *src, char *dest)
   {
     if (*src == '/')
     {
-      src++;
+      ++src;
       break;
     }
     *dest++ = *src++;
@@ -213,17 +213,17 @@ static enum result fetchEntry(struct FatHandle *handle,
           longName.parent = entry->parent;
         }
         else if (found)
-          found++;
+          ++found;
       }
 #endif
-      entry->index++;
+      ++entry->index;
       continue;
     }
     if (!ptr->name[0]) /* No more entries */
       return E_FAULT;
     if (ptr->name[0] != E_FLAG_EMPTY) /* Entry exists */
       break;
-    entry->index++;
+    ++entry->index;
   }
   entry->attribute = ptr->flags;
   entry->size = ptr->size;
@@ -273,7 +273,7 @@ static const char *followPath(struct FatHandle *handle, struct FatObject *item,
   {
     if (!strcmp(name, entryName))
       return path;
-    item->index++;
+    ++item->index;
   }
   return 0;
 }
@@ -306,7 +306,7 @@ static uint8_t getChecksum(const char *str, uint8_t length)
 {
   uint8_t pos = 0, sum = 0;
 
-  for (; pos < length; pos++)
+  for (; pos < length; ++pos)
     sum = ((sum >> 1) | (sum << 7)) + *str++;
   return sum;
 }
@@ -336,15 +336,15 @@ static enum result readLongName(struct FatHandle *handle,
     ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(entry->index));
     if ((ptr->flags & MASK_LFN) == MASK_LFN)
     {
-      chunks++;
-      extractLongName(ptr, handle->nameBuffer +
-          ((ptr->ordinal & ~LFN_LAST) - 1) * LFN_ENTRY_LENGTH);
-      entry->index++;
+      ++chunks;
+      extractLongName(ptr, handle->nameBuffer
+          + ((ptr->ordinal & ~LFN_LAST) - 1) * LFN_ENTRY_LENGTH);
+      ++entry->index;
       continue;
     }
     else
       break; /* No more consecutive long file name entries */
-    entry->index++;
+    ++entry->index;
   }
   if (!chunks || entry->length != chunks)
     return E_ERROR;
@@ -408,12 +408,12 @@ static enum result allocateCluster(struct FatHandle *handle, uint32_t *cluster)
       info->lastAllocated = current;
       handle->lastAllocated = current;
       /* Update free clusters count */
-      info->freeClusters--;
+      --info->freeClusters;
       if ((res = writeSector(handle, handle->infoSector, handle->buffer, 1)))
         return res;
       return E_OK;
     }
-    current++;
+    ++current;
   }
 #ifdef DEBUG
   printf("Allocation error, possibly partition is full\n");
@@ -495,7 +495,7 @@ static enum result allocateEntry(struct FatHandle *handle,
         parent = entry->parent;
       }
       else
-        chunks++;
+        ++chunks;
       if (chunks == chainLength) /* Found enough free entries */
       {
         entry->index = index;
@@ -505,7 +505,7 @@ static enum result allocateEntry(struct FatHandle *handle,
     }
     else
       chunks = 0;
-    entry->index++;
+    ++entry->index;
   }
   return E_ERROR;
 }
@@ -550,7 +550,7 @@ static enum result createEntry(struct FatHandle *handle,
     /* Calculate long file name length in entries */
     chunks = length / LFN_ENTRY_LENGTH;
     if (length > chunks * LFN_ENTRY_LENGTH) /* When fractional part exists */
-      chunks++;
+      ++chunks;
   }
 #endif
 
@@ -583,7 +583,7 @@ static enum result createEntry(struct FatHandle *handle,
     ptr->clusterLow = 0;
     fillLongName(ptr, handle->nameBuffer + chunks * LFN_ENTRY_LENGTH);
 
-    entry->index++;
+    ++entry->index;
     /* Write back updated sector when switching sectors */
     if (!(entry->index & (E_POW - 1))
         && (res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
@@ -641,7 +641,7 @@ static bool fillShortName(char *shortName, const char *name)
   bool valid = true;
 
   length = strlen(name);
-  for (dot = name + length - 1; dot >= name && *dot != '.'; dot--);
+  for (dot = name + length - 1; dot >= name && *dot != '.'; --dot);
   if (dot < name)
   {
     if (length > nameLength)
@@ -661,10 +661,10 @@ static bool fillShortName(char *shortName, const char *name)
     if (dot && name == dot)
     {
       pos = nameLength;
-      name++;
+      ++name;
       continue;
     }
-    name++;
+    ++name;
     converted = processCharacter(symbol);
     if (converted != symbol)
       valid = false;
@@ -722,7 +722,7 @@ static enum result freeChain(struct FatHandle *handle, uint32_t cluster)
     {
       return res;
     }
-    released++;
+    ++released;
     current = next;
   }
   /* Update information sector */
@@ -771,7 +771,7 @@ static enum result markFree(struct FatHandle *handle, struct FatObject *entry)
     ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(index));
     /* Mark the directory entry or the long file name entry as deleted */
     ptr->name[0] = E_FLAG_EMPTY;
-    index++;
+    ++index;
     /* Write back updated sector when switching sectors */
     if (!(index & (E_POW - 1))
         && (res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
@@ -848,7 +848,7 @@ static enum result updateTable(struct FatHandle *handle, uint32_t offset)
   uint8_t fat;
   enum result res;
 
-  for (fat = 0; fat < handle->tableCount; fat++)
+  for (fat = 0; fat < handle->tableCount; ++fat)
   {
     if ((res = writeSector(handle, offset + handle->tableSector
         + (uint32_t)fat * handle->tableSize, handle->buffer, 1)) != E_OK)
@@ -912,7 +912,7 @@ static enum result fatInit(void *object, const void *cdata)
   sizePow = boot->sectorsPerCluster;
   handle->clusterSize = 0;
   while (sizePow >>= 1)
-    handle->clusterSize++;
+    ++handle->clusterSize;
 
   handle->tableSector = boot->reservedSectors;
   handle->dataSector = handle->tableSector + boot->fatCopies * boot->fatSize;
@@ -1238,7 +1238,7 @@ static uint32_t fatRead(void *object, uint8_t *buffer, uint32_t count)
       }
       memcpy(buffer + read, handle->buffer + offset, chunk);
       if (chunk + offset >= SECTOR_SIZE)
-        current++;
+        ++current;
     }
     else /* Position aligned with start of sector */
     {
@@ -1317,7 +1317,7 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
       if (writeSector(handle, sector, handle->buffer, 1) != E_OK)
         return 0;
       if (chunk + offset >= SECTOR_SIZE)
-        current++;
+        ++current;
     }
     else /* Position aligned with start of sector */
     {
@@ -1461,7 +1461,7 @@ static enum result fatReadDir(void *object, char *name)
     {
       return E_ENTRY;
     }
-    item.index++;
+    ++item.index;
   }
   while (item.attribute & FLAG_VOLUME);
   /* Hidden and system entries not shown */
@@ -1554,7 +1554,7 @@ static enum result fatMakeDir(void *object, const char *path)
   fillDirEntry(ptr, &item);
 
   /* Parent directory entry .. */
-  ptr++;
+  ++ptr;
   memset(ptr->filename, ' ', sizeof(ptr->filename));
   ptr->name[0] = ptr->name[1] = '.';
   item.cluster = parent == handle->rootCluster ? 0 : parent;
@@ -1622,10 +1622,10 @@ uint32_t countFree(void *object)
 
   if (!count)
     return 0; /* Memory allocation problem */
-  for (fat = 0; fat < handle->tableCount; fat++)
+  for (fat = 0; fat < handle->tableCount; ++fat)
   {
     count[fat] = 0;
-    for (current = 0; current < handle->clusterCount; current++)
+    for (current = 0; current < handle->clusterCount; ++current)
     {
       if (readSector(handle, handle->tableSector
           + (current >> TE_COUNT), handle->buffer, 1) != E_OK)
@@ -1634,11 +1634,11 @@ uint32_t countFree(void *object)
       }
       offset = (current & ((1 << TE_COUNT) - 1)) << 2;
       if (clusterFree(*(uint32_t *)(handle->buffer + offset)))
-        count[fat]++;
+        ++count[fat];
     }
   }
-  for (i = 0; i < handle->tableCount; i++)
-    for (j = 0; j < handle->tableCount; j++)
+  for (i = 0; i < handle->tableCount; ++i)
+    for (j = 0; j < handle->tableCount; ++j)
       if (i != j && count[i] != count[j])
       {
         printf("FAT records count differs: %u and %u\n", count[i], count[j]);

@@ -80,7 +80,7 @@ void getSizeStr(uint64_t size, char *str)
   remainder = (double)size / 1024.0;
   while (remainder >= 1024.0)
   {
-    selectedSuffix++;
+    ++selectedSuffix;
     remainder /= 1024.0;
     if (selectedSuffix == suffixCount - 1)
       break;
@@ -153,7 +153,7 @@ static uint32_t mmiWrite(void *object, const uint8_t *buffer, uint32_t length)
   mutexUnlock(&dev->lock);
 
 #ifdef DEBUG
-  dev->writeCount++;
+  ++dev->writeCount;
   dev->writeSize += length;
 #endif
 #ifdef DEBUG_RW
