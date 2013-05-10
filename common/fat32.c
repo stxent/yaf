@@ -1212,7 +1212,7 @@ static uint32_t fatRead(void *object, uint8_t *buffer, uint32_t count)
   if (fileHandle->position)
   {
     current = sectorInCluster(handle, fileHandle->position);
-    if (!(fileHandle->position & ((SECTOR_SIZE << handle->clusterSize) - 1)))
+    if (!current && !(fileHandle->position & (SECTOR_SIZE - 1)))
       current = 1 << handle->clusterSize;
   }
   while (count)
@@ -1286,7 +1286,7 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
   if (fileHandle->position)
   {
     current = sectorInCluster(handle, fileHandle->position);
-    if (!(fileHandle->position & ((SECTOR_SIZE << handle->clusterSize) - 1)))
+    if (!current && !(fileHandle->position & (SECTOR_SIZE - 1)))
       current = 1 << handle->clusterSize;
   }
   while (count)
