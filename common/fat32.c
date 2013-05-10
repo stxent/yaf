@@ -105,7 +105,7 @@ static void extractShortName(const struct DirEntryImage *entry, char *str)
       *dest++ = *src;
     src++;
   }
-  /* Add dot, when entry is not directory or extension exists */
+  /* Add dot when entry is not directory or extension exists */
   if (!(entry->flags & FLAG_DIR) && entry->extension[0] != ' ')
   {
     *dest++ = '.';

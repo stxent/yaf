@@ -5,8 +5,8 @@
  */
 
 /**
- *  @file
- *  Abstract filesystem interface for embedded system applications.
+ * @file
+ * Abstract filesystem interface for embedded system applications.
  */
 
 #ifndef FS_H_
@@ -19,17 +19,17 @@
 #include "error.h"
 #include "interface.h"
 /*----------------------------------------------------------------------------*/
-/* Type represents address space width */
+/* Type which represents address space size */
 typedef int64_t asize_t;
 /*----------------------------------------------------------------------------*/
 enum fsMode
 {
-    FS_NONE   = 0x00,
+    FS_NONE = 0x00,
     /** Open file for reading. */
-    FS_READ   = 0x01,
+    FS_READ = 0x01,
     /** Truncate to zero length or create file for writing. */
-    FS_WRITE  = 0x02,
-    /** Append, open file for writing at end-of-file. */
+    FS_WRITE = 0x02,
+    /** Append: open file for writing at end-of-file. */
     FS_APPEND = 0x04,
     /** Open file for update: reading and writing. */
     FS_UPDATE = 0x08
@@ -104,10 +104,7 @@ struct FsDirClass
 
   /* Virtual functions */
   void (*close)(void *);
-  /* bool (*eof)(void *); TODO */
   enum result (*read)(void *, char *);
-  /* enum result (*seek)(void *, uint32_t); TODO */
-  /* uint32_t (*tell)(void *); TODO */
 };
 /*----------------------------------------------------------------------------*/
 struct FsDir
@@ -128,8 +125,7 @@ struct FsHandleClass
   /* Virtual functions */
   enum result (*move)(void *, const char *, const char *);
   enum result (*stat)(void *, struct FsStat *, const char *);
-  enum result (*open)(void *, void *, const char *,
-      enum fsMode);
+  enum result (*open)(void *, void *, const char *, enum fsMode);
   enum result (*remove)(void *, const char *);
   enum result (*openDir)(void *, void *, const char *);
   enum result (*makeDir)(void *, const char *);
@@ -172,9 +168,6 @@ uint32_t fsWrite(void *, const uint8_t *, uint32_t);
 /*----------------------------------------------------------------------------*/
 /*------------------Directory functions---------------------------------------*/
 void fsCloseDir(void *);
-/* bool (*fsEofDir)(void *); TODO */
 enum result fsReadDir(void *, char *);
-/* enum result fsSeekDir(void *, uint32_t); TODO */
-/* uint32_t fsTellDir(void *); TODO */
 /*----------------------------------------------------------------------------*/
 #endif /* FS_H_ */
