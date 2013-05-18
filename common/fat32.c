@@ -519,7 +519,6 @@ static enum result createEntry(struct FatHandle *handle,
   const char *str = name;
   uint32_t sector;
 #ifdef FAT_LFN
-  uint16_t length;
   uint8_t checksum = 0;
   bool lastEntry = true;
 #endif
@@ -540,6 +539,8 @@ static enum result createEntry(struct FatHandle *handle,
 #ifdef FAT_LFN
   if (!valid)
   {
+    uint16_t length;
+
     /* Clear extension when new entry is directory */
     if ((entry->attribute & FLAG_DIR))
       memset(shortName + sizeof(ptr->name), ' ', sizeof(ptr->extension));
@@ -1269,7 +1270,6 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
   uint32_t sector, written = 0;
   uint16_t chunk, offset;
   uint8_t current = 0; /* Current sector of the data cluster */
-  enum result res;
 
   if (!(fileHandle->mode & (FS_WRITE | FS_APPEND | FS_UPDATE)))
     return 0;
@@ -1293,6 +1293,8 @@ static uint32_t fatWrite(void *object, const uint8_t *buffer, uint32_t count)
   {
     if (current >= (1 << handle->clusterSize))
     {
+      enum result res;
+
       /* Allocate new cluster when next cluster does not exist */
       res = getNextCluster(handle, &fileHandle->currentCluster);
       if ((res != E_FAULT && res != E_OK) || (res == E_FAULT
