@@ -13,6 +13,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #endif
+/*----------------------------------------------------------------------------*/
+/* Get size of array placed in structure */
+#define ARRAY_SIZE(parent, array) (sizeof(((struct parent *)0)->array))
 /*------------------Class descriptors-----------------------------------------*/
 static const struct FsFileClass fatFileTable = {
     .size = sizeof(struct FatFile),
@@ -42,9 +45,6 @@ static const struct FsHandleClass fatHandleTable = {
     .init = fatInit,
     .deinit = fatDeinit,
 
-    .File = (void *)&fatFileTable,
-    .Dir = (void *)&fatDirTable,
-
     .open = fatOpen,
     .openDir = fatOpenDir,
     .stat = fatStat,
@@ -55,6 +55,8 @@ static const struct FsHandleClass fatHandleTable = {
     .removeDir = fatRemoveDir
 };
 /*----------------------------------------------------------------------------*/
+const struct FsHandleClass *FatFile = (void *)&fatFileTable;
+const struct FsHandleClass *FatDir = (void *)&fatDirTable;
 const struct FsHandleClass *FatHandle = (void *)&fatHandleTable;
 /*----------------------------------------------------------------------------*/
 /*------------------Inline functions------------------------------------------*/
@@ -633,8 +635,8 @@ static void fillDirEntry(struct DirEntryImage *ptr, struct FatObject *entry)
  */
 static bool fillShortName(char *shortName, const char *name)
 {
-  const uint8_t nameLength = sizeof(((struct DirEntryImage *)0)->name);
-  const uint8_t fullLength = sizeof(((struct DirEntryImage *)0)->filename);
+  const uint8_t nameLength = ARRAY_SIZE(DirEntryImage, name); //FIXME
+  const uint8_t fullLength = ARRAY_SIZE(DirEntryImage, filename);
   const char *dot;
   uint16_t length;
   uint8_t pos = 0;
@@ -875,9 +877,9 @@ static void fillLongName(struct DirEntryImage *entry, char16_t *str)
 #endif
 /*----------------------------------------------------------------------------*/
 /*------------------Implemented filesystem methods----------------------------*/
-static enum result fatInit(void *object, const void *cdata)
+static enum result fatInit(void *object, const void *configPtr)
 {
-  const struct Fat32Config *config = cdata;
+  const struct Fat32Config *config = configPtr;
   struct BootSectorImage *boot;
   struct FatHandle *handle = object;
 #ifdef FAT_WRITE
@@ -1019,21 +1021,17 @@ static enum result fatStat(void *object, struct FsStat *result,
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-static enum result fatOpen(void *handleObject, void *fileObject,
-    const char *path, enum fsMode mode)
+static void *fatOpen(void *object, const char *path, enum fsMode mode)
 {
-  struct FatFile *fileHandle = fileObject;
-  struct FatHandle *handle = handleObject;
+  struct FatFile *fileHandle;
   const char *followedPath;
   struct FatObject item;
-#ifdef FAT_WRITE
-  enum result res;
-#endif
 
-  fileHandle->parent.descriptor = 0;
-  fileHandle->mode = mode;
-  while (*path && (followedPath = followPath(handle, &item, path)))
+  while (*path && (followedPath = followPath((struct FatHandle *)object,
+      &item, path)))
+  {
     path = followedPath;
+  }
   /* Non-zero when entry not found */
   if (*path)
   {
@@ -1044,20 +1042,25 @@ static enum result fatOpen(void *handleObject, void *fileObject,
       item.cluster = 0;
       item.size = 0;
       //TODO Initialize parent and index
-      if ((res = createEntry(handle, &item, path)) != E_OK)
-        return res;
+      if (createEntry((struct FatHandle *)object, &item, path) != E_OK)
+        return 0;
     }
     else
-      return E_ENTRY;
+      return 0;
 #else
-    return E_ENTRY;
+    return 0;
 #endif
   }
   /* Not found if volume name, system or directory entry */
   if (item.attribute & (FLAG_VOLUME | FLAG_DIR))
-    return E_ENTRY;
-  fileHandle->parent.descriptor = handleObject;
+    return 0;
 
+  /* Allocate new directory object when pointer is zero */
+  if (!(fileHandle = init(FatFile, 0)))
+    return 0;
+
+  fileHandle->parent.descriptor = object;
+  fileHandle->mode = mode;
   fileHandle->position = 0;
   fileHandle->size = item.size;
   fileHandle->cluster = item.cluster;
@@ -1067,41 +1070,46 @@ static enum result fatOpen(void *handleObject, void *fileObject,
   fileHandle->parentCluster = item.parent;
   fileHandle->parentIndex = item.index;
 
-  if (mode == FS_WRITE && !*path && fileHandle->size
-      && (res = truncate(fileHandle)) != E_OK)
+  /* Truncate existing file when opened in write mode */
+  if (mode == FS_WRITE && !*path && truncate(fileHandle) != E_OK)
   {
-    return res;
+    deinit(fileHandle);
+    return 0;
   }
   /* In append mode file pointer moves to the end of file */
-  if (mode == FS_APPEND && (res = fsSeek(fileObject, 0, FS_SEEK_END)) != E_OK)
-    return res;
+  if (mode == FS_APPEND && fsSeek(fileHandle, 0, FS_SEEK_END) != E_OK)
+  {
+    deinit(fileHandle);
+    return 0;
+  }
 #endif
 
-  return E_OK;
+  return fileHandle;
 }
 /*----------------------------------------------------------------------------*/
-static enum result fatOpenDir(void *handleObject, void *dirObject,
-    const char *path)
+static void *fatOpenDir(void *object, const char *path)
 {
-  struct FatDir *dirHandle = dirObject;
-  struct FatHandle *handle = handleObject;
+  struct FatDir *dirHandle;
   struct FatObject item;
 
-  dirHandle->parent.descriptor = 0;
   while (path && *path)
-    path = followPath(handle, &item, path);
+    path = followPath((struct FatHandle *)object, &item, path);
   if (!path)
-    return E_ENTRY;
+    return 0;
   /* Not directory or volume name */
   if (!(item.attribute & FLAG_DIR) || item.attribute & FLAG_VOLUME)
-    return E_ENTRY;
+    return 0;
 
+  /* Allocate new directory object when pointer is zero */
+  if (!(dirHandle = init(FatDir, 0)))
+    return 0;
+
+  dirHandle->parent.descriptor = object;
   dirHandle->cluster = item.cluster;
   dirHandle->currentCluster = item.cluster;
   dirHandle->currentIndex = 0;
 
-  dirHandle->parent.descriptor = handleObject;
-  return E_OK;
+  return dirHandle;
 }
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
@@ -1182,12 +1190,13 @@ static enum result fatRemove(void *object __attribute__((unused)),
 /*------------------File functions--------------------------------------------*/
 static void fatClose(void *object)
 {
-  struct FatFile *fileHandle = object;
-
+#ifdef FAT_WRITE
   /* Write changes when file was opened for writing or updating */
-  if (fileHandle->mode != FS_READ)
+  if (((struct FatFile *)object)->mode != FS_READ)
     fatFlush(object);
-  fileHandle->parent.descriptor = 0;
+#endif
+
+  deinit(object);
 }
 /*----------------------------------------------------------------------------*/
 static bool fatEof(void *object)
@@ -1426,7 +1435,7 @@ static enum result fatSeek(void *object, asize_t offset,
   while (--clusterCount)
   {
     if ((res = getNextCluster(handle, &current)) != E_OK)
-      return E_INTERFACE;
+      return res;
   }
   fileHandle->position = offset;
   fileHandle->currentCluster = current;
@@ -1435,15 +1444,13 @@ static enum result fatSeek(void *object, asize_t offset,
 /*----------------------------------------------------------------------------*/
 static asize_t fatTell(void *object)
 {
-  struct FatFile *fileHandle = object;
-
-  return (asize_t)fileHandle->position;
+  return (asize_t)((struct FatFile *)object)->position;
 }
 /*----------------------------------------------------------------------------*/
 /*------------------Directory functions---------------------------------------*/
 static void fatCloseDir(void *object)
 {
-  ((struct FsDir *)object)->descriptor = 0;
+  deinit(object);
 }
 /*----------------------------------------------------------------------------*/
 static enum result fatReadDir(void *object, char *name)

@@ -76,17 +76,7 @@ enum result fsStat(void *handle, struct FsStat *result, const char *path)
  */
 void *fsOpen(void *handle, const char *path, enum fsMode mode)
 {
-  struct FsFile *file;
-
-  if (!(file = init(((struct FsHandleClass *)CLASS(handle))->File, 0)))
-    return 0;
-  if (((struct FsHandleClass *)CLASS(handle))->open(handle,
-      file, path, mode) != E_OK)
-  {
-    deinit(file);
-    return 0;
-  }
-  return file;
+  return ((struct FsHandleClass *)CLASS(handle))->open(handle, path, mode);
 }
 /*----------------------------------------------------------------------------*/
 /**
@@ -108,17 +98,7 @@ enum result fsRemove(void *handle, const char *path)
  */
 void *fsOpenDir(void *handle, const char *path)
 {
-  struct FsDir *dir;
-
-  if (!(dir = init(((struct FsHandleClass *)CLASS(handle))->Dir, 0)))
-    return 0;
-  if (((struct FsHandleClass *)CLASS(handle))->openDir(handle,
-      dir, path) != E_OK)
-  {
-    deinit(dir);
-    return 0;
-  }
-  return dir;
+  return ((struct FsHandleClass *)CLASS(handle))->openDir(handle, path);
 }
 /*----------------------------------------------------------------------------*/
 /**
@@ -151,7 +131,6 @@ enum result fsRemoveDir(void *handle, const char *path)
 void fsClose(void *file)
 {
   ((struct FsFileClass *)CLASS(file))->close(file);
-  deinit(file);
 }
 /*----------------------------------------------------------------------------*/
 /**
@@ -232,7 +211,6 @@ uint32_t fsWrite(void *file, const uint8_t *buffer, uint32_t length)
 void fsCloseDir(void *dir)
 {
   ((struct FsDirClass *)CLASS(dir))->close(dir);
-  deinit(dir);
 }
 /*----------------------------------------------------------------------------*/
 /**

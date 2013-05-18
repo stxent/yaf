@@ -235,8 +235,7 @@ static enum result getNextCluster(struct FatHandle *, uint32_t *);
 static enum result fetchEntry(struct FatHandle *, struct FatObject *, char *);
 static const char *followPath(struct FatHandle *, struct FatObject *,
     const char *);
-static enum result readSector(struct FatHandle *, uint32_t, uint8_t *,
-    uint8_t);
+static enum result readSector(struct FatHandle *, uint32_t, uint8_t *, uint8_t);
 #ifdef FAT_LFN
 /* Function for long file name support */
 static void extractLongName(const struct DirEntryImage *, char16_t *);
@@ -270,11 +269,13 @@ static enum result fatInit(void *, const void *);
 static void fatDeinit(void *);
 /*------------------Implemented filesystem methods----------------------------*/
 /* Common functions */
-static enum result fatOpen(void *, void *, const char *, enum fsMode);
-static enum result fatOpenDir(void *, void *, const char *);
+static void *fatOpen(void *, const char *, enum fsMode);
+static void *fatOpenDir(void *, const char *);
 static enum result fatStat(void *, struct FsStat *, const char *);
+#ifdef FAT_WRITE
 static enum result fatMove(void *, const char *, const char *);
 static enum result fatRemove(void *, const char *);
+#endif
 /*----------------------------------------------------------------------------*/
 /* File functions */
 static void fatClose(void *);
@@ -282,9 +283,10 @@ static bool fatEof(void *);
 static uint32_t fatRead(void *, uint8_t *, uint32_t);
 static enum result fatSeek(void *, asize_t, enum fsSeekOrigin);
 static asize_t fatTell(void *);
-/* Functions with write access */
+#ifdef FAT_WRITE
 static enum result fatFlush(void *);
 static uint32_t fatWrite(void *, const uint8_t *, uint32_t);
+#endif
 /*----------------------------------------------------------------------------*/
 /* Directory functions */
 static void fatCloseDir(void *);

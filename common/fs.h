@@ -118,16 +118,12 @@ struct FsHandleClass
 {
   CLASS_GENERATOR
 
-  /* Pointers to subclasses */
-  const void *File;
-  const void *Dir;
-
   /* Virtual functions */
   enum result (*move)(void *, const char *, const char *);
   enum result (*stat)(void *, struct FsStat *, const char *);
-  enum result (*open)(void *, void *, const char *, enum fsMode);
+  void *(*open)(void *, const char *, enum fsMode);
   enum result (*remove)(void *, const char *);
-  enum result (*openDir)(void *, void *, const char *);
+  void *(*openDir)(void *, const char *);
   enum result (*makeDir)(void *, const char *);
   enum result (*removeDir)(void *, const char *);
 };
