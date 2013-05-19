@@ -79,7 +79,7 @@ struct FsStat
 /*----------------------------------------------------------------------------*/
 struct FsFileClass
 {
-  CLASS_GENERATOR
+  CLASS_HEADER
 
   /* Virtual functions */
   void (*close)(void *);
@@ -100,7 +100,7 @@ struct FsFile
 /*----------------------------------------------------------------------------*/
 struct FsDirClass
 {
-  CLASS_GENERATOR
+  CLASS_HEADER
 
   /* Virtual functions */
   void (*close)(void *);
@@ -116,7 +116,7 @@ struct FsDir
 /*----------------------------------------------------------------------------*/
 struct FsHandleClass
 {
-  CLASS_GENERATOR
+  CLASS_HEADER
 
   /* Virtual functions */
   enum result (*move)(void *, const char *, const char *);
