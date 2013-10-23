@@ -15,22 +15,24 @@
 enum result
 {
   E_OK = 0,
-  /** Generic error */
+  /** Generic error. */
   E_ERROR,
-  /** Out of memory */
+  /** Out of memory. */
   E_MEMORY,
-  /** No such file or directory */
+  /** No such file or directory. */
   E_ENTRY,
-  /** Permission denied */
+  /** Permission denied. */
   E_ACCESS,
-  /** Bad address */
+  /** Bad address. */
   E_FAULT,
-  /** Device or resource busy */
+  /** Device or resource busy. */
   E_BUSY,
-  /** Hardware device error */
+  /** Hardware device error. */
   E_DEVICE,
-  /** Interface error */
-  E_INTERFACE,
+  /** Invalid argument. */
+  E_VALUE,
+  /** Interface error. */
+  E_INTERFACE
 };
 /*----------------------------------------------------------------------------*/
 #endif /* ERROR_H_ */
