@@ -5,8 +5,6 @@
  */
 
 #include <fcntl.h>
-#include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -23,10 +21,11 @@
 /*----------------------------------------------------------------------------*/
 static enum result mmiInit(void *, const void *);
 static void mmiDeinit(void *);
-static uint32_t mmiRead(void *, uint8_t *, uint32_t);
-static uint32_t mmiWrite(void *, const uint8_t *, uint32_t);
+static enum result mmiCallback(void *, void (*)(void *), void *);
 static enum result mmiGet(void *, enum ifOption, void *);
 static enum result mmiSet(void *, enum ifOption, const void *);
+static uint32_t mmiRead(void *, uint8_t *, uint32_t);
+static uint32_t mmiWrite(void *, const uint8_t *, uint32_t);
 /*----------------------------------------------------------------------------*/
 struct Mmi
 {
@@ -49,10 +48,11 @@ static const struct InterfaceClass mmiTable = {
     .init = mmiInit,
     .deinit = mmiDeinit,
 
-    .read = mmiRead,
-    .write = mmiWrite,
+    .callback = mmiCallback,
     .get = mmiGet,
-    .set = mmiSet
+    .set = mmiSet,
+    .read = mmiRead,
+    .write = mmiWrite
 };
 /*----------------------------------------------------------------------------*/
 const struct InterfaceClass *Mmi = &mmiTable;
@@ -122,46 +122,20 @@ static enum result mmiInit(void *object, const void *configPtr)
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-static uint32_t mmiRead(void *object, uint8_t *buffer, uint32_t length)
+static void mmiDeinit(void *object)
 {
   struct Mmi *dev = object;
 
-  mutexLock(&dev->lock);
-  memcpy(buffer, dev->data + dev->position + dev->offset, length);
-  dev->position += length;
-  mutexUnlock(&dev->lock);
-
-#ifdef DEBUG
-  dev->readCount++;
-  dev->readSize += length;
-#endif
-#ifdef DEBUG_RW
-  printf("mmaped_io: read data at 0x%012lX, length %u\n",
-      (unsigned long)dev->position, length);
-#endif
-
-  return length;
+  munmap(dev->data, dev->info.st_size);
+  close(dev->file);
 }
 /*----------------------------------------------------------------------------*/
-static uint32_t mmiWrite(void *object, const uint8_t *buffer, uint32_t length)
+static enum result mmiCallback(void *object __attribute__((unused)),
+    void (*callback)(void *) __attribute__((unused)),
+    void *argument __attribute__((unused)))
 {
-  struct Mmi *dev = object;
-
-  mutexLock(&dev->lock);
-  memcpy(dev->data + dev->position + dev->offset, buffer, length);
-  dev->position += length;
-  mutexUnlock(&dev->lock);
-
-#ifdef DEBUG
-  ++dev->writeCount;
-  dev->writeSize += length;
-#endif
-#ifdef DEBUG_RW
-  printf("mmaped_io: write data at 0x%012lX, length %u\n",
-      (unsigned long)dev->position, length);
-#endif
-
-  return length;
+  /* Not implemented */
+  return E_ERROR;
 }
 /*----------------------------------------------------------------------------*/
 static enum result mmiGet(void *object, enum ifOption option, void *data)
@@ -203,12 +177,46 @@ static enum result mmiSet(void *object, enum ifOption option,
   }
 }
 /*----------------------------------------------------------------------------*/
-static void mmiDeinit(void *object)
+static uint32_t mmiRead(void *object, uint8_t *buffer, uint32_t length)
 {
   struct Mmi *dev = object;
 
-  munmap(dev->data, dev->info.st_size);
-  close(dev->file);
+  mutexLock(&dev->lock);
+  memcpy(buffer, dev->data + dev->position + dev->offset, length);
+  dev->position += length;
+  mutexUnlock(&dev->lock);
+
+#ifdef DEBUG
+  dev->readCount++;
+  dev->readSize += length;
+#endif
+#ifdef DEBUG_RW
+  printf("mmaped_io: read data at 0x%012lX, length %u\n",
+      (unsigned long)dev->position, length);
+#endif
+
+  return length;
+}
+/*----------------------------------------------------------------------------*/
+static uint32_t mmiWrite(void *object, const uint8_t *buffer, uint32_t length)
+{
+  struct Mmi *dev = object;
+
+  mutexLock(&dev->lock);
+  memcpy(dev->data + dev->position + dev->offset, buffer, length);
+  dev->position += length;
+  mutexUnlock(&dev->lock);
+
+#ifdef DEBUG
+  ++dev->writeCount;
+  dev->writeSize += length;
+#endif
+#ifdef DEBUG_RW
+  printf("mmaped_io: write data at 0x%012lX, length %u\n",
+      (unsigned long)dev->position, length);
+#endif
+
+  return length;
 }
 /*----------------------------------------------------------------------------*/
 enum result mmiSetPartition(void *object, struct MbrDescriptor *desc)

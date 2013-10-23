@@ -55,8 +55,8 @@ static const struct FsHandleClass fatHandleTable = {
     .removeDir = fatRemoveDir
 };
 /*----------------------------------------------------------------------------*/
-const struct FsHandleClass *FatFile = (void *)&fatFileTable;
-const struct FsHandleClass *FatDir = (void *)&fatDirTable;
+const struct FsFileClass *FatFile = (void *)&fatFileTable;
+const struct FsDirClass *FatDir = (void *)&fatDirTable;
 const struct FsHandleClass *FatHandle = (void *)&fatHandleTable;
 /*----------------------------------------------------------------------------*/
 /*------------------Inline functions------------------------------------------*/

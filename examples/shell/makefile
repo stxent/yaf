@@ -4,7 +4,8 @@ FATCONFIG+=-DFAT_LFN
 
 PROJECT=fatshell
 PATH_COMMON=../../common/
-CFLAGS=-c -Os -I$(PATH_COMMON) -Wall -Wextra -Winline $(FATCONFIG)
+PATH_SOURCES=../../sources/
+CFLAGS=-c -Os -I$(PATH_COMMON) -I$(PATH_SOURCES) -Wall -Wextra -Winline $(FATCONFIG)
 CC=gcc
 CXX=g++
 
@@ -14,23 +15,20 @@ endif
 
 all: project
 
-project: main.o entity.o fs.o fat32.o unicode.o rtc.o mutex.o interface.o mmi.o
-	$(CXX) main.o entity.o interface.o fs.o fat32.o unicode.o rtc.o mutex.o mmi.o -lrt -lpthread -lcrypto -lboost_regex -o $(PROJECT)
+project: main.o entity.o fs.o fat32.o unicode.o rtc.o mutex.o mmi.o
+	$(CXX) main.o entity.o fs.o fat32.o unicode.o rtc.o mutex.o mmi.o -lrt -lpthread -lcrypto -lboost_regex -o $(PROJECT)
 
 entity.o: $(PATH_COMMON)entity.c $(PATH_COMMON)entity.h
 	$(CC) $(CFLAGS) $(PATH_COMMON)entity.c
 
-interface.o: $(PATH_COMMON)interface.c $(PATH_COMMON)interface.h
-	$(CC) $(CFLAGS) $(PATH_COMMON)interface.c
+fs.o: $(PATH_SOURCES)fs.c $(PATH_SOURCES)fs.h
+	$(CC) $(CFLAGS) $(PATH_SOURCES)fs.c
 
-fs.o: $(PATH_COMMON)fs.c $(PATH_COMMON)fs.h
-	$(CC) $(CFLAGS) $(PATH_COMMON)fs.c
+fat32.o: $(PATH_SOURCES)fat32.c $(PATH_SOURCES)fat32.h $(PATH_SOURCES)fat32_defs.h
+	$(CC) $(CFLAGS) $(PATH_SOURCES)fat32.c
 
-fat32.o: $(PATH_COMMON)fat32.c $(PATH_COMMON)fat32.h $(PATH_COMMON)fat32_defs.h
-	$(CC) $(CFLAGS) $(PATH_COMMON)fat32.c
-
-unicode.o: $(PATH_COMMON)unicode.c $(PATH_COMMON)unicode.h
-	$(CC) $(CFLAGS) $(PATH_COMMON)unicode.c
+unicode.o: $(PATH_SOURCES)unicode.c $(PATH_SOURCES)unicode.h
+	$(CC) $(CFLAGS) $(PATH_SOURCES)unicode.c
 
 mutex.o: mutex.c mutex.h
 	$(CC) $(CFLAGS) mutex.c
