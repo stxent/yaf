@@ -5,9 +5,13 @@ FATCONFIG+=-DFAT_LFN
 PROJECT=fatshell
 PATH_COMMON=../../common/
 PATH_SOURCES=../../sources/
-CFLAGS=-c -O3 -I$(PATH_COMMON) -I$(PATH_SOURCES) -Wall -Wextra -Winline $(FATCONFIG)
+CFLAGS=-c -std=c99 -O0 -Wall -Wextra -Winline $(FATCONFIG)
+CXXFLAGS=-c -std=c++11 -O0 -Wall -Wextra -Winline $(FATCONFIG)
 CC=gcc
 CXX=g++
+
+CFLAGS+=-I$(PATH_COMMON) -I$(PATH_SOURCES)
+CXXFLAGS+=-I$(PATH_COMMON) -I$(PATH_SOURCES)
 
 ifneq ($(DEBUG), 0)
 	CFLAGS+=-DDEBUG
@@ -37,7 +41,7 @@ mmi.o: mmi.c mmi.h
 	$(CC) $(CFLAGS) mmi.c
 
 main.o: main.cpp
-	$(CXX) $(CFLAGS) main.cpp
+	$(CXX) $(CXXFLAGS) main.cpp
 
 clean:
 	rm -rf *.o *.lst $(PROJECT)
