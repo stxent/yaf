@@ -777,8 +777,8 @@ int util_info(struct FsHandle *handle)
 {
 //  struct FatHandle *handle = (struct FatHandle *)object;
 #if defined (FAT_WRITE) && defined (DEBUG)
-//  uint32_t sz;
-//  sz = countFree(handle);
+  uint32_t sz;
+  sz = countFree(handle);
 #endif
 //  cout << "Sectors in cluster: " << (int)(1 << handle->clusterSize) << endl;
 //  cout << "FAT sector:         " << handle->tableSector << endl;
@@ -790,9 +790,9 @@ int util_info(struct FsHandle *handle)
 //  cout << "Info sector:        " << handle->infoSector << endl;
 //  cout << "Data clusters:      " << handle->clusterCount << endl;
 //  cout << "Last allocated:     " << handle->lastAllocated << endl;
-//#if defined (FAT_WRITE) && defined (DEBUG)
-//  cout << "Free clusters:      " << sz << endl;
-//#endif
+#if defined (FAT_WRITE) && defined (DEBUG)
+  cout << "Free clusters:      " << sz << endl;
+#endif
 #endif
   return E_OK;
 }

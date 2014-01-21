@@ -15,37 +15,19 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <entity.h>
-#include <error.h>
 /*----------------------------------------------------------------------------*/
 #define FS_NAME_LENGTH 128
 /*----------------------------------------------------------------------------*/
-/* Type which represents address space size */
-// typedef int64_t address_t; //FIXME
-typedef int64_t time_t; //FIXME
-/*----------------------------------------------------------------------------*/
 typedef uint8_t access_t;
+typedef int64_t time_t; //TODO Move to other file
 /*----------------------------------------------------------------------------*/
 enum
 {
+  /** Read access to a node. */
   FS_ACCESS_READ = 0x01,
+  /** Write access allows to modify and delete nodes. */
   FS_ACCESS_WRITE = 0x02
 };
-/*----------------------------------------------------------------------------*/
-// enum fsNodeOption //FIXME
-// {
-//   /** Type of the node. */
-//   FS_NODE_TYPE = 0,
-//   /** Symbolic name of the node. */
-//   FS_NODE_NAME,
-//   /** Node size in bytes or elements. */
-//   FS_NODE_SIZE,
-//   /** Access rights to the node available for user. */
-//   FS_NODE_ACCESS,
-//   /** Owner of the node. */
-//   FS_NODE_OWNER,
-//   /** Node change time. */
-//   FS_NODE_TIME
-// };
 /*----------------------------------------------------------------------------*/
 enum fsNodeType
 {

@@ -9,6 +9,7 @@
 /*----------------------------------------------------------------------------*/
 #include <stdbool.h>
 #include <stdint.h>
+#include <macro.h>
 #include "fs.h"
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_TIME
@@ -18,37 +19,31 @@
 #include "unicode.h"
 #endif
 /*----------------------------------------------------------------------------*/
-#define SECTOR_SIZE             (1 << SECTOR_POW) /* Sector size in bytes */
 /* Sector size may be 512, 1024, 2048, 4096 bytes, default is 512 */
 #define SECTOR_POW              9 /* Sector size in power of 2 */
+#define SECTOR_SIZE             (1 << SECTOR_POW) /* Sector size in bytes */
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_LFN
 /* Buffer size in code points for internal long file name processing */
-#define FILE_NAME_BUFFER        128
-/* Length in bytes for short names and UTF-8 long file names */
-#define FILE_NAME_MAX           256
+#define FILE_NAME_BUFFER        FS_NAME_LENGTH
 /* Long file name entry length: 13 UTF-16LE characters */
 #define LFN_ENTRY_LENGTH        13
-#else
-/* Length in bytes for short names */
-#define FILE_NAME_MAX           13
 #endif
 /*----------------------------------------------------------------------------*/
-#define FLAG_RO                 (uint8_t)0x01 /* Read only */
-#define FLAG_HIDDEN             (uint8_t)0x02
-#define FLAG_SYSTEM             (uint8_t)0x04 /* System entry */
-#define FLAG_VOLUME             (uint8_t)0x08 /* Volume name */
-#define FLAG_DIR                (uint8_t)0x10 /* Subdirectory */
-#define FLAG_ARCHIVE            (uint8_t)0x20
-#define MASK_LFN                (uint8_t)0x0F /* Long file name chunk */
-/*----------------------------------------------------------------------------*/
-#define LFN_DELETED             (uint8_t)0x80 /* Deleted LFN entry */
-#define LFN_LAST                (uint8_t)0x40 /* Last LFN entry */
+#define FLAG_RO                 BIT(0) /* Read only */
+#define FLAG_HIDDEN             BIT(1)
+#define FLAG_SYSTEM             BIT(2) /* System entry */
+#define FLAG_VOLUME             BIT(3) /* Volume name */
+#define FLAG_DIR                BIT(4) /* Subdirectory */
+#define FLAG_ARCHIVED           BIT(5)
+#define LFN_LAST                BIT(6) /* Last LFN entry */
+#define LFN_DELETED             BIT(7) /* Deleted LFN entry */
+#define MASK_LFN                BIT_FIELD(0x0F, 0) /* Long file name chunk */
 /*----------------------------------------------------------------------------*/
 #define E_FLAG_EMPTY            (char)0xE5 /* Directory entry is free */
 /*----------------------------------------------------------------------------*/
-#define CLUSTER_EOC_VAL         (uint32_t)0x0FFFFFF8
-#define FILE_SIZE_MAX           (uint32_t)0xFFFFFFFF
+#define CLUSTER_EOC_VAL         0x0FFFFFF8UL
+#define FILE_SIZE_MAX           0xFFFFFFFFUL
 /*----------------------------------------------------------------------------*/
 /* File or directory entry size power */
 #define E_POW                   (SECTOR_POW - 5)
@@ -235,9 +230,6 @@ struct InfoSectorImage
   uint16_t bootSignature;
 } __attribute__((packed));
 /*----------------------------------------------------------------------------*/
-enum result blockRead(void *, uint64_t, uint8_t *, uint32_t);
-enum result blockWrite(void *, uint64_t, const uint8_t *, uint32_t);
-/*----------------------------------------------------------------------------*/
 static void extractShortName(const struct DirEntryImage *, char *);
 static const char *getChunk(const char *, char *);
 static enum result getNextCluster(struct FatHandle *, uint32_t *);
@@ -245,7 +237,8 @@ static enum result fetchEntry(struct FatNode *);
 static enum result fetchNode(struct FatNode *, char *);
 static const char *followPath(struct FatNode *, const char *,
     const struct FatNode *);
-static enum result readSector(struct FatHandle *, uint32_t, uint8_t *, uint8_t);
+static enum result readSector(struct FatHandle *, uint32_t, uint8_t *,
+    uint32_t);
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_LFN
 static void extractLongName(const struct DirEntryImage *, char16_t *);
@@ -268,7 +261,7 @@ static char processCharacter(char);
 static enum result setupDirCluster(const struct FatNode *);
 static enum result updateTable(struct FatHandle *, uint32_t);
 static enum result writeSector(struct FatHandle *, uint32_t, const uint8_t *,
-    uint8_t);
+    uint32_t);
 #endif
 /*----------------------------------------------------------------------------*/
 #if defined(FAT_WRITE) && defined(FAT_LFN)
@@ -312,18 +305,23 @@ static uint32_t fatFileWrite(void *, const uint8_t *, uint32_t);
 /*----------------------------------------------------------------------------*/
 static inline bool clusterFree(uint32_t cluster)
 {
-  return !(cluster & (uint32_t)0x0FFFFFFF);
+  return !(cluster & 0x0FFFFFFFUL);
 }
 /*----------------------------------------------------------------------------*/
 static inline bool clusterEoc(uint32_t cluster)
 {
-  return (cluster & (uint32_t)0x0FFFFFF8) == (uint32_t)0x0FFFFFF8;
+  return (cluster & 0x0FFFFFF8UL) == 0x0FFFFFF8UL;
 }
 /*----------------------------------------------------------------------------*/
 static inline bool clusterUsed(uint32_t cluster)
 {
-  return (cluster & (uint32_t)0x0FFFFFFF) >= (uint32_t)0x00000002 &&
-      (cluster & (uint32_t)0x0FFFFFFF) <= (uint32_t)0x0FFFFFEF;
+  return (cluster & 0x0FFFFFFFUL) >= 0x00000002UL
+      && (cluster & 0x0FFFFFFFUL) <= 0x0FFFFFEFUL;
+}
+/*----------------------------------------------------------------------------*/
+static inline bool hasLongName(struct FatNode *node)
+{
+  return node->cluster != node->nameCluster || node->index != node->nameIndex;
 }
 /*----------------------------------------------------------------------------*/
 /* Calculate first sector number of the cluster */
