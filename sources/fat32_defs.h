@@ -11,12 +11,10 @@
 #include <stdint.h>
 #include <macro.h>
 #include "fs.h"
+#include "unicode.h"
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_TIME
 #include "rtc.h"
-#endif
-#ifdef FAT_LFN
-#include "unicode.h"
 #endif
 /*----------------------------------------------------------------------------*/
 /* Sector size may be 512, 1024, 2048, 4096 bytes, default is 512 */
@@ -138,65 +136,57 @@ struct FatFile
   access_t access; /* Access rights to the file */
 };
 /*----------------------------------------------------------------------------*/
-#ifdef FAT_LFN
-/* Long file name entry descriptor */
-struct LfnObject
-{
-  uint32_t parent; /* Directory cluster where entry located */
-  uint16_t index; /* Entry position in parent cluster */
-  uint8_t checksum, length;
-};
-#endif
-/*------------------FAT32 memory structures-----------------------------------*/
 /* Directory entry or long file name entry*/
-struct DirEntryImage /* TODO Rename some fields */
+struct DirEntryImage
 {
   union
   {
     char filename[11];
+
     struct
     {
       char name[8];
       char extension[3];
     } __attribute__((packed));
+
+    /* LFN entry fields */
     struct
     {
-      uint8_t ordinal; /* LFN entry ordinal */
-#ifdef FAT_LFN
-      char16_t longName0[5]; /* First part of unicode name */
-#else
-      char unused2[10];
-#endif
+      uint8_t ordinal;
+      char16_t longName0[5];
     } __attribute__((packed));
   };
+
   uint8_t flags;
-  char unused0;
-#ifdef FAT_LFN
-  uint8_t checksum; /* LFN entry checksum, not used in directory entries */
-#else
-  char unused3;
-#endif
+  uint8_t unused0;
+  union
+  {
+    /* Directory entry field */
+    uint8_t unused1;
+    /* LFN entry field */
+    uint8_t checksum;
+  };
+
   union
   {
     /* Directory entry fields */
     struct
     {
-      char unused1[6];
+      uint16_t unused2[3];
       uint16_t clusterHigh; /* Starting cluster high word */
       uint16_t time;
       uint16_t date;
       uint16_t clusterLow; /* Starting cluster low word */
       uint32_t size;
     } __attribute__((packed));
-#ifdef FAT_LFN
+
     /* Long file name entry fields */
     struct
     {
       char16_t longName1[6];
-      char unused2[2];
+      char16_t unused3;
       char16_t longName2[2];
     } __attribute__((packed));
-#endif
   };
 } __attribute__((packed));
 /*----------------------------------------------------------------------------*/
@@ -253,8 +243,10 @@ static enum result allocateNode(struct FatNode *, const struct FatNode *,
 static enum result clearCluster(struct FatHandle *, uint32_t);
 static enum result createNode(struct FatNode *, const struct FatNode *,
     const struct FsMetadata *);
-static inline void fillDirEntry(struct DirEntryImage *, const struct FatNode *);
-static bool fillShortName(char *, const char *);
+static void fillDirEntry(struct DirEntryImage *, const struct FatNode *);
+static void fillLongNameEntry(struct DirEntryImage *, uint8_t, uint8_t,
+    uint8_t);
+static enum result fillShortName(char *, const char *);
 static enum result freeChain(struct FatHandle *, uint32_t);
 static enum result markFree(struct FatNode *);
 static char processCharacter(char);
