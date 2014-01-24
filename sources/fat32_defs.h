@@ -244,8 +244,6 @@ static enum result clearCluster(struct FatHandle *, uint32_t);
 static enum result createNode(struct FatNode *, const struct FatNode *,
     const struct FsMetadata *);
 static void fillDirEntry(struct DirEntryImage *, const struct FatNode *);
-static void fillLongNameEntry(struct DirEntryImage *, uint8_t, uint8_t,
-    uint8_t);
 static enum result fillShortName(char *, const char *);
 static enum result freeChain(struct FatHandle *, uint32_t);
 static enum result markFree(struct FatNode *);
@@ -258,6 +256,8 @@ static enum result writeSector(struct FatHandle *, uint32_t, const uint8_t *,
 /*----------------------------------------------------------------------------*/
 #if defined(FAT_WRITE) && defined(FAT_LFN)
 static void fillLongName(struct DirEntryImage *, char16_t *);
+static void fillLongNameEntry(struct DirEntryImage *, uint8_t, uint8_t,
+    uint8_t);
 #endif
 /*----------------------------------------------------------------------------*/
 /* Filesystem handle functions */
@@ -311,11 +311,6 @@ static inline bool clusterUsed(uint32_t cluster)
       && (cluster & 0x0FFFFFFFUL) <= 0x0FFFFFEFUL;
 }
 /*----------------------------------------------------------------------------*/
-static inline bool hasLongName(struct FatNode *node)
-{
-  return node->cluster != node->nameCluster || node->index != node->nameIndex;
-}
-/*----------------------------------------------------------------------------*/
 /* Calculate first sector number of the cluster */
 static inline uint32_t getSector(struct FatHandle *handle, uint32_t cluster)
 {
@@ -333,5 +328,12 @@ static inline uint8_t sectorInCluster(struct FatHandle *handle, uint32_t offset)
 {
   return (offset >> SECTOR_POW) & ((1 << handle->clusterSize) - 1);
 }
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_LFN
+static inline bool hasLongName(struct FatNode *node)
+{
+  return node->cluster != node->nameCluster || node->index != node->nameIndex;
+}
+#endif
 /*----------------------------------------------------------------------------*/
 #endif /* FAT32_DEFS_H_ */

@@ -947,7 +947,7 @@ enum cResult commandParser(FsHandle *handle, string &loc, const string &str,
         cout << "ls: completed successfully" << endl;
     }
   }
-// #ifdef FAT_WRITE
+#ifdef FAT_WRITE
   if (args[0] == "mkdir")
   {
     enum cResult retval;
@@ -1018,7 +1018,7 @@ enum cResult commandParser(FsHandle *handle, string &loc, const string &str,
 //       return C_ERROR;
 //     }
 //   }
-// #endif
+#endif
   if (args[0] == "md5sum")
   {
     vector< map<string, string> > result;

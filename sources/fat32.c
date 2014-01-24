@@ -699,22 +699,6 @@ static void fillDirEntry(struct DirEntryImage *ptr, const struct FatNode *node)
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
-static void fillLongNameEntry(struct DirEntryImage *ptr, uint8_t current,
-    uint8_t total, uint8_t checksum)
-{
-  /* Clear unused fields */
-  ptr->unused0 = 0;
-  ptr->unused3 = 0; /* Zero value required */
-
-  ptr->flags = MASK_LFN;
-  ptr->checksum = checksum;
-  ptr->ordinal = current;
-  if (current == total)
-    ptr->ordinal |= LFN_LAST;
-}
-#endif
-/*----------------------------------------------------------------------------*/
-#ifdef FAT_WRITE
 /* Returns success when node is a valid short name */
 static enum result fillShortName(char *shortName, const char *name)
 {
@@ -991,6 +975,22 @@ static void fillLongName(struct DirEntryImage *entry, char16_t *str)
   memcpy(entry->longName2, str, sizeof(entry->longName2));
 }
 #endif
+/*----------------------------------------------------------------------------*/
+#if defined(FAT_WRITE) && defined(FAT_LFN)
+static void fillLongNameEntry(struct DirEntryImage *ptr, uint8_t current,
+    uint8_t total, uint8_t checksum)
+{
+  /* Clear unused fields */
+  ptr->unused0 = 0;
+  ptr->unused3 = 0; /* Zero value required */
+
+  ptr->flags = MASK_LFN;
+  ptr->checksum = checksum;
+  ptr->ordinal = current;
+  if (current == total)
+    ptr->ordinal |= LFN_LAST;
+}
+#endif
 /*------------------Filesystem handle functions-------------------------------*/
 static enum result fatHandleInit(void *object, const void *configPtr)
 {
@@ -1179,6 +1179,7 @@ static enum result fatGet(void *object, struct FsMetadata *metadata)
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
+#ifdef FAT_WRITE
 static enum result fatMake(void *object, const struct FsMetadata *metadata,
     void *target)
 {
@@ -1222,6 +1223,14 @@ allocate_error:
   fatFree(allocatedNode);
   return res;
 }
+#else
+static enum result fatMake(void *object __attribute__((unused)),
+    const struct FsMetadata *metadata __attribute__((unused)),
+    void *target __attribute__((unused)))
+{
+  return E_ERROR;
+}
+#endif
 /*----------------------------------------------------------------------------*/
 static void *fatOpen(void *object, access_t access)
 {
@@ -1303,7 +1312,7 @@ static enum result fatRemove(void *object)
 #else
 static enum result fatRemove(void *object __attribute__((unused)))
 {
-
+  return E_ERROR;
 }
 #endif
 /*----------------------------------------------------------------------------*/
