@@ -1,4 +1,5 @@
 FATCONFIG+=-DFAT_LFN
+FATCONFIG+=-DFAT_POOLS
 # FATCONFIG+=-DFAT_TIME
 FATCONFIG+=-DFAT_WRITE
 
@@ -19,11 +20,14 @@ endif
 
 all: project
 
-project: main.o entity.o fat32.o unicode.o rtc.o mutex.o mmi.o
-	$(CXX) main.o entity.o fat32.o unicode.o rtc.o mutex.o mmi.o -lrt -lpthread -lcrypto -lboost_regex -o $(PROJECT)
+project: main.o entity.o fat32.o unicode.o rtc.o mutex.o mmi.o queue.o
+	$(CXX) main.o entity.o fat32.o unicode.o rtc.o mutex.o mmi.o queue.o -lrt -lpthread -lcrypto -lboost_regex -o $(PROJECT)
 
 entity.o: $(PATH_COMMON)entity.c $(PATH_COMMON)entity.h
 	$(CC) $(CFLAGS) $(PATH_COMMON)entity.c
+
+queue.o: $(PATH_COMMON)queue.c $(PATH_COMMON)queue.h
+	$(CC) $(CFLAGS) $(PATH_COMMON)queue.c
 
 fat32.o: $(PATH_SOURCES)fat32.c $(PATH_SOURCES)fat32.h $(PATH_SOURCES)fat32_defs.h
 	$(CC) $(CFLAGS) $(PATH_SOURCES)fat32.c

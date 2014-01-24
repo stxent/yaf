@@ -1095,6 +1095,10 @@ int main(int argc, char *argv[])
 
   struct Fat32Config fsConf;
   fsConf.interface = mmaped;
+#ifdef FAT_POOLS
+  fsConf.nodes = fsConf.directories = fsConf.files = 0;
+#endif
+
   handle = (struct FsHandle *)init(FatHandle, &fsConf);
   if (!handle)
   {

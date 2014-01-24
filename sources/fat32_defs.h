@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <fs.h>
 #include <macro.h>
+#include <queue.h>
 #include "unicode.h"
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_TIME
@@ -26,6 +27,15 @@
 #define FILE_NAME_BUFFER        FS_NAME_LENGTH
 /* Long file name entry length: 13 UTF-16LE characters */
 #define LFN_ENTRY_LENGTH        13
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_POOLS
+/* Default pools size of node pool */
+#define NODE_POOL_SIZE          4
+/* Default pools size of directory entry pool */
+#define DIR_POOL_SIZE           2
+/* Default pools size of file entry pool */
+#define FILE_POOL_SIZE          2
 #endif
 /*----------------------------------------------------------------------------*/
 #define FLAG_RO                 BIT(0) /* Read only */
@@ -60,6 +70,13 @@ struct FatHandle
 
   struct FsHandle *head;
   struct Interface *interface;
+
+#ifdef FAT_POOLS
+  struct FatNode *nodeData;
+  struct FatDir *dirData;
+  struct FatFile *fileData;
+  struct Queue nodePool, dirPool, filePool;
+#endif
 
   uint8_t *buffer;
 #ifdef FAT_LFN
@@ -220,7 +237,23 @@ struct InfoSectorImage
   uint16_t bootSignature;
 } __attribute__((packed));
 /*----------------------------------------------------------------------------*/
+enum cleanup
+{
+  FREE_ALL = 0,
+  FREE_FILE_POOL,
+  FREE_FILE_DATA,
+  FREE_DIR_POOL,
+  FREE_DIR_DATA,
+  FREE_NODE_POOL,
+  FREE_NODE_DATA,
+  FREE_LFN, //FIXME Metadata pool
+  FREE_BUFFER
+};
+/*----------------------------------------------------------------------------*/
+static enum result allocateBuffers(struct FatHandle *,
+    const struct Fat32Config * const);
 static void extractShortName(const struct DirEntryImage *, char *);
+static void freeBuffers(struct FatHandle *, enum cleanup);
 static const char *getChunk(const char *, char *);
 static enum result getNextCluster(struct FatHandle *, uint32_t *);
 static enum result fetchEntry(struct FatNode *);

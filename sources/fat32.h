@@ -16,7 +16,16 @@ extern const struct FsHandleClass *FatHandle;
 /*----------------------------------------------------------------------------*/
 struct Fat32Config
 {
+  /** Pointer to previously opened interface. */
   struct Interface *interface;
+#ifdef FAT_POOLS
+  /** Number of node descriptors in node pool. */
+  uint16_t nodes;
+  /** Number of directory descriptors in directory entry pool. */
+  uint16_t directories;
+  /** Number of file descriptors in file entry pool. */
+  uint16_t files;
+#endif
 };
 /*----------------------------------------------------------------------------*/
 #ifdef DEBUG

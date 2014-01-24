@@ -86,6 +86,89 @@ const struct FsNodeClass *FatNode = (void *)&fatNodeTable;
 const struct FsEntryClass *FatDir = (void *)&fatDirTable;
 const struct FsEntryClass *FatFile = (void *)&fatFileTable;
 /*----------------------------------------------------------------------------*/
+static enum result allocateBuffers(struct FatHandle *handle,
+    const struct Fat32Config * const config)
+{
+  handle->buffer = malloc(SECTOR_SIZE);
+  if (!handle->buffer)
+  {
+    freeBuffers(handle, FREE_BUFFER);
+    return E_MEMORY;
+  }
+
+#ifdef FAT_LFN
+  handle->nameBuffer = malloc(FILE_NAME_BUFFER * sizeof(char16_t));
+  if (!handle->nameBuffer)
+  {
+    freeBuffers(handle, FREE_LFN);
+    return E_MEMORY;
+  }
+#endif
+
+#ifdef FAT_POOLS
+  uint16_t number;
+  enum result res;
+
+  /* TODO Reduce code size */
+  /* Allocate and fill node pool */
+  number = config->nodes ? config->nodes : NODE_POOL_SIZE;
+  if (!(handle->nodeData = malloc(sizeof(struct FatNode) * number)))
+  {
+    freeBuffers(handle, FREE_NODE_DATA);
+    return E_MEMORY;
+  }
+  if ((res = queueInit(&handle->nodePool, sizeof(struct FatNode *), number)) != E_OK)
+  {
+    freeBuffers(handle, FREE_NODE_POOL);
+    return E_MEMORY;
+  }
+  for (unsigned int index = 0; index < number; ++index)
+  {
+    /* Manual type initialization */
+    *(const void **)(handle->nodeData + index) = FatNode;
+    queuePush(&handle->nodePool, handle->nodeData + index);
+  }
+
+  /* Allocate and fill directory entry pool */
+  number = config->directories ? config->directories : DIR_POOL_SIZE;
+  if (!(handle->dirData = malloc(sizeof(struct FatDir) * number)))
+  {
+    freeBuffers(handle, FREE_DIR_DATA);
+    return E_MEMORY;
+  }
+  if ((res = queueInit(&handle->dirPool, sizeof(struct FatDir *), number)) != E_OK)
+  {
+    freeBuffers(handle, FREE_DIR_POOL);
+    return E_MEMORY;
+  }
+  for (unsigned int index = 0; index < number; ++index)
+  {
+    *(const void **)(handle->dirData + index) = FatDir;
+    queuePush(&handle->dirPool, handle->dirData + index);
+  }
+
+  /* Allocate and fill file entry pool */
+  number = config->files ? config->files : FILE_POOL_SIZE;
+  if (!(handle->fileData = malloc(sizeof(struct FatFile) * number)))
+  {
+    freeBuffers(handle, FREE_FILE_DATA);
+    return E_MEMORY;
+  }
+  if ((res = queueInit(&handle->filePool, sizeof(struct FatFile *), number)) != E_OK)
+  {
+    freeBuffers(handle, FREE_FILE_POOL);
+    return E_MEMORY;
+  }
+  for (unsigned int index = 0; index < number; ++index)
+  {
+    *(const void **)(handle->fileData + index) = FatFile;
+    queuePush(&handle->filePool, handle->fileData + index);
+  }
+#endif
+
+  return E_OK;
+}
+/*----------------------------------------------------------------------------*/
 static void extractShortName(const struct DirEntryImage *entry, char *str)
 {
   const char *src = entry->name;
@@ -113,6 +196,37 @@ static void extractShortName(const struct DirEntryImage *entry, char *str)
     }
   }
   *dest = '\0';
+}
+/*----------------------------------------------------------------------------*/
+static void freeBuffers(struct FatHandle *handle, enum cleanup step)
+{
+  switch (step)
+  {
+    case FREE_ALL:
+#ifdef FAT_POOLS
+    case FREE_FILE_POOL:
+      queueDeinit(&handle->filePool);
+    case FREE_FILE_DATA:
+      free(handle->fileData);
+    case FREE_DIR_POOL:
+      queueDeinit(&handle->dirPool);
+    case FREE_DIR_DATA:
+      free(handle->dirData);
+    case FREE_NODE_POOL:
+      queueDeinit(&handle->nodePool);
+    case FREE_NODE_DATA:
+      free(handle->nodeData);
+#endif
+#ifdef FAT_LFN
+    case FREE_LFN:
+      free(handle->nameBuffer);
+#endif
+    case FREE_BUFFER:
+      free(handle->buffer);
+      break;
+    default:
+      break;
+  }
 }
 /*----------------------------------------------------------------------------*/
 /* Destination string buffer should be at least FS_NAME_LENGTH characters long */
@@ -1063,15 +1177,8 @@ static enum result fatHandleInit(void *object, const void *configPtr)
   struct FatHandle *handle = object;
   enum result res;
 
-  /* Initialize buffer variables */
-  handle->buffer = malloc(SECTOR_SIZE);
-  if (!handle->buffer)
-    return E_MEMORY;
-#ifdef FAT_LFN
-  handle->nameBuffer = malloc(FILE_NAME_BUFFER * sizeof(char16_t));
-  if (!handle->nameBuffer)
-    return E_MEMORY;
-#endif
+  if ((res = allocateBuffers(handle, config)) != E_OK)
+    return res;
 
   handle->bufferedSector = (uint32_t)(-1);
   handle->interface = config->interface;
@@ -1084,17 +1191,29 @@ static enum result fatHandleInit(void *object, const void *configPtr)
 /*----------------------------------------------------------------------------*/
 static void fatHandleDeinit(void *object)
 {
-  free(((struct FatHandle *)object)->buffer);
+  struct FatHandle *handle = object;
+
+  freeBuffers(handle, FREE_ALL);
 }
 /*----------------------------------------------------------------------------*/
 static void *fatAllocate(void *object)
 {
-  //TODO Allocate from pool
   const struct FatNodeConfig config = {
       .handle = object
   };
+  struct FatNode *node;
 
-  return init(FatNode, &config);
+#ifdef FAT_POOLS
+  struct FatHandle *handle = object;
+  if (queueEmpty(&handle->nodePool))
+    return 0;
+  queuePop(&handle->nodePool, &node);
+  FatNode->init(node, &config);
+#else
+  node = init(FatNode, &config);
+#endif
+
+  return node;
 }
 /*----------------------------------------------------------------------------*/
 static void *fatFollow(void *object, const char *path, const void *root)
@@ -1134,8 +1253,14 @@ static void fatNodeDeinit(void *object __attribute__((unused)))
 /*----------------------------------------------------------------------------*/
 static void fatFree(void *object)
 {
-  //TODO Return to pool
+#ifdef FAT_POOLS
+  struct FatNode *node = object;
+
+  FatNode->deinit(object);
+  queuePush(&((struct FatHandle *)node->handle)->nodePool, object);
+#else
   deinit(object);
+#endif
 }
 /*----------------------------------------------------------------------------*/
 static enum result fatGet(void *object, struct FsMetadata *metadata)
@@ -1249,7 +1374,6 @@ static void *fatOpen(void *object, access_t access)
   if ((node->access & access) != access)
     return 0;
 
-  //TODO Add entry allocation from the pool
   switch (node->type)
   {
     case FS_TYPE_DIR:
@@ -1259,8 +1383,16 @@ static void *fatOpen(void *object, access_t access)
       };
       struct FatDir *dir;
 
+#ifdef FAT_POOLS
+      struct FatHandle *handle = (struct FatHandle *)node->handle;
+      if (queueEmpty(&handle->dirPool))
+        return 0;
+      queuePop(&handle->dirPool, &dir);
+      FatDir->init(dir, &config);
+#else
       if (!(dir = init(FatDir, &config)))
         return 0;
+#endif
 
       return dir;
     }
@@ -1271,10 +1403,18 @@ static void *fatOpen(void *object, access_t access)
       };
       struct FatFile *file;
 
+#ifdef FAT_POOLS
+      struct FatHandle *handle = (struct FatHandle *)node->handle;
+      if (queueEmpty(&handle->filePool))
+        return 0;
+      queuePop(&handle->filePool, &file);
+      FatFile->init(file, &config);
+#else
       if (!(file = init(FatFile, &config)))
         return 0;
-      file->access = access; /* Reduce set of access rights */
+#endif
 
+      file->access = access; /* Reduce set of access rights */
       return file;
     }
     default:
@@ -1398,8 +1538,14 @@ static void fatDirDeinit(void *object __attribute__((unused)))
 /*----------------------------------------------------------------------------*/
 static enum result fatDirClose(void *object)
 {
-  //TODO Return to pool
+#ifdef FAT_POOLS
+  struct FatDir *dir = object;
+
+  FatDir->deinit(object);
+  queuePush(&((struct FatHandle *)dir->handle)->dirPool, object);
+#else
   deinit(object);
+#endif
 
   return E_OK;
 }
@@ -1467,8 +1613,14 @@ static enum result fatFileClose(void *object)
     fatFileSync(object);
 #endif
 
-  //TODO Return to pool
+#ifdef FAT_POOLS
+  struct FatFile *file = object;
+
+  FatFile->deinit(object);
+  queuePush(&((struct FatHandle *)file->handle)->filePool, object);
+#else
   deinit(object);
+#endif
 
   return E_OK;
 }
