@@ -227,6 +227,7 @@ static enum result fetchEntry(struct FatNode *);
 static enum result fetchNode(struct FatNode *, char *);
 static const char *followPath(struct FatNode *, const char *,
     const struct FatNode *);
+static enum result mount(struct FatHandle *);
 static enum result readSector(struct FatHandle *, uint32_t, uint8_t *,
     uint32_t);
 /*----------------------------------------------------------------------------*/

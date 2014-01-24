@@ -312,6 +312,71 @@ static const char *followPath(struct FatNode *node, const char *path,
   return 0;
 }
 /*----------------------------------------------------------------------------*/
+static enum result mount(struct FatHandle *handle)
+{
+  enum result res;
+
+  /* Read first sector */
+  if ((res = readSector(handle, 0, handle->buffer, 1)) != E_OK)
+    return res;
+  struct BootSectorImage *boot = (struct BootSectorImage *)handle->buffer;
+
+  /* Check boot sector signature (55AA at 0x01FE) */
+  if (boot->bootSignature != 0xAA55)
+    return E_ERROR;
+
+  /* Check sector size, fixed size of 2 ^ SECTOR_POW allowed */
+  if (boot->bytesPerSector != SECTOR_SIZE)
+    return E_ERROR;
+
+  /* Calculate sectors per cluster count */
+  uint16_t sizePow = boot->sectorsPerCluster;
+  handle->clusterSize = 0;
+  while (sizePow >>= 1)
+    ++handle->clusterSize;
+
+  handle->tableSector = boot->reservedSectors;
+  handle->dataSector = handle->tableSector + boot->fatCopies * boot->fatSize;
+  handle->rootCluster = boot->rootCluster;
+
+  DEBUG_PRINT("Cluster size:   %u\n", (unsigned int)(1 << handle->clusterSize));
+  DEBUG_PRINT("Table sector:   %u\n", (unsigned int)handle->tableSector);
+  DEBUG_PRINT("Data sector:    %u\n", (unsigned int)handle->dataSector);
+
+#ifdef FAT_WRITE
+  handle->tableCount = boot->fatCopies;
+  handle->tableSize = boot->fatSize;
+  handle->clusterCount = ((boot->partitionSize
+      - handle->dataSector) >> handle->clusterSize) + 2;
+  handle->infoSector = boot->infoSector;
+
+  DEBUG_PRINT("Info sector:    %u\n", (unsigned int)handle->infoSector);
+  DEBUG_PRINT("Table copies:   %u\n", (unsigned int)handle->tableCount);
+  DEBUG_PRINT("Table size:     %u\n", (unsigned int)handle->tableSize);
+  DEBUG_PRINT("Cluster count:  %u\n", (unsigned int)handle->clusterCount);
+  DEBUG_PRINT("Sectors count:  %u\n", (unsigned int)boot->partitionSize);
+
+  /* Read information sector */
+  if ((res = readSector(handle, handle->infoSector, handle->buffer, 1)) != E_OK)
+    return res;
+  struct InfoSectorImage *info = (struct InfoSectorImage *)handle->buffer;
+
+  /* Check info sector signatures (RRaA at 0x0000 and rrAa at 0x01E4) */
+  if (info->firstSignature != 0x41615252 || info->infoSignature != 0x61417272)
+    return E_ERROR;
+  handle->lastAllocated = info->lastAllocated;
+
+  DEBUG_PRINT("Free clusters:  %u\n", (unsigned int)info->freeClusters);
+#endif
+
+  DEBUG_PRINT("Size of handle: %u\n", (unsigned int)sizeof(struct FatHandle));
+  DEBUG_PRINT("Size of node:   %u\n", (unsigned int)sizeof(struct FatNode));
+  DEBUG_PRINT("Size of dir:    %u\n", (unsigned int)sizeof(struct FatDir));
+  DEBUG_PRINT("Size of file:   %u\n", (unsigned int)sizeof(struct FatFile));
+
+  return E_OK;
+}
+/*----------------------------------------------------------------------------*/
 static enum result readSector(struct FatHandle *handle, uint32_t sector,
     uint8_t *buffer, uint32_t count)
 {
@@ -1011,63 +1076,8 @@ static enum result fatHandleInit(void *object, const void *configPtr)
   handle->bufferedSector = (uint32_t)(-1);
   handle->interface = config->interface;
 
-  /* Read first sector */
-  if ((res = readSector(handle, 0, handle->buffer, 1)) != E_OK)
+  if ((res = mount(handle)) != E_OK)
     return res;
-  struct BootSectorImage *boot = (struct BootSectorImage *)handle->buffer;
-
-  /* Check boot sector signature (55AA at 0x01FE) */
-  if (boot->bootSignature != 0xAA55)
-    return E_ERROR;
-
-  /* Check sector size, fixed size of 2 ^ SECTOR_POW allowed */
-  if (boot->bytesPerSector != SECTOR_SIZE)
-    return E_ERROR;
-
-  /* Calculate sectors per cluster count */
-  uint16_t sizePow = boot->sectorsPerCluster;
-  handle->clusterSize = 0;
-  while (sizePow >>= 1)
-    ++handle->clusterSize;
-
-  handle->tableSector = boot->reservedSectors;
-  handle->dataSector = handle->tableSector + boot->fatCopies * boot->fatSize;
-  handle->rootCluster = boot->rootCluster;
-
-  DEBUG_PRINT("Cluster size:   %u\n", (unsigned int)(1 << handle->clusterSize));
-  DEBUG_PRINT("Table sector:   %u\n", (unsigned int)handle->tableSector);
-  DEBUG_PRINT("Data sector:    %u\n", (unsigned int)handle->dataSector);
-
-#ifdef FAT_WRITE
-  handle->tableCount = boot->fatCopies;
-  handle->tableSize = boot->fatSize;
-  handle->clusterCount = ((boot->partitionSize
-      - handle->dataSector) >> handle->clusterSize) + 2;
-  handle->infoSector = boot->infoSector;
-
-  DEBUG_PRINT("Info sector:    %u\n", (unsigned int)handle->infoSector);
-  DEBUG_PRINT("Table copies:   %u\n", (unsigned int)handle->tableCount);
-  DEBUG_PRINT("Table size:     %u\n", (unsigned int)handle->tableSize);
-  DEBUG_PRINT("Cluster count:  %u\n", (unsigned int)handle->clusterCount);
-  DEBUG_PRINT("Sectors count:  %u\n", (unsigned int)boot->partitionSize);
-
-  /* Read information sector */
-  if ((res = readSector(handle, handle->infoSector, handle->buffer, 1)) != E_OK)
-    return res;
-  struct InfoSectorImage *info = (struct InfoSectorImage *)handle->buffer;
-
-  /* Check info sector signatures (RRaA at 0x0000 and rrAa at 0x01E4) */
-  if (info->firstSignature != 0x41615252 || info->infoSignature != 0x61417272)
-    return E_ERROR;
-  handle->lastAllocated = info->lastAllocated;
-
-  DEBUG_PRINT("Free clusters:  %u\n", (unsigned int)info->freeClusters);
-#endif
-
-  DEBUG_PRINT("Size of handle: %u\n", (unsigned int)sizeof(struct FatHandle));
-  DEBUG_PRINT("Size of node:   %u\n", (unsigned int)sizeof(struct FatNode));
-  DEBUG_PRINT("Size of dir:    %u\n", (unsigned int)sizeof(struct FatDir));
-  DEBUG_PRINT("Size of file:   %u\n", (unsigned int)sizeof(struct FatFile));
 
   return E_OK;
 }
