@@ -9,8 +9,8 @@
 /*----------------------------------------------------------------------------*/
 #include <stdbool.h>
 #include <stdint.h>
+#include <fs.h>
 #include <macro.h>
-#include "fs.h"
 #include "unicode.h"
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_TIME

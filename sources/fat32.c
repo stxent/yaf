@@ -1170,9 +1170,10 @@ static enum result fatGet(void *object, struct FsMetadata *metadata)
 #endif
 
 #ifdef DEBUG
-  metadata->cluster = node->payload;
-  metadata->pcluster = node->cluster;
-  metadata->pindex = node->index;
+  struct FatMetadata *debugData = (struct FatMetadata *)metadata;
+  debugData->cluster = node->payload;
+  debugData->pcluster = node->cluster;
+  debugData->pindex = node->index;
 #endif
 
   return E_OK;

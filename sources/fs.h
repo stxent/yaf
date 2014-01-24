@@ -58,12 +58,6 @@ struct FsMetadata
   char name[FS_NAME_LENGTH];
   access_t access;
   enum fsNodeType type;
-
-#ifdef DEBUG //FIXME
-  uint32_t cluster;
-  uint32_t pcluster;
-  uint16_t pindex;
-#endif
 };
 /*----------------------------------------------------------------------------*/
 struct FsHandleClass

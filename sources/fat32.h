@@ -20,6 +20,17 @@ struct Fat32Config
 };
 /*----------------------------------------------------------------------------*/
 #ifdef DEBUG
+struct FatMetadata
+{
+  struct FsMetadata parent;
+
+  uint32_t cluster;
+  uint32_t pcluster;
+  uint16_t pindex;
+};
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef DEBUG
 uint32_t countFree(void *);
 #endif
 /*----------------------------------------------------------------------------*/

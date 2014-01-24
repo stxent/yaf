@@ -171,9 +171,15 @@ vector< map<string, string> > util_ls(struct FsHandle *handle,
 
   if (dir)
   {
-    struct FsMetadata info;
     int pos = 1;
     enum result fsres;
+
+#ifdef DEBUG
+    struct FatMetadata debugInfo;
+#else
+    struct FsMetadata debugInfo;
+#endif
+    struct FsMetadata *info = (struct FsMetadata *)&debugInfo;
 
     //Previously allocated node is reused
     for (; (fsres = fsFetch(dir, node)) == E_OK; ++pos)
@@ -181,12 +187,12 @@ vector< map<string, string> > util_ls(struct FsHandle *handle,
       map<string, string> retval;
       stringstream estream;
 //      path = parsePath(dirPath, (string)fname);
-      if (fsGet(node, &info) == E_OK)
+      if (fsGet(node, info) == E_OK)
       {
-        string str_size = int2str(info.size, 10);
-        string str_atime = time2str(info.time);
+        string str_size = int2str(info->size, 10);
+        string str_atime = time2str(info->time);
 
-        retval.insert(pair<string, string>("name", info.name));
+        retval.insert(pair<string, string>("name", info->name));
         retval.insert(pair<string, string>("size", str_size));
 //        retval.insert(pair<string, string>("time", str_atime));
         entries.push_back(retval);
@@ -194,22 +200,22 @@ vector< map<string, string> > util_ls(struct FsHandle *handle,
         if (details)
         {
 #ifdef DEBUG
-          //FIXME
           estream.width(10);
-          estream << info.pcluster << '.';
+          estream << debugInfo.pcluster << '.';
           estream.width(3);
-          estream << left << info.pindex << right << ' ';
+          estream << left << debugInfo.pindex << right << ' ';
           estream.width(10);
-          estream << info.cluster << ' ';
+          estream << debugInfo.cluster << ' ';
+#endif
 
           //Access
           char access[4];
-          access[0] = (info.type == FS_TYPE_DIR) ? 'd' : '-';
+          access[0] = (info->type == FS_TYPE_DIR) ? 'd' : '-';
           access[1] = 'r';
-          access[2] = (info.access & 02) ? 'w' : '-';
+          access[2] = (info->access & 02) ? 'w' : '-';
           access[3] = '\0';
           estream << access;
-#endif
+
           estream.width(10);
 #ifdef DEBUG
           estream << str_size << ' ';
@@ -217,14 +223,14 @@ vector< map<string, string> > util_ls(struct FsHandle *handle,
           estream << left << str_size << right << ' ';
 #endif
           estream << str_atime << ' ';
-          estream << info.name;
+          estream << info->name;
 
           cout << estream.str() << endl;
         }
         else
         {
           cout.width(20);
-          cout << left << info.name << right;
+          cout << left << info->name << right;
           if (!(pos % 4))
             cout << endl;
         }
@@ -532,7 +538,10 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handle,
     struct FsEntry *file = 0;
     struct FsNode *node = (struct FsNode *)fsFollow(handle, newloc.c_str(), 0);
     if (node)
+    {
       file = (struct FsEntry *)fsOpen(node, FS_ACCESS_READ);
+      fsFree(node);
+    }
 
     if (file)
     {
@@ -571,7 +580,7 @@ vector< map<string, string> > util_md5sum(struct FsHandle *handle,
     entries.push_back(retval);
   }
   return entries;
-    }
+}
 //------------------------------------------------------------------------------
 // #ifdef FAT_WRITE
 // enum cResult util_dd(struct FsHandle *handle, const vector<string> &args,
