@@ -241,11 +241,8 @@ enum cleanup
 {
   FREE_ALL = 0,
   FREE_FILE_POOL,
-  FREE_FILE_DATA,
   FREE_DIR_POOL,
-  FREE_DIR_DATA,
   FREE_NODE_POOL,
-  FREE_NODE_DATA,
   FREE_LFN, //FIXME Metadata pool
   FREE_BUFFER
 };
@@ -268,6 +265,10 @@ static enum result readSector(struct FatHandle *, uint32_t, uint8_t *,
 static void extractLongName(const struct DirEntryImage *, char16_t *);
 static uint8_t getChecksum(const char *, uint8_t);
 static enum result readLongName(struct FatNode *, char *);
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_POOLS
+static enum result allocatePool(struct Queue *, void *, const void *, uint16_t);
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE

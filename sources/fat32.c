@@ -91,16 +91,13 @@ static enum result allocateBuffers(struct FatHandle *handle,
 {
   handle->buffer = malloc(SECTOR_SIZE);
   if (!handle->buffer)
-  {
-    freeBuffers(handle, FREE_BUFFER);
     return E_MEMORY;
-  }
 
 #ifdef FAT_LFN
   handle->nameBuffer = malloc(FILE_NAME_BUFFER * sizeof(char16_t));
   if (!handle->nameBuffer)
   {
-    freeBuffers(handle, FREE_LFN);
+    freeBuffers(handle, FREE_BUFFER);
     return E_MEMORY;
   }
 #endif
@@ -109,60 +106,31 @@ static enum result allocateBuffers(struct FatHandle *handle,
   uint16_t number;
   enum result res;
 
-  /* TODO Reduce code size */
   /* Allocate and fill node pool */
   number = config->nodes ? config->nodes : NODE_POOL_SIZE;
-  if (!(handle->nodeData = malloc(sizeof(struct FatNode) * number)))
+  res = allocatePool(&handle->nodePool, &handle->nodeData, FatNode, number);
+  if (res != E_OK)
   {
-    freeBuffers(handle, FREE_NODE_DATA);
-    return E_MEMORY;
-  }
-  if ((res = queueInit(&handle->nodePool, sizeof(struct FatNode *), number)) != E_OK)
-  {
-    freeBuffers(handle, FREE_NODE_POOL);
-    return E_MEMORY;
-  }
-  for (unsigned int index = 0; index < number; ++index)
-  {
-    /* Manual type initialization */
-    *(const void **)(handle->nodeData + index) = FatNode;
-    queuePush(&handle->nodePool, handle->nodeData + index);
+    freeBuffers(handle, FREE_LFN);
+    return res;
   }
 
   /* Allocate and fill directory entry pool */
   number = config->directories ? config->directories : DIR_POOL_SIZE;
-  if (!(handle->dirData = malloc(sizeof(struct FatDir) * number)))
+  res = allocatePool(&handle->dirPool, &handle->dirData, FatDir, number);
+  if (res != E_OK)
   {
-    freeBuffers(handle, FREE_DIR_DATA);
-    return E_MEMORY;
-  }
-  if ((res = queueInit(&handle->dirPool, sizeof(struct FatDir *), number)) != E_OK)
-  {
-    freeBuffers(handle, FREE_DIR_POOL);
-    return E_MEMORY;
-  }
-  for (unsigned int index = 0; index < number; ++index)
-  {
-    *(const void **)(handle->dirData + index) = FatDir;
-    queuePush(&handle->dirPool, handle->dirData + index);
+    freeBuffers(handle, FREE_NODE_POOL);
+    return res;
   }
 
   /* Allocate and fill file entry pool */
   number = config->files ? config->files : FILE_POOL_SIZE;
-  if (!(handle->fileData = malloc(sizeof(struct FatFile) * number)))
+  res = allocatePool(&handle->filePool, &handle->fileData, FatFile, number);
+  if (res != E_OK)
   {
-    freeBuffers(handle, FREE_FILE_DATA);
-    return E_MEMORY;
-  }
-  if ((res = queueInit(&handle->filePool, sizeof(struct FatFile *), number)) != E_OK)
-  {
-    freeBuffers(handle, FREE_FILE_POOL);
-    return E_MEMORY;
-  }
-  for (unsigned int index = 0; index < number; ++index)
-  {
-    *(const void **)(handle->fileData + index) = FatFile;
-    queuePush(&handle->filePool, handle->fileData + index);
+    freeBuffers(handle, FREE_DIR_POOL);
+    return res;
   }
 #endif
 
@@ -206,15 +174,12 @@ static void freeBuffers(struct FatHandle *handle, enum cleanup step)
 #ifdef FAT_POOLS
     case FREE_FILE_POOL:
       queueDeinit(&handle->filePool);
-    case FREE_FILE_DATA:
       free(handle->fileData);
     case FREE_DIR_POOL:
       queueDeinit(&handle->dirPool);
-    case FREE_DIR_DATA:
       free(handle->dirData);
     case FREE_NODE_POOL:
       queueDeinit(&handle->nodePool);
-    case FREE_NODE_DATA:
       free(handle->nodeData);
 #endif
 #ifdef FAT_LFN
@@ -583,6 +548,36 @@ static enum result readLongName(struct FatNode *node, char *entryName)
   node->index = index;
 
   return res;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_POOLS
+static enum result allocatePool(struct Queue *queue, void *dataPtr,
+    const void *descriptorPtr, uint16_t number)
+{
+  const struct EntityClass *descriptor = descriptorPtr;
+  uint8_t *data;
+  enum result res;
+
+  if (!(data = malloc(descriptor->size * number)))
+    return E_MEMORY;
+
+  if ((res = queueInit(queue, sizeof(struct Entity *), number)) != E_OK)
+  {
+    free(data);
+    return E_MEMORY;
+  }
+
+  *(void **)dataPtr = data;
+  for (unsigned int index = 0; index < number; ++index)
+  {
+    /* Manual type initialization */
+    ((struct Entity *)data)->type = descriptor;
+    queuePush(queue, data);
+    data += descriptor->size;
+  }
+
+  return E_OK;
 }
 #endif
 /*----------------------------------------------------------------------------*/
