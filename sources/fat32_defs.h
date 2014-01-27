@@ -324,11 +324,11 @@ static enum result fatFileInit(void *, const void *);
 static void fatFileDeinit(void *);
 static enum result fatFileClose(void *);
 static bool fatFileEnd(void *);
-static uint32_t fatFileRead(void *, uint8_t *, uint32_t);
+static uint32_t fatFileRead(void *, void *, uint32_t);
 static enum result fatFileSeek(void *, uint64_t, enum fsSeekOrigin);
 static enum result fatFileSync(void *);
 static uint64_t fatFileTell(void *);
-static uint32_t fatFileWrite(void *, const uint8_t *, uint32_t);
+static uint32_t fatFileWrite(void *, const void *, uint32_t);
 /*----------------------------------------------------------------------------*/
 static inline bool clusterFree(uint32_t cluster)
 {

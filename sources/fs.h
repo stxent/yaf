@@ -98,12 +98,12 @@ struct FsEntryClass
   enum result (*close)(void *);
   bool (*end)(void *);
   enum result (*fetch)(void *, void *);
-  uint32_t (*read)(void *, uint8_t *, uint32_t);
+  uint32_t (*read)(void *, void *, uint32_t);
   enum result (*rewind)(void *);
   enum result (*seek)(void *, uint64_t, enum fsSeekOrigin);
   enum result (*sync)(void *);
   uint64_t (*tell)(void *);
-  uint32_t (*write)(void *, const uint8_t *, uint32_t);
+  uint32_t (*write)(void *, const void *, uint32_t);
 };
 /*----------------------------------------------------------------------------*/
 struct FsEntry
@@ -250,7 +250,7 @@ static inline enum result fsFetch(void *entry, void *node)
  * @param length Number of data bytes to be read.
  * @return E_OK on success.
  */
-static inline uint32_t fsRead(void *entry, uint8_t *buffer, uint32_t length)
+static inline uint32_t fsRead(void *entry, void *buffer, uint32_t length)
 {
   return ((struct FsEntryClass *)CLASS(entry))->read(entry, buffer, length);
 }
@@ -304,8 +304,7 @@ static inline uint64_t fsTell(void *entry)
  * @param length Number of data bytes to be written.
  * @return E_OK on success.
  */
-static inline uint32_t fsWrite(void *entry, const uint8_t *buffer,
-    uint32_t length)
+static inline uint32_t fsWrite(void *entry, const void *buffer, uint32_t length)
 {
   return ((struct FsEntryClass *)CLASS(entry))->write(entry, buffer, length);
 }

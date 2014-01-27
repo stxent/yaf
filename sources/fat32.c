@@ -1627,7 +1627,7 @@ static bool fatFileEnd(void *object)
   return file->position >= file->size;
 }
 /*----------------------------------------------------------------------------*/
-static uint32_t fatFileRead(void *object, uint8_t *buffer, uint32_t length)
+static uint32_t fatFileRead(void *object, void *buffer, uint32_t length)
 {
   struct FatFile *file = object;
   struct FatHandle *handle = (struct FatHandle *)file->handle;
@@ -1670,7 +1670,7 @@ static uint32_t fatFileRead(void *object, uint8_t *buffer, uint32_t length)
       {
         return 0;
       }
-      memcpy(buffer + read, handle->buffer + offset, chunk);
+      memcpy((uint8_t *)buffer + read, handle->buffer + offset, chunk);
 
       if (chunk + offset >= SECTOR_SIZE)
         ++current;
@@ -1683,7 +1683,7 @@ static uint32_t fatFileRead(void *object, uint8_t *buffer, uint32_t length)
 
       /* Read data to the buffer directly without additional copying */
       if (readSector(handle, getSector(handle, file->currentCluster)
-          + current, buffer + read, chunk >> SECTOR_POW) != E_OK)
+          + current, (uint8_t *)buffer + read, chunk >> SECTOR_POW) != E_OK)
       {
         return 0;
       }
@@ -1743,8 +1743,7 @@ static enum result fatFileSync(void *object __attribute__((unused)))
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
-static uint32_t fatFileWrite(void *object, const uint8_t *buffer,
-    uint32_t length)
+static uint32_t fatFileWrite(void *object, const void *buffer, uint32_t length)
 {
   struct FatFile *file = object;
   struct FatHandle *handle = (struct FatHandle *)file->handle;
@@ -1801,7 +1800,7 @@ static uint32_t fatFileWrite(void *object, const uint8_t *buffer,
       if (readSector(handle, sector, handle->buffer, 1) != E_OK)
         return 0;
 
-      memcpy(handle->buffer + offset, buffer + written, chunk);
+      memcpy(handle->buffer + offset, (uint8_t *)buffer + written, chunk);
       if (writeSector(handle, sector, handle->buffer, 1) != E_OK)
         return 0;
 
@@ -1816,7 +1815,7 @@ static uint32_t fatFileWrite(void *object, const uint8_t *buffer,
 
       /* Write data from the buffer directly without additional copying */
       if (writeSector(handle, getSector(handle, file->currentCluster) + current,
-          buffer + written, chunk >> SECTOR_POW) != E_OK)
+          (uint8_t *)buffer + written, chunk >> SECTOR_POW) != E_OK)
       {
         return 0;
       }
