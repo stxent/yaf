@@ -99,7 +99,6 @@ struct FsEntryClass
   bool (*end)(void *);
   enum result (*fetch)(void *, void *);
   uint32_t (*read)(void *, void *, uint32_t);
-  enum result (*rewind)(void *);
   enum result (*seek)(void *, uint64_t, enum fsSeekOrigin);
   enum result (*sync)(void *);
   uint64_t (*tell)(void *);
@@ -253,16 +252,6 @@ static inline enum result fsFetch(void *entry, void *node)
 static inline uint32_t fsRead(void *entry, void *buffer, uint32_t length)
 {
   return ((struct FsEntryClass *)CLASS(entry))->read(entry, buffer, length);
-}
-/*----------------------------------------------------------------------------*/
-/**
- * Move directory pointer to a first entry.
- * @param entry Pointer to a previously opened entry.
- * @return E_OK on success.
- */
-static inline enum result fsRewind(void *entry)
-{
-  return ((struct FsEntryClass *)CLASS(entry))->rewind(entry);
 }
 /*----------------------------------------------------------------------------*/
 /**

@@ -53,12 +53,11 @@ static const struct FsEntryClass fatDirTable = {
     .deinit = fatDirDeinit,
 
     .close = fatDirClose,
+    .end = fatDirEnd,
     .fetch = fatDirFetch,
-    .rewind = fatDirRewind,
+    .seek = fatDirSeek,
 
-    .end = 0,
     .read = 0,
-    .seek = 0,
     .sync = 0,
     .tell = 0,
     .write = 0
@@ -77,8 +76,7 @@ static const struct FsEntryClass fatFileTable = {
     .tell = fatFileTell,
     .write = fatFileWrite,
 
-    .fetch = 0,
-    .rewind = 0
+    .fetch = 0
 };
 /*----------------------------------------------------------------------------*/
 const struct FsHandleClass *FatHandle = (void *)&fatHandleTable;
@@ -1175,7 +1173,7 @@ static enum result fatHandleInit(void *object, const void *configPtr)
   if ((res = allocateBuffers(handle, config)) != E_OK)
     return res;
 
-  handle->bufferedSector = (uint32_t)(-1);
+  handle->bufferedSector = RESERVED_SECTOR;
   handle->interface = config->interface;
 
   if ((res = mount(handle)) != E_OK)
@@ -1519,6 +1517,7 @@ static enum result fatDirInit(void *object, const void *configPtr)
 
   dir->handle = node->handle;
   dir->payload = node->payload;
+  dir->position = 0;
   dir->currentCluster = node->payload;
   dir->currentIndex = 0;
   DEBUG_PRINT("Dir allocated, address %08lX\n", (unsigned long)object);
@@ -1545,6 +1544,13 @@ static enum result fatDirClose(void *object)
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
+static bool fatDirEnd(void *object)
+{
+  struct FatDir *dir = object;
+
+  return dir->position == RESERVED_ENTRY;
+}
+/*----------------------------------------------------------------------------*/
 static enum result fatDirFetch(void *object, void *nodePtr)
 {
   struct FatNode *node = nodePtr;
@@ -1555,20 +1561,32 @@ static enum result fatDirFetch(void *object, void *nodePtr)
   node->index = dir->currentIndex;
 
   if ((res = fetchNode(node, 0)) != E_OK)
+  {
+    if (res == E_ENTRY)
+      dir->position = RESERVED_ENTRY; /* Reached the end of the directory */
     return res;
+  }
 
   dir->currentCluster = node->cluster;
   dir->currentIndex = node->index + 1; /* Points to a next item */
+  ++dir->position;
 
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-static enum result fatDirRewind(void *object)
+static enum result fatDirSeek(void *object, uint64_t offset,
+    enum fsSeekOrigin origin)
 {
   struct FatDir *dir = object;
 
+  /* TODO Implement other seek types */
+  if (offset || origin != FS_SEEK_SET)
+    return E_VALUE;
+
   dir->currentCluster = dir->payload;
   dir->currentIndex = 0;
+  dir->position = 0;
+
   return E_OK;
 }
 /*------------------File functions--------------------------------------------*/
@@ -1699,6 +1717,48 @@ static uint32_t fatFileRead(void *object, void *buffer, uint32_t length)
   return read;
 }
 /*----------------------------------------------------------------------------*/
+static enum result fatFileSeek(void *object, uint64_t offset,
+    enum fsSeekOrigin origin)
+{
+  struct FatFile *file = object;
+  struct FatHandle *handle = (struct FatHandle *)file->handle;
+
+  switch (origin)
+  {
+    case FS_SEEK_CUR:
+      offset = file->position + offset;
+      break;
+    case FS_SEEK_END:
+      offset = file->size - offset;
+      break;
+    case FS_SEEK_SET:
+      break;
+  }
+  if (offset > file->size)
+    return E_ERROR;
+
+  uint32_t clusterCount = offset;
+  uint32_t current;
+  if (offset > file->position)
+  {
+    current = file->currentCluster;
+    clusterCount -= file->position;
+  }
+  else
+    current = file->payload;
+  clusterCount >>= handle->clusterSize + SECTOR_POW;
+
+  while (--clusterCount)
+  {
+    enum result res = getNextCluster(handle, &current);
+    if (res != E_OK)
+      return res;
+  }
+  file->position = offset;
+  file->currentCluster = current;
+  return E_OK;
+}
+/*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
 static enum result fatFileSync(void *object)
 {
@@ -1741,6 +1801,11 @@ static enum result fatFileSync(void *object __attribute__((unused)))
   return E_ERROR;
 }
 #endif
+/*----------------------------------------------------------------------------*/
+static uint64_t fatFileTell(void *object)
+{
+  return (uint64_t)((struct FatFile *)object)->position;
+}
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
 static uint32_t fatFileWrite(void *object, const void *buffer, uint32_t length)
@@ -1839,53 +1904,6 @@ static uint32_t fatFileWrite(void *entry __attribute__((unused)),
   return 0;
 }
 #endif
-/*----------------------------------------------------------------------------*/
-static enum result fatFileSeek(void *object, uint64_t offset,
-    enum fsSeekOrigin origin)
-{
-  struct FatFile *file = object;
-  struct FatHandle *handle = (struct FatHandle *)file->handle;
-
-  switch (origin)
-  {
-    case FS_SEEK_CUR:
-      offset = file->position + offset;
-      break;
-    case FS_SEEK_END:
-      offset = file->size - offset;
-      break;
-    case FS_SEEK_SET:
-      break;
-  }
-  if (offset > file->size)
-    return E_ERROR;
-
-  uint32_t clusterCount = offset;
-  uint32_t current;
-  if (offset > file->position)
-  {
-    current = file->currentCluster;
-    clusterCount -= file->position;
-  }
-  else
-    current = file->payload;
-  clusterCount >>= handle->clusterSize + SECTOR_POW;
-
-  while (--clusterCount)
-  {
-    enum result res = getNextCluster(handle, &current);
-    if (res != E_OK)
-      return res;
-  }
-  file->position = offset;
-  file->currentCluster = current;
-  return E_OK;
-}
-/*----------------------------------------------------------------------------*/
-static uint64_t fatFileTell(void *object)
-{
-  return (uint64_t)((struct FatFile *)object)->position;
-}
 /*----------------------------------------------------------------------------*/
 #if defined(FAT_WRITE) && defined(DEBUG)
 uint32_t countFree(void *object)

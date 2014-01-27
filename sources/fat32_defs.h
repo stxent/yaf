@@ -52,6 +52,10 @@
 /*----------------------------------------------------------------------------*/
 #define CLUSTER_EOC_VAL         0x0FFFFFF8UL
 #define FILE_SIZE_MAX           0xFFFFFFFFUL
+/* Reserved directory entry position */
+#define RESERVED_ENTRY          0xFFFFFFFFUL
+/* Reserved sector number for initial sector reading */
+#define RESERVED_SECTOR         0xFFFFFFFFUL
 /*----------------------------------------------------------------------------*/
 /* File or directory entry size power */
 #define E_POW                   (SECTOR_POW - 5)
@@ -128,6 +132,7 @@ struct FatDir
 
   struct FsHandle *handle;
   uint32_t payload; /* First cluster of directory data */
+  uint32_t position; /* Current position in directory */
   uint32_t currentCluster; /* Current cluster inside data chain */
   uint16_t currentIndex; /* Index of an entry in current cluster */
 };
@@ -316,8 +321,9 @@ static enum result fatTruncate(void *);
 static enum result fatDirInit(void *, const void *);
 static void fatDirDeinit(void *);
 static enum result fatDirClose(void *);
+static bool fatDirEnd(void *);
 static enum result fatDirFetch(void *, void *);
-static enum result fatDirRewind(void *);
+static enum result fatDirSeek(void *, uint64_t, enum fsSeekOrigin);
 
 /* File functions */
 static enum result fatFileInit(void *, const void *);
