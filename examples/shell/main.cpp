@@ -182,8 +182,11 @@ vector< map<string, string> > util_ls(struct FsHandle *handle,
     struct FsMetadata *info = (struct FsMetadata *)&debugInfo;
 
     //Previously allocated node is reused
-    for (; (fsres = fsFetch(dir, node)) == E_OK; ++pos)
+    while (!fsEnd(dir))
     {
+      if ((fsres = fsFetch(dir, node)) != E_OK)
+        break;
+
       map<string, string> retval;
       stringstream estream;
 //      path = parsePath(dirPath, (string)fname);
@@ -240,6 +243,8 @@ vector< map<string, string> > util_ls(struct FsHandle *handle,
         //Error opening file, insert empty item
         retval.insert(pair<string, string>("name", ""));
       }
+
+      ++pos;
     }
     if (!details && ((pos - 1) % 4))
       cout << endl;
@@ -307,7 +312,7 @@ enum cResult util_rm(struct FsHandle *handle, const vector<string> &args,
     {
       fsres = fsTruncate(node); //Remove data
       if (fsres == E_OK)
-        fsres = fsRemove(node); //Remove metadata
+        fsres = fsUnlink(node); //Remove metadata
     }
 
     if (fsres != E_OK)
@@ -336,7 +341,7 @@ enum cResult util_rmdir(struct FsHandle *handle, const vector<string> &args,
     {
       fsres = fsTruncate(node); //Remove data
       if (fsres == E_OK)
-        fsres = fsRemove(node); //Remove metadata
+        fsres = fsUnlink(node); //Remove metadata
     }
 
     if (fsres != E_OK)

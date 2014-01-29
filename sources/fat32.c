@@ -40,11 +40,12 @@ static const struct FsNodeClass fatNodeTable = {
 
     .free = fatFree,
     .get = fatGet,
+    .link = fatLink,
     .make = fatMake,
     .open = fatOpen,
-    .remove = fatRemove,
     .set = fatSet,
-    .truncate = fatTruncate
+    .truncate = fatTruncate,
+    .unlink = fatUnlink
 };
 
 static const struct FsEntryClass fatDirTable = {
@@ -1308,8 +1309,24 @@ static enum result fatGet(void *object, struct FsMetadata *metadata)
 }
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
+static enum result fatLink(void *object, const struct FsMetadata *metadata,
+    const void *target, void *result)
+{
+  return E_ERROR; //TODO
+}
+#else
+static enum result fatMake(void *object __attribute__((unused)),
+    const struct FsMetadata *metadata __attribute__((unused)),
+    const void *target __attribute__((unused)),
+    void *result __attribute__((unused)))
+{
+  return E_ERROR;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_WRITE
 static enum result fatMake(void *object, const struct FsMetadata *metadata,
-    void *target)
+    void *result)
 {
   struct FatNode *node = object;
   struct FatHandle *handle = (struct FatHandle *)node->handle;
@@ -1337,14 +1354,14 @@ static enum result fatMake(void *object, const struct FsMetadata *metadata,
       goto setup_error;
   }
 
-  if (target)
-    memcpy(target, allocatedNode, sizeof(struct FatNode));
+  if (result)
+    memcpy(result, allocatedNode, sizeof(struct FatNode));
 
   fatFree(allocatedNode);
   return E_OK;
 
 setup_error:
-  fatRemove(allocatedNode);
+  fatUnlink(allocatedNode);
 create_error:
   freeChain(handle, allocatedNode->payload);
 allocate_error:
@@ -1354,7 +1371,7 @@ allocate_error:
 #else
 static enum result fatMake(void *object __attribute__((unused)),
     const struct FsMetadata *metadata __attribute__((unused)),
-    void *target __attribute__((unused)))
+    void *result __attribute__((unused)))
 {
   return E_ERROR;
 }
@@ -1416,7 +1433,52 @@ static void *fatOpen(void *object, access_t access)
 }
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
-static enum result fatRemove(void *object)
+static enum result fatSet(void *object, const struct FsMetadata *metadata)
+{
+  struct FatNode *node = object;
+
+  if (!(node->access & FS_ACCESS_WRITE))
+    return E_ACCESS;
+
+  //TODO Implement
+  return E_ERROR;
+}
+#else
+static enum result fatSet(void *object __attribute__((unused)),
+    const struct FsMetadata *metadata __attribute__((unused)))
+{
+  return E_ERROR;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_WRITE
+static enum result fatTruncate(void *object)
+{
+  struct FatNode *node = object;
+  struct FatHandle *handle = (struct FatHandle *)node->handle;
+  enum result res;
+
+  if (node->type != FS_TYPE_FILE)
+    return E_VALUE;
+  if (!(node->access & FS_ACCESS_WRITE))
+    return E_ACCESS;
+
+  /* Mark file table clusters as free */
+  if ((res = freeChain(handle, node->payload)) != E_OK)
+    return res;
+
+  node->payload = 0;
+  return E_OK;
+}
+#else
+static enum result fatTruncate(void *object __attribute__((unused)))
+{
+  return E_ERROR;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_WRITE
+static enum result fatUnlink(void *object)
 {
   struct FatNode *node = object;
   enum result res;
@@ -1453,54 +1515,7 @@ static enum result fatRemove(void *object)
   return E_OK;
 }
 #else
-static enum result fatRemove(void *object __attribute__((unused)))
-{
-  return E_ERROR;
-}
-#endif
-/*----------------------------------------------------------------------------*/
-#ifdef FAT_WRITE
-static enum result fatSet(void *object, const struct FsMetadata *metadata)
-{
-  struct FatNode *node = object;
-
-  if (!(node->access & FS_ACCESS_WRITE))
-    return E_ACCESS;
-
-  //TODO Implement
-  return E_ERROR;
-}
-#else
-static enum result fatSet(void *object __attribute__((unused)),
-    const struct FsMetadata *metadata __attribute__((unused)))
-{
-  return E_ERROR;
-}
-#endif
-/*----------------------------------------------------------------------------*/
-#ifdef FAT_WRITE
-static enum result fatTruncate(void *object)
-{
-  struct FatNode *node = object;
-  struct FatHandle *handle = (struct FatHandle *)node->handle;
-  enum result res;
-
-  if (node->type != FS_TYPE_FILE)
-    return E_VALUE;
-  if (!(node->access & FS_ACCESS_WRITE))
-    return E_ACCESS;
-
-  /* Mark file table clusters as free */
-  if ((res = freeChain(handle, node->payload)) != E_OK)
-    return res;
-
-  node->payload = 0;
-  node->size = 0;
-
-  return E_OK;
-}
-#else
-static enum result fatTruncate(void *object __attribute__((unused)))
+static enum result fatUnlink(void *object __attribute__((unused)))
 {
   return E_ERROR;
 }

@@ -87,7 +87,7 @@ struct FatHandle
   char16_t *nameBuffer;
 #endif
   uint32_t currentSector, dataSector, rootCluster, tableSector;
-  uint32_t bufferedSector; /* Number of sector that is stored in buffer */
+  uint32_t bufferedSector; /* Number of sector stored in buffer */
 #ifdef FAT_WRITE
   uint32_t tableSize; /* Size in sectors of each FAT table */
   uint32_t clusterCount; /* Number of clusters */
@@ -311,11 +311,13 @@ static enum result fatNodeInit(void *, const void *);
 static void fatNodeDeinit(void *);
 static void fatFree(void *);
 static enum result fatGet(void *, struct FsMetadata *);
+static enum result fatLink(void *, const struct FsMetadata *, const void *,
+    void *);
 static enum result fatMake(void *, const struct FsMetadata *, void *);
 static void *fatOpen(void *, access_t);
-static enum result fatRemove(void *);
 static enum result fatSet(void *, const struct FsMetadata *);
 static enum result fatTruncate(void *);
+static enum result fatUnlink(void *);
 
 /* Directory functions */
 static enum result fatDirInit(void *, const void *);

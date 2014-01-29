@@ -79,11 +79,12 @@ struct FsNodeClass
 
   void (*free)(void *);
   enum result (*get)(void *, struct FsMetadata *);
+  enum result (*link)(void *, const struct FsMetadata *, const void *, void *);
   enum result (*make)(void *, const struct FsMetadata *, void *);
   void *(*open)(void *, access_t);
-  enum result (*remove)(void *);
   enum result (*set)(void *, const struct FsMetadata *);
   enum result (*truncate)(void *);
+  enum result (*unlink)(void *);
 };
 /*----------------------------------------------------------------------------*/
 struct FsNode
@@ -156,18 +157,35 @@ static inline enum result fsGet(void *node, struct FsMetadata *metadata)
 }
 /*----------------------------------------------------------------------------*/
 /**
+ * Create a link to an existing entry.
+ * @param node The node pointing to a location where the link should be placed.
+ * @param metadata Pointer to a link information.
+ * @param target The node pointing to an existing entry.
+ * @param result Pointer to a previously allocated node where the information
+ * about newly created entry should be stored. May be left zero when such
+ * information is not needed.
+ * @return E_OK on success.
+ */
+static inline enum result fsLink(void *node, const struct FsMetadata *metadata,
+    const void *target, void *result)
+{
+  return ((struct FsNodeClass *)CLASS(node))->link(node, metadata, target,
+      result);
+}
+/*----------------------------------------------------------------------------*/
+/**
  * Create a new entry.
  * @param node The node pointing to a location where new entry should be placed.
  * @param metadata Pointer to an entry information.
- * @param target Pointer to a previously allocated node where the information
+ * @param result Pointer to a previously allocated node where the information
  * about newly created entry should be stored. May be left zero when such
  * information is not needed.
  * @return E_OK on success.
  */
 static inline enum result fsMake(void *node, const struct FsMetadata *metadata,
-    void *target)
+    void *result)
 {
-  return ((struct FsNodeClass *)CLASS(node))->make(node, metadata, target);
+  return ((struct FsNodeClass *)CLASS(node))->make(node, metadata, result);
 }
 /*----------------------------------------------------------------------------*/
 /**
@@ -179,16 +197,6 @@ static inline enum result fsMake(void *node, const struct FsMetadata *metadata,
 static inline void *fsOpen(void *node, access_t access)
 {
   return ((struct FsNodeClass *)CLASS(node))->open(node, access);
-}
-/*----------------------------------------------------------------------------*/
-/**
- * Remove entry information but preserve data.
- * @param node The node with information about entry location.
- * @return @b E_OK on success.
- */
-static inline enum result fsRemove(void *node)
-{
-  return ((struct FsNodeClass *)CLASS(node))->remove(node);
 }
 /*----------------------------------------------------------------------------*/
 /**
@@ -209,6 +217,16 @@ static inline enum result fsSet(void *node, const struct FsMetadata *metadata)
 static inline enum result fsTruncate(void *node)
 {
   return ((struct FsNodeClass *)CLASS(node))->truncate(node);
+}
+/*----------------------------------------------------------------------------*/
+/**
+ * Remove entry information but preserve data.
+ * @param node The node with information about entry location.
+ * @return @b E_OK on success.
+ */
+static inline enum result fsUnlink(void *node)
+{
+  return ((struct FsNodeClass *)CLASS(node))->unlink(node);
 }
 /*----------------------------------------------------------------------------*/
 /**
