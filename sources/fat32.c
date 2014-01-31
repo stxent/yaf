@@ -29,7 +29,6 @@ static const struct FsHandleClass fatHandleTable = {
     .init = fatHandleInit,
     .deinit = fatHandleDeinit,
 
-    .allocate = fatAllocate,
     .follow = fatFollow
 };
 
@@ -38,6 +37,7 @@ static const struct FsNodeClass fatNodeTable = {
     .init = fatNodeInit,
     .deinit = fatNodeDeinit,
 
+    .clone = fatClone,
     .free = fatFree,
     .get = fatGet,
     .link = fatLink,
@@ -134,6 +134,25 @@ static enum result allocateBuffers(struct FatHandle *handle,
 #endif
 
   return E_OK;
+}
+/*----------------------------------------------------------------------------*/
+static void *allocateNode(struct FatHandle *handle)
+{
+  const struct FatNodeConfig config = {
+      .handle = (struct FsHandle *)handle
+  };
+  struct FatNode *node;
+
+#ifdef FAT_POOLS
+  if (queueEmpty(&handle->nodePool))
+    return 0;
+  queuePop(&handle->nodePool, &node);
+  FatNode->init(node, &config);
+#else
+  node = init(FatNode, &config);
+#endif
+
+  return node;
 }
 /*----------------------------------------------------------------------------*/
 static void extractShortName(const struct DirEntryImage *entry, char *str)
@@ -656,94 +675,6 @@ static enum result allocateCluster(struct FatHandle *handle, uint32_t *cluster)
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
-/* Allocate single node or node chain inside root node chain. */
-static enum result allocateNode(struct FatNode *node,
-    const struct FatNode *root, uint8_t chainLength)
-{
-  struct FatHandle *handle = (struct FatHandle *)root->handle;
-  uint32_t parent = root->payload;
-  uint16_t index = 0;
-  uint8_t chunks = 0;
-  enum result res;
-
-  node->cluster = root->payload;
-  node->index = 0;
-
-  while (chunks != chainLength)
-  {
-    bool allocateParent = false;
-    switch ((res = fetchEntry(node)))
-    {
-      case E_ENTRY:
-        index = node->index;
-        parent = node->cluster;
-        allocateParent = false;
-        break;
-      case E_FAULT:
-        index = 0;
-        allocateParent = true;
-        break;
-      default:
-        if (res != E_OK)
-          return res;
-    }
-    if (res == E_FAULT || res == E_ENTRY)
-    {
-      int16_t chunksLeft = (int16_t)(chainLength - chunks)
-          - (int16_t)(nodeCount(handle) - node->index);
-      while (chunksLeft > 0)
-      {
-        if ((res = allocateCluster(handle, &node->cluster)) != E_OK)
-          return res;
-        if (allocateParent)
-        {
-          parent = node->cluster;
-          allocateParent = false;
-        }
-        chunksLeft -= (int16_t)nodeCount(handle);
-      }
-      break;
-    }
-
-    uint32_t sector = getSector(handle, node->cluster) + E_SECTOR(node->index);
-    if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
-      return res;
-    struct DirEntryImage *ptr = (struct DirEntryImage *)(handle->buffer
-        + E_OFFSET(node->index));
-
-    /* Empty node, deleted node or deleted long file name node */
-    if (((ptr->flags & MASK_LFN) == MASK_LFN && ptr->ordinal & LFN_DELETED)
-        || !ptr->name[0] || ptr->name[0] == E_FLAG_EMPTY)
-    {
-      if (!chunks) /* Found first free node */
-      {
-        index = node->index;
-        parent = node->cluster;
-      }
-      ++chunks;
-    }
-    else
-      chunks = 0;
-
-    ++node->index;
-  }
-
-  node->access = 0;
-  node->cluster = parent;
-  node->index = index;
-  node->payload = 0;
-  node->size = 0;
-  node->type = FS_TYPE_NONE;
-#ifdef FAT_LFN
-  node->nameCluster = node->cluster;
-  node->nameIndex = node->index;
-#endif
-
-  return E_OK;
-}
-#endif
-/*----------------------------------------------------------------------------*/
-#ifdef FAT_WRITE
 static enum result clearCluster(struct FatHandle *handle, uint32_t cluster)
 {
   uint32_t sector = getSector(handle, cluster + 1);
@@ -794,7 +725,7 @@ static enum result createNode(struct FatNode *node, const struct FatNode *root,
 #endif
 
   /* Find suitable space within the directory */
-  if ((res = allocateNode(node, root, chunks + 1)) != E_OK)
+  if ((res = findGap(node, root, chunks + 1)) != E_OK)
     return res;
 
   uint8_t current = chunks;
@@ -934,6 +865,87 @@ static enum result fillShortName(char *shortName, const char *name)
   }
 
   return res;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_WRITE
+/* Allocate single node or node chain inside root node chain. */
+static enum result findGap(struct FatNode *node, const struct FatNode *root,
+    uint8_t chainLength)
+{
+  struct FatHandle *handle = (struct FatHandle *)root->handle;
+  uint32_t parent = root->payload;
+  uint16_t index = 0;
+  uint8_t chunks = 0;
+  enum result res;
+
+  node->cluster = root->payload;
+  node->index = 0;
+
+  while (chunks != chainLength)
+  {
+    bool allocateParent = false;
+    switch ((res = fetchEntry(node)))
+    {
+      case E_ENTRY:
+        index = node->index;
+        parent = node->cluster;
+        allocateParent = false;
+        break;
+      case E_FAULT:
+        index = 0;
+        allocateParent = true;
+        break;
+      default:
+        if (res != E_OK)
+          return res;
+    }
+    if (res == E_FAULT || res == E_ENTRY)
+    {
+      int16_t chunksLeft = (int16_t)(chainLength - chunks)
+          - (int16_t)(nodeCount(handle) - node->index);
+      while (chunksLeft > 0)
+      {
+        if ((res = allocateCluster(handle, &node->cluster)) != E_OK)
+          return res;
+        if (allocateParent)
+        {
+          parent = node->cluster;
+          allocateParent = false;
+        }
+        chunksLeft -= (int16_t)nodeCount(handle);
+      }
+      break;
+    }
+
+    uint32_t sector = getSector(handle, node->cluster) + E_SECTOR(node->index);
+    if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
+      return res;
+    struct DirEntryImage *ptr = (struct DirEntryImage *)(handle->buffer
+        + E_OFFSET(node->index));
+
+    /* Empty node, deleted node or deleted long file name node */
+    if (((ptr->flags & MASK_LFN) == MASK_LFN && ptr->ordinal & LFN_DELETED)
+        || !ptr->name[0] || ptr->name[0] == E_FLAG_EMPTY)
+    {
+      if (!chunks) /* Found first free node */
+      {
+        index = node->index;
+        parent = node->cluster;
+      }
+      ++chunks;
+    }
+    else
+      chunks = 0;
+
+    ++node->index;
+  }
+
+  node->cluster = parent;
+  node->index = index;
+  node->type = FS_TYPE_NONE;
+
+  return E_OK;
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -1190,29 +1202,9 @@ static void fatHandleDeinit(void *object)
   freeBuffers(handle, FREE_ALL);
 }
 /*----------------------------------------------------------------------------*/
-static void *fatAllocate(void *object)
-{
-  const struct FatNodeConfig config = {
-      .handle = object
-  };
-  struct FatNode *node;
-
-#ifdef FAT_POOLS
-  struct FatHandle *handle = object;
-  if (queueEmpty(&handle->nodePool))
-    return 0;
-  queuePop(&handle->nodePool, &node);
-  FatNode->init(node, &config);
-#else
-  node = init(FatNode, &config);
-#endif
-
-  return node;
-}
-/*----------------------------------------------------------------------------*/
 static void *fatFollow(void *object, const char *path, const void *root)
 {
-  struct FatNode *node = fatAllocate(object);
+  struct FatNode *node = allocateNode(object);
 
   if (!node)
     return 0;
@@ -1243,6 +1235,13 @@ static enum result fatNodeInit(void *object, const void *configPtr)
 static void fatNodeDeinit(void *object __attribute__((unused)))
 {
   DEBUG_PRINT("Node freed, address %08lX\n", (unsigned long)object);
+}
+/*----------------------------------------------------------------------------*/
+static void *fatClone(void *object)
+{
+  struct FatNode *node = object;
+
+  return allocateNode((struct FatHandle *)node->handle);
 }
 /*----------------------------------------------------------------------------*/
 static void fatFree(void *object)

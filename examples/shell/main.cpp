@@ -479,7 +479,7 @@ enum cResult util_cp(struct FsHandle *handle, const vector<string> &args,
   info.type = FS_TYPE_FILE;
   strcpy(info.name, dst.c_str()); //FIXME
 
-  if (!(node = (struct FsNode *)fsAllocate(handle)))
+  if (!(node = (struct FsNode *)fsClone(rootNode)))
   {
     fsClose(srcFile);
     fsFree(rootNode);

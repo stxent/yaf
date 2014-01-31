@@ -254,6 +254,7 @@ enum cleanup
 /*----------------------------------------------------------------------------*/
 static enum result allocateBuffers(struct FatHandle *,
     const struct Fat32Config * const);
+static void *allocateNode(struct FatHandle *);
 static void extractShortName(const struct DirEntryImage *, char *);
 static void freeBuffers(struct FatHandle *, enum cleanup);
 static const char *getChunk(const char *, char *);
@@ -278,13 +279,12 @@ static enum result allocatePool(struct Queue *, void *, const void *, uint16_t);
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
 static enum result allocateCluster(struct FatHandle *, uint32_t *);
-static enum result allocateNode(struct FatNode *, const struct FatNode *,
-    uint8_t);
 static enum result clearCluster(struct FatHandle *, uint32_t);
 static enum result createNode(struct FatNode *, const struct FatNode *,
     const struct FsMetadata *);
 static void fillDirEntry(struct DirEntryImage *, const struct FatNode *);
 static enum result fillShortName(char *, const char *);
+static enum result findGap(struct FatNode *, const struct FatNode *, uint8_t);
 static enum result freeChain(struct FatHandle *, uint32_t);
 static enum result markFree(struct FatNode *);
 static char processCharacter(char);
@@ -303,12 +303,12 @@ static void fillLongNameEntry(struct DirEntryImage *, uint8_t, uint8_t,
 /* Filesystem handle functions */
 static enum result fatHandleInit(void *, const void *);
 static void fatHandleDeinit(void *);
-static void *fatAllocate(void *);
 static void *fatFollow(void *, const char *, const void *);
 
 /* Node functions */
 static enum result fatNodeInit(void *, const void *);
 static void fatNodeDeinit(void *);
+static void *fatClone(void *);
 static void fatFree(void *);
 static enum result fatGet(void *, struct FsMetadata *);
 static enum result fatLink(void *, const struct FsMetadata *, const void *,

@@ -64,7 +64,6 @@ struct FsHandleClass
 {
   CLASS_HEADER
 
-  void *(*allocate)(void *);
   void *(*follow)(void *, const char *, const void *);
 };
 /*----------------------------------------------------------------------------*/
@@ -77,6 +76,7 @@ struct FsNodeClass
 {
   CLASS_HEADER
 
+  void *(*clone)(void *);
   void (*free)(void *);
   enum result (*get)(void *, struct FsMetadata *);
   enum result (*link)(void *, const struct FsMetadata *, const void *, void *);
@@ -112,25 +112,6 @@ struct FsEntry
 };
 /*----------------------------------------------------------------------------*/
 /**
- * Allocate a node for further use.
- * @param handle Pointer to an FsHandle object.
- * @return Pointer to an allocated node on success or zero otherwise.
- */
-static inline void *fsAllocate(void *handle)
-{
-  return ((struct FsHandleClass *)CLASS(handle))->allocate(handle);
-}
-/*----------------------------------------------------------------------------*/
-/**
- * Free the memory allocated for a node.
- * @param node Pointer to a previously allocated FsNode object.
- */
-static inline void fsFree(void *node)
-{
-  ((struct FsNodeClass *)CLASS(node))->free(node);
-}
-/*----------------------------------------------------------------------------*/
-/**
  * Follow symbolic path and get node pointing to this entry.
  * @param handle Pointer to an FsHandle object.
  * @param path Path to an entry to be located.
@@ -143,6 +124,25 @@ static inline void fsFree(void *node)
 static inline void *fsFollow(void *handle, const char *path, const void *root)
 {
   return ((struct FsHandleClass *)CLASS(handle))->follow(handle, path, root);
+}
+/*----------------------------------------------------------------------------*/
+/**
+ * Allocate a new node.
+ * @param node Pointer to a previously initialized node.
+ * @return Pointer to an allocated node on success or zero otherwise.
+ */
+static inline void *fsClone(void *node)
+{
+  return ((struct FsNodeClass *)CLASS(node))->clone(node);
+}
+/*----------------------------------------------------------------------------*/
+/**
+ * Free the memory allocated for a node.
+ * @param node Pointer to a previously allocated FsNode object.
+ */
+static inline void fsFree(void *node)
+{
+  ((struct FsNodeClass *)CLASS(node))->free(node);
 }
 /*----------------------------------------------------------------------------*/
 /**
