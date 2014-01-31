@@ -52,8 +52,8 @@
 /*----------------------------------------------------------------------------*/
 #define CLUSTER_EOC_VAL         0x0FFFFFF8UL
 #define FILE_SIZE_MAX           0xFFFFFFFFUL
-/* Reserved directory entry position */
-#define RESERVED_ENTRY          0xFFFFFFFFUL
+/* Reserved cluster number */
+#define RESERVED_CLUSTER        0
 /* Reserved sector number for initial sector reading */
 #define RESERVED_SECTOR         0xFFFFFFFFUL
 /*----------------------------------------------------------------------------*/
@@ -131,9 +131,8 @@ struct FatDir
 
   struct FsHandle *handle;
   uint32_t payload; /* First cluster of directory data */
-  uint32_t position; /* Current position in directory */
-  uint32_t currentCluster; /* Current cluster inside data chain */
-  uint16_t currentIndex; /* Index of an entry in current cluster */
+  uint32_t currentCluster; /* Current cluster of directory data */
+  uint16_t currentIndex; /* Position in current cluster */
 };
 /*----------------------------------------------------------------------------*/
 struct FatFileConfig

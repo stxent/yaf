@@ -363,7 +363,10 @@ static enum result fetchNode(struct FatNode *node, char *entryName)
   {
 #ifdef FAT_LFN
     if (hasLongName(node))
-      readLongName(node, entryName);
+    {
+      if ((res = readLongName(node, entryName)) != E_OK)
+        return res;
+    }
     else
       extractShortName(ptr, entryName);
 #else
@@ -726,6 +729,12 @@ static enum result createNode(struct FatNode *node, const struct FatNode *root,
   if ((res = findGap(node, root, chunks + 1)) != E_OK)
     return res;
 
+#ifdef FAT_LFN
+  /* Save start cluster and index values before filling the chain */
+  node->nameCluster = node->cluster;
+  node->nameIndex = node->index;
+#endif
+
   uint8_t current = chunks;
   do
   {
@@ -757,9 +766,12 @@ static enum result createNode(struct FatNode *node, const struct FatNode *root,
   if (res != E_OK)
     return res;
 
-  node->access = metadata->access;
+  /* Fill uninitialized node fields */
+  node->access = FS_ACCESS_READ | FS_ACCESS_WRITE;
+  node->payload = RESERVED_CLUSTER;
   node->type = metadata->type;
   memcpy(ptr->filename, shortName, sizeof(ptr->filename));
+
   fillDirEntry(ptr, node);
 
   res = writeSector(handle, sector, handle->buffer, 1);
@@ -950,7 +962,7 @@ static enum result findGap(struct FatNode *node, const struct FatNode *root,
 #ifdef FAT_WRITE
 static enum result freeChain(struct FatHandle *handle, uint32_t cluster)
 {
-  uint32_t current = cluster, released = 0;
+  uint32_t current = cluster, next, released = 0;
   enum result res;
 
   if (!current)
@@ -964,10 +976,9 @@ static enum result freeChain(struct FatHandle *handle, uint32_t cluster)
     if (res != E_OK)
       return res;
 
-    /* Free table entry */
+    next = *(uint32_t *)(handle->buffer + TE_OFFSET(current));
     *(uint32_t *)(handle->buffer + TE_OFFSET(current)) = 0;
 
-    uint32_t next = *(uint32_t *)(handle->buffer + TE_OFFSET(current));
     /* Update table when switching table sectors */
     if (current >> TE_COUNT != next >> TE_COUNT)
     {
@@ -1529,7 +1540,6 @@ static enum result fatDirInit(void *object, const void *configPtr)
 
   dir->handle = node->handle;
   dir->payload = node->payload;
-  dir->position = 0;
   dir->currentCluster = node->payload;
   dir->currentIndex = 0;
   DEBUG_PRINT("Dir allocated, address %08lX\n", (unsigned long)object);
@@ -1560,7 +1570,7 @@ static bool fatDirEnd(void *object)
 {
   struct FatDir *dir = object;
 
-  return dir->position == RESERVED_ENTRY;
+  return dir->currentCluster == RESERVED_CLUSTER;
 }
 /*----------------------------------------------------------------------------*/
 static enum result fatDirFetch(void *object, void *nodePtr)
@@ -1575,13 +1585,17 @@ static enum result fatDirFetch(void *object, void *nodePtr)
   if ((res = fetchNode(node, 0)) != E_OK)
   {
     if (res == E_ENTRY)
-      dir->position = RESERVED_ENTRY; /* Reached the end of the directory */
+    {
+      /* Reached the end of the directory */
+      dir->currentCluster = RESERVED_CLUSTER;
+      dir->currentIndex = 0;
+    }
     return res;
   }
 
+  /* Make current position pointing to next entry */
   dir->currentCluster = node->cluster;
-  dir->currentIndex = node->index + 1; /* Points to a next item */
-  ++dir->position;
+  dir->currentIndex = node->index + 1;
 
   return E_OK;
 }
@@ -1597,7 +1611,6 @@ static enum result fatDirSeek(void *object, uint64_t offset,
 
   dir->currentCluster = dir->payload;
   dir->currentIndex = 0;
-  dir->position = 0;
 
   return E_OK;
 }
@@ -1841,7 +1854,7 @@ static uint32_t fatFileWrite(void *object, const void *buffer, uint32_t length)
   if (!(file->access & FS_ACCESS_WRITE))
     return 0;
 
-  if (!file->size)
+  if (file->payload == RESERVED_CLUSTER)
   {
     if (allocateCluster(handle, &file->payload) != E_OK)
       return 0;
