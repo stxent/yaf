@@ -1353,12 +1353,38 @@ static enum result fatGet(void *object, enum fsNodeData type, void *data)
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
 static enum result fatLink(void *object, const struct FsMetadata *metadata,
-    const void *target, void *result)
+    const void *targetPtr, void *result)
 {
-  return E_ERROR; //TODO
+  const struct FatNode *target = targetPtr;
+  struct FatNode *allocatedNode, *node = object;
+
+  if (!(node->access & FS_ACCESS_WRITE))
+    return E_ACCESS;
+
+  if (!result)
+  {
+    if (!(allocatedNode = allocateNode((struct FatHandle *)node->handle)))
+      return E_MEMORY;
+  }
+  else
+    allocatedNode = result; /* Use a node provided by user */
+
+  allocatedNode->payload = target->payload;
+
+  enum result res = createNode(allocatedNode, node, metadata);
+  if (res != E_OK)
+  {
+    fatFree(allocatedNode);
+    return res;
+  }
+
+  if (!result)
+    fatFree(allocatedNode);
+
+  return E_OK;
 }
 #else
-static enum result fatMake(void *object __attribute__((unused)),
+static enum result fatLink(void *object __attribute__((unused)),
     const struct FsMetadata *metadata __attribute__((unused)),
     const void *target __attribute__((unused)),
     void *result __attribute__((unused)))
@@ -1371,13 +1397,20 @@ static enum result fatMake(void *object __attribute__((unused)),
 static enum result fatMake(void *object, const struct FsMetadata *metadata,
     void *result)
 {
-  struct FatNode *node = object;
+  struct FatNode *allocatedNode, *node = object;
   struct FatHandle *handle = (struct FatHandle *)node->handle;
   enum result res;
 
-  struct FatNode *allocatedNode;
-  if (!(allocatedNode = fatAllocate(handle)))
-    return E_MEMORY;
+  if (!(node->access & FS_ACCESS_WRITE))
+    return E_ACCESS;
+
+  if (!result)
+  {
+    if (!(allocatedNode = allocateNode(handle)))
+      return E_MEMORY;
+  }
+  else
+    allocatedNode = result; /* Use a node provided by user */
 
   if (metadata->type == FS_TYPE_DIR)
   {
@@ -1397,10 +1430,9 @@ static enum result fatMake(void *object, const struct FsMetadata *metadata,
       goto setup_error;
   }
 
-  if (result)
-    memcpy(result, allocatedNode, sizeof(struct FatNode));
+  if (!result)
+    fatFree(allocatedNode);
 
-  fatFree(allocatedNode);
   return E_OK;
 
 setup_error:
