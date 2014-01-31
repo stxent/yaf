@@ -348,7 +348,6 @@ static enum result fetchNode(struct FatNode *node, char *entryName)
   if (!(ptr->flags & FLAG_RO))
     node->access |= FS_ACCESS_WRITE;
   node->payload = ptr->clusterHigh << 16 | ptr->clusterLow;
-  node->size = ptr->size;
 
 #ifdef FAT_LFN
   if (!found || found != chunks || checksum != getChecksum(ptr->filename,
@@ -391,7 +390,6 @@ static const char *followPath(struct FatNode *node, const char *path,
       node->access = FS_ACCESS_READ | FS_ACCESS_WRITE;
       node->cluster = 0;
       node->payload = ((struct FatHandle *)node->handle)->rootCluster;
-      node->size = 0;
       node->type = FS_TYPE_DIR;
       return path;
     }
@@ -788,7 +786,7 @@ static void fillDirEntry(struct DirEntryImage *ptr, const struct FatNode *node)
 
   ptr->clusterHigh = node->payload >> 16;
   ptr->clusterLow = node->payload;
-  ptr->size = node->size;
+  ptr->size = 0;
 
 #ifdef FAT_TIME
   //FIXME Rewrite
@@ -1608,15 +1606,25 @@ static enum result fatFileInit(void *object, const void *configPtr)
 {
   const struct FatFileConfig * const config = configPtr;
   const struct FatNode *node = (struct FatNode *)config->node;
+  struct FatHandle *handle = (struct FatHandle *)node->handle;
   struct FatFile *file = object;
+  enum result res;
 
   if (node->type != FS_TYPE_FILE)
     return E_VALUE;
 
+  /* TODO Avoid reading */
+  const uint32_t sector = getSector(handle, node->cluster)
+      + E_SECTOR(node->index);
+  if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
+    return res;
+  struct DirEntryImage *ptr = (struct DirEntryImage *)(handle->buffer
+      + E_OFFSET(node->index));
+
   file->access = node->access;
   file->handle = node->handle;
   file->position = 0;
-  file->size = node->size;
+  file->size = ptr->size;
   file->payload = node->payload;
   file->currentCluster = node->payload;
 #ifdef FAT_WRITE

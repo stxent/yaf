@@ -111,7 +111,6 @@ struct FatNode
   struct FsHandle *handle;
   uint32_t cluster; /* Directory cluster where the entry is located */
   uint32_t payload; /* First cluster of the entry */
-  uint32_t size; /* File size or zero for directories */
 #ifdef FAT_LFN
   uint32_t nameCluster; /* Directory cluster of the first name entry */
   uint16_t nameIndex; /* First name entry position in the parent cluster */
