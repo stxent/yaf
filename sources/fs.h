@@ -19,7 +19,6 @@
 #define FS_NAME_LENGTH 128
 /*----------------------------------------------------------------------------*/
 typedef uint8_t access_t;
-typedef int64_t time_t; //TODO Move to other file
 /*----------------------------------------------------------------------------*/
 enum
 {
@@ -27,6 +26,22 @@ enum
   FS_ACCESS_READ = 0x01,
   /** Write access allows to modify and delete nodes. */
   FS_ACCESS_WRITE = 0x02
+};
+/*----------------------------------------------------------------------------*/
+enum fsNodeData
+{
+  /** Type and symbolic name of the node. */
+  FS_NODE_METADATA = 0,
+  /** Access rights to the node available for user. */
+  FS_NODE_ACCESS,
+  /** Owner of the node. */
+  FS_NODE_OWNER,
+  /** Node size in bytes or elements. */
+  FS_NODE_SIZE,
+  /** Node change time. */
+  FS_NODE_TIME,
+  /** Additional debug data. TODO Remove */
+  FS_NODE_DEBUG
 };
 /*----------------------------------------------------------------------------*/
 enum fsNodeType
@@ -53,10 +68,9 @@ enum fsSeekOrigin
 /*----------------------------------------------------------------------------*/
 struct FsMetadata
 {
-  uint64_t size;
-  time_t time;
+  /** Symbolic name of the node. */
   char name[FS_NAME_LENGTH];
-  access_t access;
+  /** Type of the node. */
   enum fsNodeType type;
 };
 /*----------------------------------------------------------------------------*/
@@ -78,11 +92,11 @@ struct FsNodeClass
 
   void *(*clone)(void *);
   void (*free)(void *);
-  enum result (*get)(void *, struct FsMetadata *);
+  enum result (*get)(void *, enum fsNodeData, void *);
   enum result (*link)(void *, const struct FsMetadata *, const void *, void *);
   enum result (*make)(void *, const struct FsMetadata *, void *);
   void *(*open)(void *, access_t);
-  enum result (*set)(void *, const struct FsMetadata *);
+  enum result (*set)(void *, enum fsNodeData, const void *);
   enum result (*truncate)(void *);
   enum result (*unlink)(void *);
 };
@@ -148,12 +162,14 @@ static inline void fsFree(void *node)
 /**
  * Load information about the node.
  * @param node The node with information about entry location.
- * @param metadata Pointer to an entry information structure to be filled.
+ * @param type Information type.
+ * @param data Pointer to a specified buffer to be filled.
  * @return @b E_OK on success.
  */
-static inline enum result fsGet(void *node, struct FsMetadata *metadata)
+static inline enum result fsGet(void *node, enum fsNodeData type,
+    void *data)
 {
-  return ((struct FsNodeClass *)CLASS(node))->get(node, metadata);
+  return ((struct FsNodeClass *)CLASS(node))->get(node, type, data);
 }
 /*----------------------------------------------------------------------------*/
 /**
@@ -201,12 +217,15 @@ static inline void *fsOpen(void *node, access_t access)
 /*----------------------------------------------------------------------------*/
 /**
  * Modify information about the node.
- * @param metadata Pointer to an entry information structure to be saved.
+ * @param node The node with information about entry location.
+ * @param type Information type.
+ * @param data Pointer to a specified buffer to be saved.
  * @return @b E_OK on success.
  */
-static inline enum result fsSet(void *node, const struct FsMetadata *metadata)
+static inline enum result fsSet(void *node, enum fsNodeData type,
+    const void *data)
 {
-  return ((struct FsNodeClass *)CLASS(node))->set(node, metadata);
+  return ((struct FsNodeClass *)CLASS(node))->set(node, type, data);
 }
 /*----------------------------------------------------------------------------*/
 /**

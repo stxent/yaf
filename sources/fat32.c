@@ -1265,12 +1265,49 @@ static void fatFree(void *object)
 #endif
 }
 /*----------------------------------------------------------------------------*/
-static enum result fatGet(void *object, struct FsMetadata *metadata)
+static enum result fatGet(void *object, enum fsNodeData type, void *data)
 {
   const struct DirEntryImage *ptr;
   struct FatNode *node = object;
   struct FatHandle *handle = (struct FatHandle *)node->handle;
   enum result res;
+
+  switch (type)
+  {
+#ifdef FAT_LFN
+    case FS_NODE_METADATA:
+    {
+      if (!hasLongName(node))
+        break; /* Short name cannot be read without sector reload */
+
+      struct FsMetadata *metadata = data;
+
+      metadata->type = node->type;
+      if ((res = readLongName(node, metadata->name)) != E_OK)
+        return res;
+
+      return E_OK;
+    }
+#endif
+    case FS_NODE_ACCESS:
+    {
+      *(access_t *)data = node->access;
+      return E_OK;
+    }
+#ifdef DEBUG
+    case FS_NODE_DEBUG:
+    {
+      uint32_t *debugData = data;
+
+      debugData[0] = node->payload;
+      debugData[1] = node->cluster;
+      debugData[2] = node->index;
+      return E_OK;
+    }
+#endif
+    default:
+      break;
+  }
 
   const uint32_t sector = getSector(handle, node->cluster)
       + E_SECTOR(node->index);
@@ -1278,42 +1315,40 @@ static enum result fatGet(void *object, struct FsMetadata *metadata)
     return res;
   ptr = (struct DirEntryImage *)(handle->buffer + E_OFFSET(node->index));
 
-  metadata->access = FS_ACCESS_READ;
-  if (!(ptr->flags & FLAG_RO))
-    metadata->access |= FS_ACCESS_WRITE;
-  metadata->size = ptr->size;
-  metadata->type = node->type;
+  switch (type)
+  {
+    case FS_NODE_METADATA:
+    {
+      struct FsMetadata *metadata = data;
 
-#ifdef FAT_LFN
-  if (hasLongName(node))
-    readLongName(node, metadata->name);
-  else
-    extractShortName(ptr, metadata->name);
-#else
-  extractShortName(ptr, metadata->name);
-#endif
-
+      metadata->type = node->type;
+      extractShortName(ptr, metadata->name);
+      return E_OK;
+    }
+    case FS_NODE_SIZE:
+    {
+      *(uint64_t *)data = (uint64_t)ptr->size;
+      return E_OK;
+    }
 #ifdef FAT_TIME
-  struct Time time;
-  time.sec = ptr->time & 0x1F;
-  time.min = (ptr->time >> 5) & 0x3F;
-  time.hour = (ptr->time >> 11) & 0x1F;
-  time.day = ptr->date & 0x1F;
-  time.mon = (ptr->date >> 5) & 0x0F;
-  time.year = ((ptr->date >> 9) & 0x7F) + 1980;
-  metadata->time = unixTime(&time);
-#else
-  metadata->time = 0;
-#endif
+    case FS_NODE_TIME:
+    {
+      struct Time time;
 
-#ifdef DEBUG
-  struct FatMetadata *debugData = (struct FatMetadata *)metadata;
-  debugData->cluster = node->payload;
-  debugData->pcluster = node->cluster;
-  debugData->pindex = node->index;
-#endif
+      time.sec = ptr->time & 0x1F;
+      time.min = (ptr->time >> 5) & 0x3F;
+      time.hour = (ptr->time >> 11) & 0x1F;
+      time.day = ptr->date & 0x1F;
+      time.mon = (ptr->date >> 5) & 0x0F;
+      time.year = ((ptr->date >> 9) & 0x7F) + 1980;
 
-  return E_OK;
+      *(int64_t *)data = unixTime(&time); //FIXME Rewrite
+      return E_OK;
+    }
+#endif
+    default:
+      return E_VALUE;
+  }
 }
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
@@ -1441,7 +1476,7 @@ static void *fatOpen(void *object, access_t access)
 }
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
-static enum result fatSet(void *object, const struct FsMetadata *metadata)
+static enum result fatSet(void *object, enum fsNodeData type, const void *data)
 {
   struct FatNode *node = object;
 

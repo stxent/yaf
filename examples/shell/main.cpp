@@ -171,15 +171,9 @@ vector< map<string, string> > util_ls(struct FsHandle *handle,
 
   if (dir)
   {
+    struct FsMetadata info;
     int pos = 1;
     enum result fsres;
-
-#ifdef DEBUG
-    struct FatMetadata debugInfo;
-#else
-    struct FsMetadata debugInfo;
-#endif
-    struct FsMetadata *info = (struct FsMetadata *)&debugInfo;
 
     //Previously allocated node is reused
     while (!fsEnd(dir))
@@ -190,12 +184,22 @@ vector< map<string, string> > util_ls(struct FsHandle *handle,
       map<string, string> retval;
       stringstream estream;
 //      path = parsePath(dirPath, (string)fname);
-      if (fsGet(node, info) == E_OK)
+      if (fsGet(node, FS_NODE_METADATA, &info) == E_OK)
       {
-        string str_size = int2str(info->size, 10);
-        string str_atime = time2str(info->time);
+        string str_size, str_atime;
 
-        retval.insert(pair<string, string>("name", info->name));
+        uint64_t size;
+        if (fsGet(node, FS_NODE_SIZE, &size) == E_OK)
+          str_size = int2str(size, 10);
+
+        int64_t atime;
+        if (fsGet(node, FS_NODE_TIME, &atime) == E_OK)
+          str_atime = time2str(atime);
+
+        access_t access = 0;
+        fsGet(node, FS_NODE_ACCESS, &access);
+
+        retval.insert(pair<string, string>("name", info.name));
         retval.insert(pair<string, string>("size", str_size));
 //        retval.insert(pair<string, string>("time", str_atime));
         entries.push_back(retval);
@@ -203,21 +207,24 @@ vector< map<string, string> > util_ls(struct FsHandle *handle,
         if (details)
         {
 #ifdef DEBUG
+          uint32_t debugInfo[3] = {0, 0, 0};
+
+          fsGet(node, FS_NODE_DEBUG, debugInfo);
           estream.width(10);
-          estream << debugInfo.pcluster << '.';
+          estream << debugInfo[1] << '.';
           estream.width(3);
-          estream << left << debugInfo.pindex << right << ' ';
+          estream << left << debugInfo[2] << right << ' ';
           estream.width(10);
-          estream << debugInfo.cluster << ' ';
+          estream << debugInfo[0] << ' ';
 #endif
 
           //Access
-          char access[4];
-          access[0] = (info->type == FS_TYPE_DIR) ? 'd' : '-';
-          access[1] = 'r';
-          access[2] = (info->access & 02) ? 'w' : '-';
-          access[3] = '\0';
-          estream << access;
+          char str_access[4];
+          str_access[0] = (info.type == FS_TYPE_DIR) ? 'd' : '-';
+          str_access[1] = access & FS_ACCESS_READ ? 'r' : '-';
+          str_access[2] = access & FS_ACCESS_WRITE ? 'w' : '-';
+          str_access[3] = '\0';
+          estream << str_access;
 
           estream.width(10);
 #ifdef DEBUG
@@ -226,14 +233,14 @@ vector< map<string, string> > util_ls(struct FsHandle *handle,
           estream << left << str_size << right << ' ';
 #endif
           estream << str_atime << ' ';
-          estream << info->name;
+          estream << info.name;
 
           cout << estream.str() << endl;
         }
         else
         {
           cout.width(20);
-          cout << left << info->name << right;
+          cout << left << info.name << right;
           if (!(pos % 4))
             cout << endl;
         }
@@ -269,9 +276,6 @@ enum cResult util_mkdir(struct FsHandle *handle, const vector<string> &args,
   string newloc = parsePath(loc, args[1]); //FIXME unused
 
   struct FsMetadata info;
-  info.access = FS_ACCESS_READ | FS_ACCESS_WRITE;
-  info.size = 0;
-  info.time = 0;
   info.type = FS_TYPE_DIR;
   strcpy(info.name, args[1].c_str()); //FIXME
 
@@ -473,9 +477,6 @@ enum cResult util_cp(struct FsHandle *handle, const vector<string> &args,
   }
 
   struct FsMetadata info;
-  info.access = FS_ACCESS_READ | FS_ACCESS_WRITE;
-  info.size = 0;
-  info.time = 0;
   info.type = FS_TYPE_FILE;
   strcpy(info.name, dst.c_str()); //FIXME
 
