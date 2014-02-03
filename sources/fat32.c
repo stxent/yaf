@@ -387,7 +387,7 @@ static const char *followPath(struct FatNode *node, const char *path,
     if (name[0] == '/')
     {
       node->access = FS_ACCESS_READ | FS_ACCESS_WRITE;
-      node->cluster = 0;
+      node->cluster = RESERVED_CLUSTER;
       node->payload = ((struct FatHandle *)node->handle)->rootCluster;
       node->type = FS_TYPE_DIR;
       return path;
@@ -397,7 +397,7 @@ static const char *followPath(struct FatNode *node, const char *path,
   else
     node->cluster = root->payload;
 
-  while (!fetchNode(node, nodeName))
+  while (fetchNode(node, nodeName) == E_OK)
   {
     if (!strcmp(name, nodeName))
       return path;
@@ -524,6 +524,7 @@ static enum result readLongName(struct FatNode *node, char *entryName)
   uint32_t cluster = node->cluster; /* Preserve cluster and index values */
   uint16_t index = node->index;
   uint8_t chunks = 0;
+  enum fsNodeType type = node->type;
   enum result res;
 
   node->cluster = node->nameCluster;
@@ -561,6 +562,7 @@ static enum result readLongName(struct FatNode *node, char *entryName)
   /* Restore values changed during directory processing */
   node->cluster = cluster;
   node->index = index;
+  node->type = type;
 
   return res;
 }
@@ -961,7 +963,7 @@ static enum result freeChain(struct FatHandle *handle, uint32_t cluster)
   uint32_t current = cluster, next, released = 0;
   enum result res;
 
-  if (!current)
+  if (current == RESERVED_CLUSTER)
     return E_OK; /* Already empty */
 
   while (clusterUsed(current))
@@ -1012,6 +1014,7 @@ static enum result markFree(struct FatNode *node)
   uint32_t lastSector;
   uint16_t index = node->index;
   bool lastEntry = false;
+  enum fsNodeType type = node->type;
   enum result res;
 
   lastSector = getSector(handle, node->cluster) + E_SECTOR(node->index);
@@ -1042,9 +1045,10 @@ static enum result markFree(struct FatNode *node)
     ++node->index;
   }
 
-  /* Restore node values changed during entry fetching */
+  /* Restore node state changed during entry fetching */
   node->index = index;
   node->cluster = cluster;
+  node->type = type;
 
   if (res != E_OK)
     return res;
@@ -1577,16 +1581,15 @@ static enum result fatUnlink(void *object)
   struct FatNode *node = object;
   enum result res;
 
-  if (node->type != FS_TYPE_DIR && node->type != FS_TYPE_FILE)
-    return E_VALUE;
   if (!(node->access & FS_ACCESS_WRITE))
     return E_ACCESS;
 
-  if (node->type == FS_TYPE_DIR)
+  if (node->type == FS_TYPE_DIR && node->payload != RESERVED_CLUSTER)
   {
     /* Preserve values */
     uint32_t cluster = node->cluster;
     uint16_t index = node->index;
+    enum fsNodeType type = node->type;
 
     /* Check if directory not empty */
     node->cluster = node->payload;
@@ -1601,6 +1604,7 @@ static enum result fatUnlink(void *object)
     /* Restore values changed by node fetching function */
     node->cluster = cluster;
     node->index = index;
+    node->type = type;
   }
 
   if ((res = markFree(node)) != E_OK)
@@ -1666,7 +1670,7 @@ static enum result fatDirFetch(void *object, void *nodePtr)
   enum result res;
 
   if (dir->currentCluster == RESERVED_CLUSTER)
-    return false;
+    return E_ENTRY;
 
   node->cluster = dir->currentCluster;
   node->index = dir->currentIndex;
