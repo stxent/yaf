@@ -9,10 +9,6 @@
 #include "fat32.h"
 #include "fat32_defs.h"
 /*----------------------------------------------------------------------------*/
-//TODO
-#define mutexLock(lock)
-#define mutexUnlock(lock)
-/*----------------------------------------------------------------------------*/
 #ifdef DEBUG
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,7 +17,7 @@
 #define DEBUG_PRINT(...)
 #endif
 /*----------------------------------------------------------------------------*/
-/* Get size of array placed in structure */
+/* Get size of an array placed in structure */
 #define ARRAY_SIZE(parent, array) (sizeof(((struct parent *)0)->array))
 /*------------------Class descriptors-----------------------------------------*/
 static const struct FsHandleClass fatHandleTable = {
@@ -57,10 +53,10 @@ static const struct FsEntryClass fatDirTable = {
     .end = fatDirEnd,
     .fetch = fatDirFetch,
     .seek = fatDirSeek,
+    .tell = fatDirTell,
 
     .read = 0,
     .sync = 0,
-    .tell = 0,
     .write = 0
 };
 
@@ -212,7 +208,7 @@ static void freeBuffers(struct FatHandle *handle, enum cleanup step)
   }
 }
 /*----------------------------------------------------------------------------*/
-/* Destination string buffer should be at least FS_NAME_LENGTH characters long */
+/* Output string buffer should be at least FS_NAME_LENGTH characters long */
 static const char *getChunk(const char *src, char *dest)
 {
   uint8_t counter = 0;
@@ -287,7 +283,7 @@ static enum result fetchEntry(struct FatNode *node)
       return E_ENTRY;
 
     /* Volume entries are ignored */
-    if (!(ptr->flags & FLAG_VOLUME && (ptr->flags & MASK_LFN) != MASK_LFN))
+    if (!((ptr->flags & FLAG_VOLUME) && (ptr->flags & MASK_LFN) != MASK_LFN))
       break;
     ++node->index;
   }
@@ -768,9 +764,9 @@ static enum result createNode(struct FatNode *node, const struct FatNode *root,
 
   /* Fill uninitialized node fields */
   node->access = FS_ACCESS_READ | FS_ACCESS_WRITE;
-  node->payload = RESERVED_CLUSTER;
   node->type = metadata->type;
   memcpy(ptr->filename, shortName, sizeof(ptr->filename));
+  /* Node data pointer is already initialized */
 
   fillDirEntry(ptr, node);
 
@@ -796,8 +792,8 @@ static void fillDirEntry(struct DirEntryImage *ptr, const struct FatNode *node)
   if (!(node->access & FS_ACCESS_WRITE))
     ptr->flags |= FLAG_RO;
 
-  ptr->clusterHigh = node->payload >> 16;
-  ptr->clusterLow = node->payload;
+  ptr->clusterHigh = (uint16_t)(node->payload >> 16);
+  ptr->clusterLow = (uint16_t)node->payload;
   ptr->size = 0;
 
 #ifdef FAT_TIME
@@ -935,7 +931,7 @@ static enum result findGap(struct FatNode *node, const struct FatNode *root,
         + E_OFFSET(node->index));
 
     /* Empty node, deleted node or deleted long file name node */
-    if (((ptr->flags & MASK_LFN) == MASK_LFN && ptr->ordinal & LFN_DELETED)
+    if (((ptr->flags & MASK_LFN) == MASK_LFN && (ptr->ordinal & LFN_DELETED))
         || !ptr->name[0] || ptr->name[0] == E_FLAG_EMPTY)
     {
       if (!chunks) /* Found first free node */
@@ -1511,12 +1507,37 @@ static void *fatOpen(void *object, access_t access)
 static enum result fatSet(void *object, enum fsNodeData type, const void *data)
 {
   struct FatNode *node = object;
+  struct FatHandle *handle = (struct FatHandle *)node->handle;
+  enum result res;
 
   if (!(node->access & FS_ACCESS_WRITE))
     return E_ACCESS;
 
-  //TODO Implement
-  return E_ERROR;
+  uint32_t sector = getSector(handle, node->cluster) + E_SECTOR(node->index);
+  if ((res = readSector(handle, sector, handle->buffer, 1)) != E_OK)
+    return res;
+  struct DirEntryImage *ptr = (struct DirEntryImage *)(handle->buffer
+      + E_OFFSET(node->index));
+
+  switch (type)
+  {
+    case FS_NODE_ACCESS:
+    {
+      node->access = *(access_t *)data;
+      if (node->access & FS_ACCESS_WRITE)
+        ptr->flags &= ~FLAG_RO;
+      else
+        ptr->flags |= FLAG_RO;
+      break;
+    }
+    default:
+      return E_VALUE;
+  }
+
+  if ((res = writeSector(handle, sector, handle->buffer, 1)) != E_OK)
+    return res;
+
+  return E_OK;
 }
 #else
 static enum result fatSet(void *object __attribute__((unused)),
@@ -1533,16 +1554,14 @@ static enum result fatTruncate(void *object)
   struct FatHandle *handle = (struct FatHandle *)node->handle;
   enum result res;
 
-  if (node->type != FS_TYPE_FILE)
-    return E_VALUE;
   if (!(node->access & FS_ACCESS_WRITE))
     return E_ACCESS;
 
-  /* Mark file table clusters as free */
+  /* Mark clusters as free */
   if ((res = freeChain(handle, node->payload)) != E_OK)
     return res;
 
-  node->payload = 0;
+  node->payload = RESERVED_CLUSTER;
   return E_OK;
 }
 #else
@@ -1646,6 +1665,9 @@ static enum result fatDirFetch(void *object, void *nodePtr)
   struct FatDir *dir = object;
   enum result res;
 
+  if (dir->currentCluster == RESERVED_CLUSTER)
+    return false;
+
   node->cluster = dir->currentCluster;
   node->index = dir->currentIndex;
 
@@ -1672,14 +1694,29 @@ static enum result fatDirSeek(void *object, uint64_t offset,
 {
   struct FatDir *dir = object;
 
-  /* TODO Implement other seek types */
-  if (offset || origin != FS_SEEK_SET)
-    return E_VALUE;
+  if (origin == FS_SEEK_SET)
+  {
+    if (!offset)
+    {
+      dir->currentCluster = dir->payload;
+      dir->currentIndex = 0;
+    }
+    else
+    {
+      dir->currentCluster = (uint32_t)offset;
+      dir->currentIndex = (uint16_t)(offset >> 32);
+    }
+    return E_OK;
+  }
 
-  dir->currentCluster = dir->payload;
-  dir->currentIndex = 0;
+  return E_VALUE;
+}
+/*----------------------------------------------------------------------------*/
+static uint64_t fatDirTell(void *object)
+{
+  struct FatDir *dir = object;
 
-  return E_OK;
+  return ((uint64_t)dir->currentIndex << 32) | (uint64_t)dir->currentCluster;
 }
 /*------------------File functions--------------------------------------------*/
 static enum result fatFileInit(void *object, const void *configPtr)

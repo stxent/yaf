@@ -324,6 +324,7 @@ static enum result fatDirClose(void *);
 static bool fatDirEnd(void *);
 static enum result fatDirFetch(void *, void *);
 static enum result fatDirSeek(void *, uint64_t, enum fsSeekOrigin);
+static uint64_t fatDirTell(void *);
 
 /* File functions */
 static enum result fatFileInit(void *, const void *);
