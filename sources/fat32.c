@@ -41,7 +41,11 @@ static const struct FsNodeClass fatNodeTable = {
     .open = fatOpen,
     .set = fatSet,
     .truncate = fatTruncate,
-    .unlink = fatUnlink
+    .unlink = fatUnlink,
+
+    /* Stubs */
+    .mount = fatMount,
+    .unmount = fatUnmount
 };
 
 static const struct FsEntryClass fatDirTable = {
@@ -2085,3 +2089,14 @@ uint32_t countFree(void *object)
   return empty;
 }
 #endif
+/*------------------Unimplemented functions-----------------------------------*/
+static enum result fatMount(void *object __attribute__((unused)),
+    void *handle __attribute__((unused)))
+{
+  return E_ERROR;
+}
+/*----------------------------------------------------------------------------*/
+static void fatUnmount(void *object __attribute__((unused)))
+{
+
+}

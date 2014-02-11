@@ -336,6 +336,10 @@ static enum result fatFileSeek(void *, uint64_t, enum fsSeekOrigin);
 static enum result fatFileSync(void *);
 static uint64_t fatFileTell(void *);
 static uint32_t fatFileWrite(void *, const void *, uint32_t);
+
+/* Stubs */
+static enum result fatMount(void *, void *);
+static void fatUnmount(void *);
 /*----------------------------------------------------------------------------*/
 static inline bool clusterFree(uint32_t cluster)
 {

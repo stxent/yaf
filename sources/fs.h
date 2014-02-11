@@ -95,10 +95,12 @@ struct FsNodeClass
   enum result (*get)(void *, enum fsNodeData, void *);
   enum result (*link)(void *, const struct FsMetadata *, const void *, void *);
   enum result (*make)(void *, const struct FsMetadata *, void *);
+  enum result (*mount)(void *, void *);
   void *(*open)(void *, access_t);
   enum result (*set)(void *, enum fsNodeData, const void *);
   enum result (*truncate)(void *);
   enum result (*unlink)(void *);
+  void (*unmount)(void *);
 };
 /*----------------------------------------------------------------------------*/
 struct FsNode
@@ -205,6 +207,17 @@ static inline enum result fsMake(void *node, const struct FsMetadata *metadata,
 }
 /*----------------------------------------------------------------------------*/
 /**
+ * Link filesystem handle with existing node.
+ * @param node The node pointing to an existing directory node.
+ * @param handle Pointer to an initialized filesystem handle.
+ * @return E_OK on success.
+ */
+static inline enum result fsMount(void *node, void *handle)
+{
+  return ((struct FsNodeClass *)CLASS(node))->mount(node, handle);
+}
+/*----------------------------------------------------------------------------*/
+/**
  * Open an entry.
  * @param node The node with information about entry location.
  * @param access Requested access rights.
@@ -246,6 +259,15 @@ static inline enum result fsTruncate(void *node)
 static inline enum result fsUnlink(void *node)
 {
   return ((struct FsNodeClass *)CLASS(node))->unlink(node);
+}
+/*----------------------------------------------------------------------------*/
+/**
+ * Break the link between filesystem handles.
+ * @param node The node with connection to other handle.
+ */
+static inline void fsUnmount(void *node)
+{
+  return ((struct FsNodeClass *)CLASS(node))->unmount(node);
 }
 /*----------------------------------------------------------------------------*/
 /**
