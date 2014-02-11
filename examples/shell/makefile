@@ -1,6 +1,6 @@
 FATCONFIG+=-DFAT_LFN
 FATCONFIG+=-DFAT_POOLS
-# FATCONFIG+=-DFAT_TIME
+FATCONFIG+=-DFAT_TIME
 FATCONFIG+=-DFAT_WRITE
 
 PROJECT=fatshell
@@ -11,8 +11,8 @@ CXXFLAGS=-c -std=c++11 -O0 -Wall -Wextra -Winline $(FATCONFIG)
 CC=gcc
 CXX=g++
 
-CFLAGS+=-I$(PATH_COMMON) -I$(PATH_SOURCES)
-CXXFLAGS+=-I$(PATH_COMMON) -I$(PATH_SOURCES)
+CFLAGS+=-I./ -I$(PATH_COMMON) -I$(PATH_SOURCES)
+CXXFLAGS+=-I./ -I$(PATH_COMMON) -I$(PATH_SOURCES)
 
 ifneq ($(DEBUG), 0)
 	CFLAGS+=-DDEBUG
@@ -20,8 +20,8 @@ endif
 
 all: project
 
-project: main.o entity.o fat32.o unicode.o rtc.o mutex.o mmi.o queue.o
-	$(CXX) main.o entity.o fat32.o unicode.o rtc.o mutex.o mmi.o queue.o -lrt -lpthread -lcrypto -lboost_regex -o $(PROJECT)
+project: main.o shell.o commands.o entity.o fat32.o unicode.o rtc.o mutex.o mmi.o queue.o
+	$(CXX) main.o shell.o commands.o entity.o fat32.o unicode.o rtc.o mutex.o mmi.o queue.o -lrt -lpthread -lcrypto -o $(PROJECT)
 
 entity.o: $(PATH_COMMON)entity.c $(PATH_COMMON)entity.h
 	$(CC) $(CFLAGS) $(PATH_COMMON)entity.c
@@ -46,6 +46,12 @@ mmi.o: mmi.c mmi.h
 
 main.o: main.cpp
 	$(CXX) $(CXXFLAGS) main.cpp
+
+shell.o: shell.cpp
+	$(CXX) $(CXXFLAGS) shell.cpp
+
+commands.o: commands.cpp
+	$(CXX) $(CXXFLAGS) commands.cpp
 
 clean:
 	rm -rf *.o *.lst $(PROJECT)
