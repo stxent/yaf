@@ -32,6 +32,10 @@ enum fsNodeData
 {
   /** Type and symbolic name of the node. */
   FS_NODE_METADATA = 0,
+  /** Symbolic name of the node. */
+  FS_NODE_NAME,
+  /** Type of the node. */
+  FS_NODE_TYPE,
   /** Access rights to the node available for user. */
   FS_NODE_ACCESS,
   /** Owner of the node. */
@@ -133,7 +137,7 @@ struct FsEntry
  * @param path Path to an entry to be located.
  * @param root Local root entry. Zero value may be used to rewind search and
  * follow the path from global root entry.
- * @return Pointer to an allocated and filled node on sucess or zero otherwise.
+ * @return Pointer to an allocated and filled node on success or zero otherwise.
  * Allocated node may belong to other handle when current one
  * has nested partitions.
  */
