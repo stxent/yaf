@@ -59,9 +59,10 @@ static const struct FsEntryClass fatDirTable = {
     .seek = fatDirSeek,
     .tell = fatDirTell,
 
-    .read = 0,
-    .sync = 0,
-    .write = 0
+    /* Stubs */
+    .read = fatDirRead,
+    .sync = fatDirSync,
+    .write = fatDirWrite
 };
 
 static const struct FsEntryClass fatFileTable = {
@@ -77,7 +78,8 @@ static const struct FsEntryClass fatFileTable = {
     .tell = fatFileTell,
     .write = fatFileWrite,
 
-    .fetch = 0
+    /* Stubs */
+    .fetch = fatFileFetch
 };
 /*----------------------------------------------------------------------------*/
 const struct FsHandleClass *FatHandle = (void *)&fatHandleTable;
@@ -2099,4 +2101,31 @@ static enum result fatMount(void *object __attribute__((unused)),
 static void fatUnmount(void *object __attribute__((unused)))
 {
 
+}
+/*----------------------------------------------------------------------------*/
+static uint32_t fatDirRead(void *object __attribute__((unused)),
+    void *buffer __attribute__((unused)),
+    uint32_t length __attribute__((unused)))
+{
+  /* Use fatDirFetch instead */
+  return 0;
+}
+/*----------------------------------------------------------------------------*/
+static enum result fatDirSync(void *object __attribute__((unused)))
+{
+  return E_ERROR;
+}
+/*----------------------------------------------------------------------------*/
+static uint32_t fatDirWrite(void *object __attribute__((unused)),
+    const void *buffer __attribute__((unused)),
+    uint32_t length __attribute__((unused)))
+{
+  /* Use fatMake and fatLink instead */
+  return 0;
+}
+/*----------------------------------------------------------------------------*/
+static enum result fatFileFetch(void *object __attribute__((unused)),
+    void *nodePtr __attribute__((unused)))
+{
+  return E_ERROR;
 }
