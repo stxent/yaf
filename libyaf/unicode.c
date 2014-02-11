@@ -4,45 +4,12 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-// #include <iconv.h>
-// #include <stdlib.h>
-/*----------------------------------------------------------------------------*/
-#include "unicode.h"
+#include <libyaf/unicode.h>
 /*----------------------------------------------------------------------------*/
 #undef DEBUG
 #ifdef DEBUG
 #include <stdio.h>
 #endif
-/*----------------------------------------------------------------------------*/
-// void encode(char *inbuf, unsigned int length)
-// {
-//   size_t insize = length * 2, outsize = length * 4;
-//   char *outptr, *outbuf;
-//   iconv_t cd;
-//   size_t nconv;
-// //   uint16_t i;
-// 
-//   cd = iconv_open("UTF-8", "UTF-16LE");
-//   if (cd == (iconv_t)-1)
-//   {
-//     printf("ioconv initialization error\n");
-//     return;
-//   }
-// 
-//   outbuf = malloc(outsize);
-//   outptr = outbuf;
-//   nconv = iconv(cd, &inbuf, &insize, &outptr, &outsize);
-//   *outptr = 0;
-//   if (iconv_close (cd) != 0)
-//     printf("iconv_close");
-// 
-// //   //Dump name
-// //   printf("UTF-8 name: ");
-// //   for (i = 0; i < outsize; i++)
-// //     printf("%02X ", (unsigned char)outbuf[i]);
-//   printf("STR: %s\n", outbuf);
-//   free(outbuf);
-// }
 /*----------------------------------------------------------------------------*/
 #ifdef DEBUG
 static void dumpChar16String(char16_t *str)

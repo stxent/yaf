@@ -6,8 +6,8 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "fat32.h"
-#include "fat32_defs.h"
+#include <libyaf/fat32.h>
+#include <libyaf/fat32_defs.h>
 /*----------------------------------------------------------------------------*/
 #ifdef DEBUG
 #include <stdio.h>

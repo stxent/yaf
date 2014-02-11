@@ -9,8 +9,8 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <mutex.h>
 #include "mmi.h"
-#include "mutex.h"
 /*----------------------------------------------------------------------------*/
 #ifdef DEBUG
 #include <stdio.h>

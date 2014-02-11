@@ -10,9 +10,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <fs.h>
-#include <macro.h>
 #include <queue.h>
-#include "unicode.h"
+#include <libyaf/macro.h>
+#include <libyaf/unicode.h>
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_TIME
 #include "rtc.h"
