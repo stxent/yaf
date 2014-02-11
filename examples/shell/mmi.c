@@ -31,7 +31,7 @@ struct Mmi
 {
   struct Interface parent;
 
-  Mutex lock;
+  struct Mutex lock;
   uint64_t position, offset, size;
 
   uint8_t *data;
@@ -99,6 +99,8 @@ static enum result mmiInit(void *object, const void *configPtr)
 
   if (!path)
     return E_ERROR;
+  if (mutexInit(&dev->lock) != E_OK)
+    return E_ERROR;
   dev->position = 0;
   dev->offset = 0;
   dev->size = 0;
@@ -128,6 +130,7 @@ static void mmiDeinit(void *object)
 
   munmap(dev->data, dev->info.st_size);
   close(dev->file);
+  mutexDeinit(&dev->lock);
 }
 /*----------------------------------------------------------------------------*/
 static enum result mmiCallback(void *object __attribute__((unused)),

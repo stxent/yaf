@@ -7,16 +7,19 @@
 #ifndef MUTEX_H_
 #define MUTEX_H_
 /*----------------------------------------------------------------------------*/
-#include <pthread.h>
 #include <stdbool.h>
+#include <error.h>
 /*----------------------------------------------------------------------------*/
-#define MUTEX_UNLOCKED                  PTHREAD_MUTEX_INITIALIZER
-/* #define MUTEX_LOCKED                    PTHREAD_MUTEX_INITIALIZER */
+struct Mutex
+{
+  void *handle;
+};
 /*----------------------------------------------------------------------------*/
-typedef pthread_mutex_t Mutex;
+enum result mutexInit(struct Mutex *);
+void mutexDeinit(struct Mutex *);
 /*----------------------------------------------------------------------------*/
-void mutexLock(Mutex *);
-bool mutexTryLock(Mutex *);
-void mutexUnlock(Mutex *);
+void mutexLock(struct Mutex *);
+bool mutexTryLock(struct Mutex *);
+void mutexUnlock(struct Mutex *);
 /*----------------------------------------------------------------------------*/
 #endif /* MUTEX_H_ */
