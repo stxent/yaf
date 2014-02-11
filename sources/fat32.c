@@ -1581,29 +1581,6 @@ static enum result fatTruncate(void *object)
   if (!(node->access & FS_ACCESS_WRITE))
     return E_ACCESS;
 
-  /* Mark clusters as free */
-  if ((res = freeChain(handle, node->payload)) != E_OK)
-    return res;
-
-  node->payload = RESERVED_CLUSTER;
-  return E_OK;
-}
-#else
-static enum result fatTruncate(void *object __attribute__((unused)))
-{
-  return E_ERROR;
-}
-#endif
-/*----------------------------------------------------------------------------*/
-#ifdef FAT_WRITE
-static enum result fatUnlink(void *object)
-{
-  struct FatNode *node = object;
-  enum result res;
-
-  if (!(node->access & FS_ACCESS_WRITE))
-    return E_ACCESS;
-
   if (node->type == FS_TYPE_DIR && node->payload != RESERVED_CLUSTER)
   {
     /* Preserve values */
@@ -1626,6 +1603,29 @@ static enum result fatUnlink(void *object)
     node->index = index;
     node->type = type;
   }
+
+  /* Mark clusters as free */
+  if ((res = freeChain(handle, node->payload)) != E_OK)
+    return res;
+
+  node->payload = RESERVED_CLUSTER;
+  return E_OK;
+}
+#else
+static enum result fatTruncate(void *object __attribute__((unused)))
+{
+  return E_ERROR;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_WRITE
+static enum result fatUnlink(void *object)
+{
+  struct FatNode *node = object;
+  enum result res;
+
+  if (!(node->access & FS_ACCESS_WRITE))
+    return E_ACCESS;
 
   if ((res = markFree(node)) != E_OK)
     return res;
