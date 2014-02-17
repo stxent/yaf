@@ -43,9 +43,7 @@ enum fsNodeData
   /** Node size in bytes or elements. */
   FS_NODE_SIZE,
   /** Node change time. */
-  FS_NODE_TIME,
-  /** Additional debug data. TODO Remove */
-  FS_NODE_DEBUG
+  FS_NODE_TIME
 };
 /*----------------------------------------------------------------------------*/
 enum fsNodeType

@@ -42,11 +42,6 @@
 #define FILE_POOL_SIZE          2
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef FAT_THREADS
-/* Default size of command context pool */
-#define CONTEXT_POOL_SIZE       1
-#endif
-/*----------------------------------------------------------------------------*/
 #define FLAG_RO                 BIT(0) /* Read only */
 #define FLAG_HIDDEN             BIT(1)
 #define FLAG_SYSTEM             BIT(2) /* System entry */
@@ -98,24 +93,35 @@ struct FatHandle
 #endif
 
   struct CommandContext *contextData;
-  struct Queue contextPool;
 #ifdef FAT_THREADS
+  struct Queue contextPool;
   struct Mutex contextLock;
 #endif
 
 #ifdef FAT_LFN
   char16_t *nameBuffer;
 #endif
-  uint32_t currentSector, dataSector, rootCluster, tableSector;
+
+  /* Number of the first sector containing cluster data */
+  uint32_t dataSector;
+  /* Starting point of the file allocation table */
+  uint32_t tableSector;
+  /* First cluster of the root directory */
+  uint32_t rootCluster;
 #ifdef FAT_WRITE
-  uint32_t tableSize; /* Size in sectors of each FAT table */
-  uint32_t clusterCount; /* Number of clusters */
-  uint32_t lastAllocated; /* Last allocated cluster */
+  /* Size in sectors of each allocation table */
+  uint32_t tableSize;
+  /* Number of clusters in the partition */
+  uint32_t clusterCount;
+  /* Last allocated cluster */
+  uint32_t lastAllocated;
+  /* Information sector number */
   uint16_t infoSector;
-  uint8_t tableCount; /* FAT tables count */
+  /* File allocation tables count */
+  uint8_t tableCount;
 #endif
-  /* Sectors per cluster, in FAT32 cluster may contain up to 128 sectors */
-  uint8_t clusterSize; /* Power of 2 */
+  /* Sectors per cluster in power of 2 */
+  uint8_t clusterSize;
 };
 /*----------------------------------------------------------------------------*/
 struct FatNodeConfig
@@ -128,15 +134,23 @@ struct FatNode
   struct FsNode parent;
 
   struct FsHandle *handle;
-  uint32_t cluster; /* Directory cluster where the entry is located */
-  uint32_t payload; /* First cluster of the entry */
+
+  /* Directory cluster where the entry is located */
+  uint32_t cluster;
+  /* First cluster of the entry */
+  uint32_t payload;
 #ifdef FAT_LFN
-  uint32_t nameCluster; /* Directory cluster of the first name entry */
-  uint16_t nameIndex; /* First name entry position in the parent cluster */
+  /* Directory cluster of the first name entry */
+  uint32_t nameCluster;
+  /* First name entry position in the parent cluster */
+  uint16_t nameIndex;
 #endif
-  uint16_t index; /* Entry position in the parent cluster */
-  access_t access; /* Access rights */
-  enum fsNodeType type; /* Node type */
+  /* Entry position in the parent cluster */
+  uint16_t index;
+  /* Access rights */
+  access_t access;
+  /* Node type */
+  enum fsNodeType type;
 };
 /*----------------------------------------------------------------------------*/
 struct FatDirConfig
@@ -149,9 +163,13 @@ struct FatDir
   struct FsEntry parent;
 
   struct FsHandle *handle;
-  uint32_t payload; /* First cluster of directory data */
-  uint32_t currentCluster; /* Current cluster of directory data */
-  uint16_t currentIndex; /* Position in current cluster */
+
+  /* First cluster of the directory entries */
+  uint32_t payload;
+  /* Current cluster of the directory entries */
+  uint32_t currentCluster;
+  /* Position in the current cluster */
+  uint16_t currentIndex;
 };
 /*----------------------------------------------------------------------------*/
 struct FatFileConfig
@@ -164,15 +182,23 @@ struct FatFile
   struct FsEntry parent;
 
   struct FsHandle *handle;
-  uint32_t size; /* File size */
-  uint32_t payload; /* First cluster of file data */
-  uint32_t position; /* Position in file */
-  uint32_t currentCluster; /* Current cluster inside data chain */
+
+  /* File size */
+  uint32_t size;
+  /* First cluster of the file data */
+  uint32_t payload;
+  /* Position in the file */
+  uint32_t position;
+  /* Current cluster inside data chain */
+  uint32_t currentCluster;
 #ifdef FAT_WRITE
-  uint32_t parentCluster; /* Directory cluster where entry located */
-  uint16_t parentIndex; /* Entry position in parent cluster */
+  /* Directory cluster where entry located */
+  uint32_t parentCluster;
+  /* Entry position in parent cluster */
+  uint16_t parentIndex;
 #endif
-  access_t access; /* Access rights to the file */
+  /* Access rights to the file */
+  access_t access;
 };
 /*----------------------------------------------------------------------------*/
 /* Directory entry or long file name entry*/
@@ -417,6 +443,30 @@ static inline uint8_t sectorInCluster(struct FatHandle *handle, uint32_t offset)
 static inline bool hasLongName(struct FatNode *node)
 {
   return node->cluster != node->nameCluster || node->index != node->nameIndex;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_THREADS
+static inline void lockHandle(struct FatHandle *handle)
+{
+  mutexLock(&handle->contextLock);
+}
+#else
+static inline void lockHandle(struct FatHandle *handle __attribute__((unused)))
+{
+
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_THREADS
+static inline void unlockHandle(struct FatHandle *handle)
+{
+  mutexUnlock(&handle->contextLock);
+}
+#else
+static inline void unlockHandle(struct FatHandle *handle __attribute__((unused)))
+{
+
 }
 #endif
 /*----------------------------------------------------------------------------*/

@@ -96,11 +96,11 @@ static enum result allocateBuffers(struct FatHandle *handle,
 #endif
 
 #ifdef FAT_THREADS
-  number = config->threads ? config->threads : CONTEXT_POOL_SIZE;
-
+  /* Create context mutex and allocate context pool */
   if ((res = mutexInit(&handle->contextLock)) != E_OK)
     return res;
 
+  number = config->threads ? config->threads : 1;
   handle->contextData = malloc(sizeof(struct CommandContext) * number);
   if (!handle->contextData)
   {
@@ -125,13 +125,11 @@ static enum result allocateBuffers(struct FatHandle *handle,
   DEBUG_PRINT("Context pool:   %u\n", (unsigned int)(number
       * (sizeof(struct CommandContext *) + sizeof(struct CommandContext))));
 #else
+  /* Allocate single context buffer */
   handle->contextData = malloc(sizeof(struct CommandContext));
-  handle->contextData->sector = RESERVED_SECTOR;
   if (!handle->contextData)
-  {
-    freeBuffers(handle, FREE_LOCK);
     return E_MEMORY;
-  }
+  handle->contextData->sector = RESERVED_SECTOR;
 
   DEBUG_PRINT("Context pool:   %u\n",
       (unsigned int)sizeof(struct CommandContext));
@@ -209,16 +207,19 @@ static void *allocateNode(struct FatHandle *handle)
   const struct FatNodeConfig config = {
       .handle = (struct FsHandle *)handle
   };
-  struct FatNode *node;
+  struct FatNode *node = 0;
 
+  lockHandle(handle);
 #ifdef FAT_POOLS
-  if (queueEmpty(&handle->nodePool))
-    return 0;
-  queuePop(&handle->nodePool, &node);
-  FatNode->init(node, &config);
+  if (!queueEmpty(&handle->nodePool))
+  {
+    queuePop(&handle->nodePool, &node);
+    FatNode->init(node, &config);
+  }
 #else
   node = init(FatNode, &config);
 #endif
+  unlockHandle(handle);
 
   return node;
 }
@@ -436,8 +437,10 @@ static void freeBuffers(struct FatHandle *handle, enum cleanup step)
 #endif
       /* No break */
     case FREE_CONTEXT:
+#ifdef FAT_THREADS
       queueDeinit(&handle->contextPool);
       free(handle->contextData);
+#endif
       /* No break */
     case FREE_LOCK:
 #ifdef FAT_THREADS
@@ -449,16 +452,21 @@ static void freeBuffers(struct FatHandle *handle, enum cleanup step)
   }
 }
 /*----------------------------------------------------------------------------*/
+#ifdef FAT_THREADS
 static void freeContext(struct FatHandle *handle,
     const struct CommandContext *context)
 {
-  if (context)
-  {
-    mutexLock(&handle->contextLock);
-    queuePush(&handle->contextPool, context);
-    mutexUnlock(&handle->contextLock);
-  }
+  mutexLock(&handle->contextLock);
+  queuePush(&handle->contextPool, context);
+  mutexUnlock(&handle->contextLock);
 }
+#else
+static void freeContext(struct FatHandle *handle __attribute__((unused)),
+    const struct CommandContext *context __attribute__((unused)))
+{
+
+}
+#endif
 /*----------------------------------------------------------------------------*/
 /* Output string buffer should be at least FS_NAME_LENGTH characters long */
 static const char *getChunk(const char *src, char *dest)
@@ -1402,15 +1410,17 @@ static void *fatClone(void *object)
 /*----------------------------------------------------------------------------*/
 static void fatFree(void *object)
 {
-#ifdef FAT_POOLS
-  struct FatNode *node = object;
+  struct FatHandle *handle =
+      (struct FatHandle *)((struct FatNode *)object)->handle;
 
-  /* TODO Protect with mutex */
+  lockHandle(handle);
+#ifdef FAT_POOLS
   FatNode->deinit(object);
-  queuePush(&((struct FatHandle *)node->handle)->nodePool, object);
+  queuePush(&handle->nodePool, object);
 #else
   deinit(object);
 #endif
+  unlockHandle(handle);
 }
 /*----------------------------------------------------------------------------*/
 static enum result fatGet(void *object, enum fsNodeData type, void *data)
@@ -1428,11 +1438,11 @@ static enum result fatGet(void *object, enum fsNodeData type, void *data)
     {
       if (!hasLongName(node))
         break; /* Short name cannot be read without sector reload */
-
       if (!(context = allocateContext(handle)))
         return E_MEMORY;
 
       struct FsMetadata *metadata = data;
+
       metadata->type = node->type;
       res = readLongName(context, node, metadata->name);
       freeContext(handle, context);
@@ -1442,7 +1452,6 @@ static enum result fatGet(void *object, enum fsNodeData type, void *data)
     {
       if (!hasLongName(node))
         break;
-
       if (!(context = allocateContext(handle)))
         return E_MEMORY;
 
@@ -1456,17 +1465,6 @@ static enum result fatGet(void *object, enum fsNodeData type, void *data)
       *(access_t *)data = node->access;
       return E_OK;
     }
-#ifdef DEBUG
-    case FS_NODE_DEBUG:
-    {
-      uint32_t *debugData = data;
-
-      debugData[0] = node->payload;
-      debugData[1] = node->cluster;
-      debugData[2] = node->index;
-      return E_OK;
-    }
-#endif
     case FS_NODE_TYPE:
     {
       *(enum fsNodeType *)data = node->type;
@@ -1521,7 +1519,6 @@ static enum result fatGet(void *object, enum fsNodeData type, void *data)
       time.mon = (ptr->date >> 5) & 0x0F;
       time.year = ((ptr->date >> 9) & 0x7F) + 1980;
       *(int64_t *)data = unixTime(&time); //FIXME Rewrite
-
       break;
     }
 #endif
@@ -1669,18 +1666,20 @@ static void *fatOpen(void *object, access_t access)
       struct FatDirConfig config = {
           .node = object
       };
-      struct FatDir *dir;
-
-#ifdef FAT_POOLS
       struct FatHandle *handle = (struct FatHandle *)node->handle;
-      if (queueEmpty(&handle->dirPool))
-        return 0;
-      queuePop(&handle->dirPool, &dir);
-      FatDir->init(dir, &config);
+      struct FatDir *dir = 0;
+
+      lockHandle(handle);
+#ifdef FAT_POOLS
+      if (!queueEmpty(&handle->dirPool))
+      {
+        queuePop(&handle->dirPool, &dir);
+        FatDir->init(dir, &config);
+      }
 #else
-      if (!(dir = init(FatDir, &config)))
-        return 0;
+      dir = init(FatDir, &config);
 #endif
+      unlockHandle(handle);
 
       return dir;
     }
@@ -1689,20 +1688,31 @@ static void *fatOpen(void *object, access_t access)
       struct FatFileConfig config = {
           .node = object
       };
-      struct FatFile *file;
-
-#ifdef FAT_POOLS
       struct FatHandle *handle = (struct FatHandle *)node->handle;
-      if (queueEmpty(&handle->filePool))
-        return 0;
-      queuePop(&handle->filePool, &file);
-      FatFile->init(file, &config);
-#else
-      if (!(file = init(FatFile, &config)))
-        return 0;
-#endif
+      struct FatFile *file = 0;
+      uint64_t size;
 
-      file->access = access; /* Reduce set of access rights */
+      if (fatGet(node, FS_NODE_SIZE, &size) != E_OK)
+        return 0;
+
+      lockHandle(handle);
+#ifdef FAT_POOLS
+      if (!queueEmpty(&handle->filePool))
+      {
+        queuePop(&handle->filePool, &file);
+        FatFile->init(file, &config);
+      }
+#else
+      file = init(FatFile, &config);
+#endif
+      unlockHandle(handle);
+
+      if (file)
+      {
+        file->access = access; /* Reduce set of access rights */
+        file->size = (uint32_t)size;
+      }
+
       return file;
     }
     default:
@@ -1867,14 +1877,17 @@ static void fatDirDeinit(void *object __attribute__((unused)))
 /*----------------------------------------------------------------------------*/
 static enum result fatDirClose(void *object)
 {
-#ifdef FAT_POOLS
-  struct FatDir *dir = object;
+  struct FatHandle *handle =
+      (struct FatHandle *)((struct FatNode *)object)->handle;
 
+  lockHandle(handle);
+#ifdef FAT_POOLS
   FatDir->deinit(object);
-  queuePush(&((struct FatHandle *)dir->handle)->dirPool, object);
+  queuePush(&handle->dirPool, object);
 #else
   deinit(object);
 #endif
+  unlockHandle(handle);
 
   return E_OK;
 }
@@ -1961,31 +1974,15 @@ static enum result fatFileInit(void *object, const void *configPtr)
 {
   const struct FatFileConfig * const config = configPtr;
   const struct FatNode *node = (struct FatNode *)config->node;
-  struct FatHandle *handle = (struct FatHandle *)node->handle;
   struct FatFile *file = object;
-  struct CommandContext *context;
-  enum result res;
 
   if (node->type != FS_TYPE_FILE)
     return E_VALUE;
 
-  if (!(context = allocateContext(handle)))
-    return E_MEMORY;
-
-  const uint32_t sector = getSector(handle, node->cluster)
-      + E_SECTOR(node->index);
-  res = readSector(context, handle, sector);
-  freeContext(handle, context);
-  if (res != E_OK)
-    return res;
-
-  struct DirEntryImage *ptr = (struct DirEntryImage *)(context->buffer
-      + E_OFFSET(node->index));
-
   file->access = node->access;
   file->handle = node->handle;
   file->position = 0;
-  file->size = ptr->size;
+  file->size = 0;
   file->payload = node->payload;
   file->currentCluster = node->payload;
 #ifdef FAT_WRITE
@@ -2009,14 +2006,17 @@ static enum result fatFileClose(void *object)
     fatFileSync(object);
 #endif
 
-#ifdef FAT_POOLS
-  struct FatFile *file = object;
+  struct FatHandle *handle =
+      (struct FatHandle *)((struct FatNode *)object)->handle;
 
+  lockHandle(handle);
+#ifdef FAT_POOLS
   FatFile->deinit(object);
-  queuePush(&((struct FatHandle *)file->handle)->filePool, object);
+  queuePush(&handle->filePool, object);
 #else
   deinit(object);
 #endif
+  unlockHandle(handle);
 
   return E_OK;
 }
