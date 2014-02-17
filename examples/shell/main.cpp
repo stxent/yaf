@@ -51,6 +51,7 @@ int main(int argc, char *argv[])
   fsConf.interface = mmaped;
 #ifdef FAT_POOLS
   fsConf.nodes = fsConf.directories = fsConf.files = 0;
+  fsConf.threads = 2;
 #endif
 
   handle = (struct FsHandle *)init(FatHandle, &fsConf);

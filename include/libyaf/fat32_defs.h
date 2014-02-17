@@ -14,6 +14,10 @@
 #include <libyaf/macro.h>
 #include <libyaf/unicode.h>
 /*----------------------------------------------------------------------------*/
+#ifdef FAT_THREADS
+#include <mutex.h>
+#endif
+/*----------------------------------------------------------------------------*/
 #ifdef FAT_TIME
 #include "rtc.h"
 #endif
@@ -36,6 +40,11 @@
 #define DIR_POOL_SIZE           2
 /* Default size of file entry pool */
 #define FILE_POOL_SIZE          2
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef FAT_THREADS
+/* Default size of command context pool */
+#define CONTEXT_POOL_SIZE       1
 #endif
 /*----------------------------------------------------------------------------*/
 #define FLAG_RO                 BIT(0) /* Read only */
@@ -68,6 +77,12 @@
 /* Directory entry offset in sector */
 #define E_OFFSET(index)         (((index) << 5) & (SECTOR_SIZE - 1))
 /*----------------------------------------------------------------------------*/
+struct CommandContext
+{
+  uint32_t sector;
+  uint8_t buffer[SECTOR_SIZE];
+};
+/*----------------------------------------------------------------------------*/
 struct FatHandle
 {
   struct FsHandle parent;
@@ -82,12 +97,16 @@ struct FatHandle
   struct Queue nodePool, dirPool, filePool;
 #endif
 
-  uint8_t *buffer;
+  struct CommandContext *contextData;
+  struct Queue contextPool;
+#ifdef FAT_THREADS
+  struct Mutex contextLock;
+#endif
+
 #ifdef FAT_LFN
   char16_t *nameBuffer;
 #endif
   uint32_t currentSector, dataSector, rootCluster, tableSector;
-  uint32_t bufferedSector; /* Number of sector stored in buffer */
 #ifdef FAT_WRITE
   uint32_t tableSize; /* Size in sectors of each FAT table */
   uint32_t clusterCount; /* Number of clusters */
@@ -243,32 +262,39 @@ struct InfoSectorImage
 enum cleanup
 {
   FREE_ALL = 0,
+  FREE_LFN, //FIXME Metadata pool
   FREE_FILE_POOL,
   FREE_DIR_POOL,
   FREE_NODE_POOL,
-  FREE_LFN, //FIXME Metadata pool
-  FREE_BUFFER
+  FREE_CONTEXT,
+  FREE_LOCK
 };
 /*----------------------------------------------------------------------------*/
 static enum result allocateBuffers(struct FatHandle *,
     const struct Fat32Config * const);
+static struct CommandContext *allocateContext(struct FatHandle *);
 static void *allocateNode(struct FatHandle *);
 static void extractShortName(const struct DirEntryImage *, char *);
+static enum result fetchEntry(struct CommandContext *, struct FatNode *);
+static enum result fetchNode(struct CommandContext *, struct FatNode *, char *);
+static const char *followPath(struct CommandContext *, struct FatNode *,
+    const char *, const struct FatNode *);
 static void freeBuffers(struct FatHandle *, enum cleanup);
+static void freeContext(struct FatHandle *, const struct CommandContext *);
 static const char *getChunk(const char *, char *);
-static enum result getNextCluster(struct FatHandle *, uint32_t *);
-static enum result fetchEntry(struct FatNode *);
-static enum result fetchNode(struct FatNode *, char *);
-static const char *followPath(struct FatNode *, const char *,
-    const struct FatNode *);
+static enum result getNextCluster(struct CommandContext *, struct FatHandle *,
+    uint32_t *);
 static enum result mount(struct FatHandle *);
-static enum result readSector(struct FatHandle *, uint32_t, uint8_t *,
+static enum result readBuffer(struct FatHandle *, uint32_t, uint8_t *,
+    uint32_t);
+static enum result readSector(struct CommandContext *, struct FatHandle *,
     uint32_t);
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_LFN
 static void extractLongName(const struct DirEntryImage *, char16_t *);
 static uint8_t getChecksum(const char *, uint8_t);
-static enum result readLongName(struct FatNode *, char *);
+static enum result readLongName(struct CommandContext *, struct FatNode *,
+    char *);
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_POOLS
@@ -276,19 +302,27 @@ static enum result allocatePool(struct Queue *, void *, const void *, uint16_t);
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
-static enum result allocateCluster(struct FatHandle *, uint32_t *);
-static enum result clearCluster(struct FatHandle *, uint32_t);
-static enum result createNode(struct FatNode *, const struct FatNode *,
-    const struct FsMetadata *);
+static enum result allocateCluster(struct CommandContext *, struct FatHandle *,
+    uint32_t *);
+static enum result clearCluster(struct CommandContext *, struct FatHandle *,
+    uint32_t);
+static enum result createNode(struct CommandContext *, struct FatNode *,
+    const struct FatNode *, const struct FsMetadata *);
 static void fillDirEntry(struct DirEntryImage *, const struct FatNode *);
 static enum result fillShortName(char *, const char *);
-static enum result findGap(struct FatNode *, const struct FatNode *, uint8_t);
-static enum result freeChain(struct FatHandle *, uint32_t);
-static enum result markFree(struct FatNode *);
+static enum result findGap(struct CommandContext *, struct FatNode *,
+    const struct FatNode *, uint8_t);
+static enum result freeChain(struct CommandContext *, struct FatHandle *,
+    uint32_t);
+static enum result markFree(struct CommandContext *, struct FatNode *);
 static char processCharacter(char);
-static enum result setupDirCluster(const struct FatNode *);
-static enum result updateTable(struct FatHandle *, uint32_t);
-static enum result writeSector(struct FatHandle *, uint32_t, const uint8_t *,
+static enum result setupDirCluster(struct CommandContext *,
+    const struct FatNode *);
+static enum result updateTable(struct CommandContext *, struct FatHandle *,
+    uint32_t);
+static enum result writeBuffer(struct FatHandle *, uint32_t, const uint8_t *,
+    uint32_t);
+static enum result writeSector(struct CommandContext *, struct FatHandle *,
     uint32_t);
 #endif
 /*----------------------------------------------------------------------------*/
