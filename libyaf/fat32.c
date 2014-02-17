@@ -133,6 +133,13 @@ static enum result allocateBuffers(struct FatHandle *handle,
     freeBuffers(handle, FREE_DIR_POOL);
     return res;
   }
+
+  DEBUG_PRINT("Node pool:      %u\n", (unsigned int)(number
+      * (sizeof(struct FatNode *) + sizeof(struct FatNode))));
+  DEBUG_PRINT("Directory pool: %u\n", (unsigned int)(number
+      * (sizeof(struct FatDir *) + sizeof(struct FatDir))));
+  DEBUG_PRINT("File pool:      %u\n", (unsigned int)(number
+      * (sizeof(struct FatFile *) + sizeof(struct FatFile))));
 #endif
 
   return E_OK;
@@ -212,32 +219,6 @@ static void freeBuffers(struct FatHandle *handle, enum cleanup step)
     default:
       break;
   }
-}
-/*----------------------------------------------------------------------------*/
-/* Output string buffer should be at least FS_NAME_LENGTH characters long */
-static const char *getChunk(const char *src, char *dest)
-{
-  uint8_t counter = 0;
-
-  if (!*src)
-    return src;
-  if (*src == '/')
-  {
-    *dest++ = '/';
-    *dest = '\0';
-    return src + 1;
-  }
-  while (*src && counter++ < FS_NAME_LENGTH - 1)
-  {
-    if (*src == '/')
-    {
-      ++src;
-      break;
-    }
-    *dest++ = *src++;
-  }
-  *dest = '\0';
-  return src;
 }
 /*----------------------------------------------------------------------------*/
 static enum result getNextCluster(struct FatHandle *handle, uint32_t *cluster)
@@ -410,6 +391,35 @@ static const char *followPath(struct FatNode *node, const char *path,
     ++node->index;
   }
   return 0;
+}
+/*----------------------------------------------------------------------------*/
+/* Output string buffer should be at least FS_NAME_LENGTH characters long */
+static const char *getChunk(const char *src, char *dest)
+{
+  uint8_t counter = 0;
+
+  if (!*src)
+    return src;
+
+  if (*src == '/')
+  {
+    *dest++ = '/';
+    *dest = '\0';
+    return src + 1;
+  }
+
+  while (*src && counter++ < FS_NAME_LENGTH - 1)
+  {
+    if (*src == '/')
+    {
+      ++src;
+      break;
+    }
+    *dest++ = *src++;
+  }
+  *dest = '\0';
+
+  return src;
 }
 /*----------------------------------------------------------------------------*/
 static enum result mount(struct FatHandle *handle)

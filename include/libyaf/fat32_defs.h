@@ -30,11 +30,11 @@
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_POOLS
-/* Default pools size of node pool */
+/* Default size of node pool */
 #define NODE_POOL_SIZE          4
-/* Default pools size of directory entry pool */
+/* Default size of directory entry pool */
 #define DIR_POOL_SIZE           2
-/* Default pools size of file entry pool */
+/* Default size of file entry pool */
 #define FILE_POOL_SIZE          2
 #endif
 /*----------------------------------------------------------------------------*/
@@ -42,7 +42,7 @@
 #define FLAG_HIDDEN             BIT(1)
 #define FLAG_SYSTEM             BIT(2) /* System entry */
 #define FLAG_VOLUME             BIT(3) /* Volume name */
-#define FLAG_DIR                BIT(4) /* Subdirectory */
+#define FLAG_DIR                BIT(4) /* Directory */
 #define FLAG_ARCHIVED           BIT(5)
 #define LFN_LAST                BIT(6) /* Last LFN entry */
 #define LFN_DELETED             BIT(7) /* Deleted LFN entry */
