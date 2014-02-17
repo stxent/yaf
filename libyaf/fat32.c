@@ -836,7 +836,7 @@ static enum result createNode(struct CommandContext *context,
 
   /* TODO Check for duplicates */
   res = fillShortName(shortName, metadata->name);
-  if ((node->type & FS_TYPE_DIR))
+  if ((metadata->type & FS_TYPE_DIR))
     memset(shortName + sizeof(ptr->name), ' ', sizeof(ptr->extension));
 
 #ifdef FAT_LFN
@@ -1607,11 +1607,12 @@ static enum result fatMake(void *object, const struct FsMetadata *metadata,
   if (!(context = allocateContext(handle)))
   {
     res = E_MEMORY;
-    goto allocate_error;
+    goto allocation_error;
   }
 
   if (metadata->type == FS_TYPE_DIR)
   {
+    allocatedNode->payload = RESERVED_CLUSTER;
     res = allocateCluster(context, handle, &allocatedNode->payload);
     if (res != E_OK)
       goto context_error;
@@ -1619,7 +1620,7 @@ static enum result fatMake(void *object, const struct FsMetadata *metadata,
 
   res = createNode(context, allocatedNode, node, metadata);
   if (res != E_OK)
-    goto create_error;
+    goto creationg_error;
 
   if (metadata->type == FS_TYPE_DIR)
   {
@@ -1628,6 +1629,7 @@ static enum result fatMake(void *object, const struct FsMetadata *metadata,
       goto setup_error;
   }
 
+  freeContext(handle, context);
   if (!result)
     fatFree(allocatedNode);
 
@@ -1635,11 +1637,11 @@ static enum result fatMake(void *object, const struct FsMetadata *metadata,
 
 setup_error:
   markFree(context, allocatedNode);
-create_error:
+creationg_error:
   freeChain(context, handle, allocatedNode->payload);
 context_error:
   freeContext(handle, context);
-allocate_error:
+allocation_error:
   if (!result)
     fatFree(allocatedNode);
   return res;

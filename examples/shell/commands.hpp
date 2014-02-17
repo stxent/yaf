@@ -29,6 +29,12 @@ class CopyEntry : public Shell::ShellCommand
 public:
   CopyEntry(Shell *owner) : ShellCommand(owner, "cp") {}
   virtual result run(unsigned int count, char *arguments[]) const;
+
+private:
+  enum : unsigned int
+  {
+    bufferLength = 1024
+  };
 };
 //------------------------------------------------------------------------------
 class ExitShell : public Shell::ShellCommand

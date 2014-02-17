@@ -8,33 +8,34 @@
 #include <stdlib.h>
 #include <mutex.h>
 /*----------------------------------------------------------------------------*/
-enum result mutexInit(struct Mutex *m)
+enum result mutexInit(struct Mutex *mutex)
 {
-  m->handle = malloc(sizeof(pthread_mutex_t));
-  if (!m->handle)
+  mutex->handle = malloc(sizeof(pthread_mutex_t));
+  if (!mutex->handle)
     return E_MEMORY;
-  if (pthread_mutex_init(m->handle, 0))
+  if (pthread_mutex_init(mutex->handle, 0))
     return E_ERROR;
 
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-void mutexDeinit(struct Mutex *m)
+void mutexDeinit(struct Mutex *mutex)
 {
-  pthread_mutex_destroy(m->handle);
+  pthread_mutex_destroy(mutex->handle);
+  free(mutex->handle);
 }
 /*----------------------------------------------------------------------------*/
-void mutexLock(struct Mutex *m)
+void mutexLock(struct Mutex *mutex)
 {
-  pthread_mutex_lock(m->handle);
+  pthread_mutex_lock(mutex->handle);
 }
 /*----------------------------------------------------------------------------*/
-bool mutexTryLock(struct Mutex *m)
+bool mutexTryLock(struct Mutex *mutex)
 {
-  return pthread_mutex_trylock(m->handle) ? false : true;
+  return pthread_mutex_trylock(mutex->handle) ? false : true;
 }
 /*----------------------------------------------------------------------------*/
-void mutexUnlock(struct Mutex *m)
+void mutexUnlock(struct Mutex *mutex)
 {
-  pthread_mutex_unlock(m->handle);
+  pthread_mutex_unlock(mutex->handle);
 }

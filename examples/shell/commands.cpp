@@ -61,7 +61,7 @@ result ChangeDirectory::run(unsigned int count, char *arguments[]) const
 result CopyEntry::run(unsigned int count, char *arguments[]) const
 {
   const char *source = 0, *destination = 0;
-  unsigned int chunkSize = 512;
+  unsigned int chunkSize = bufferLength;
   bool help = false;
   result res;
 
@@ -92,8 +92,16 @@ result CopyEntry::run(unsigned int count, char *arguments[]) const
   if (help)
   {
     owner->log("Usage: cp SOURCE DESTINATION");
-    owner->log("  --help  print help message");
+    owner->log("  --chunk-size  set chunk size, up to %u bytes", bufferLength);
+    owner->log("  --help        print help message");
     return E_OK;
+  }
+
+  if (!chunkSize || chunkSize > bufferLength)
+  {
+    owner->log("cp: wrong chunk size, got %u, allowed up to %u", chunkSize,
+        bufferLength);
+    return E_VALUE;
   }
 
   if (!source || !destination)
@@ -187,7 +195,7 @@ result CopyEntry::run(unsigned int count, char *arguments[]) const
     return E_ERROR;
   }
 
-  char *buffer = new char[chunkSize];
+  char buffer[chunkSize];
   uint32_t read = 0, written = 0;
   res = E_OK;
 
