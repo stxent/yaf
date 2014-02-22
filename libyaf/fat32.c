@@ -1607,29 +1607,26 @@ static enum result fatMake(void *object, const struct FsMetadata *metadata,
     goto allocation_error;
   }
 
+  allocatedNode->payload = RESERVED_CLUSTER;
   if (metadata->type == FS_TYPE_DIR)
   {
-    allocatedNode->payload = RESERVED_CLUSTER;
     res = allocateCluster(context, handle, &allocatedNode->payload);
     if (res != E_OK)
       goto context_error;
   }
 
-  res = createNode(context, allocatedNode, node, metadata);
-  if (res != E_OK)
+  if ((res = createNode(context, allocatedNode, node, metadata)) != E_OK)
     goto creationg_error;
 
   if (metadata->type == FS_TYPE_DIR)
   {
-    res = setupDirCluster(context, allocatedNode);
-    if (res != E_OK)
+    if ((res = setupDirCluster(context, allocatedNode)) != E_OK)
       goto setup_error;
   }
 
   freeContext(handle, context);
   if (!result)
     fatFree(allocatedNode);
-
   return E_OK;
 
 setup_error:
