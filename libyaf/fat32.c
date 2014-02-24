@@ -87,101 +87,145 @@ const struct FsNodeClass *FatNode = (void *)&fatNodeTable;
 const struct FsEntryClass *FatDir = (void *)&fatDirTable;
 const struct FsEntryClass *FatFile = (void *)&fatFileTable;
 /*----------------------------------------------------------------------------*/
+static enum result allocatePool(struct Pool *pool, unsigned int capacity,
+    unsigned int width, const void *initializer)
+{
+  uint8_t *data;
+  enum result res;
+
+  if (!(data = malloc(width * capacity)))
+    return E_MEMORY;
+
+  res = queueInit(&pool->queue, sizeof(struct Entity *), capacity);
+  if (res != E_OK)
+  {
+    free(data);
+    return E_MEMORY;
+  }
+
+  pool->data = data;
+  for (unsigned int index = 0; index < capacity; ++index)
+  {
+    if (initializer)
+      ((struct Entity *)data)->type = (const struct EntityClass *)initializer;
+
+    queuePush(&pool->queue, data);
+    data += width;
+  }
+
+  return E_OK;
+}
+/*----------------------------------------------------------------------------*/
+static void freePool(struct Pool *pool)
+{
+  queueDeinit(&pool->queue);
+  free(pool->data);
+}
+/*----------------------------------------------------------------------------*/
 static enum result allocateBuffers(struct FatHandle *handle,
     const struct Fat32Config * const config)
 {
 #if defined(FAT_POOLS) || defined(FAT_THREADS)
   uint16_t number;
-  enum result res;
 #endif
+  enum result res;
 
 #ifdef FAT_THREADS
   /* Create context mutex and allocate context pool */
   if ((res = mutexInit(&handle->contextLock)) != E_OK)
     return res;
 
+  /* Allocate context pool */
   number = config->threads ? config->threads : 1;
-  handle->contextData = malloc(sizeof(struct CommandContext) * number);
-  if (!handle->contextData)
+  res = allocatePool(&handle->contextPool, number,
+      sizeof(struct CommandContext), 0);
+  if (res != E_OK)
   {
-    freeBuffers(handle, FREE_LOCK);
-    return E_VALUE;
-  }
-
-  if ((res = queueInit(&handle->contextPool, sizeof(struct CommandContext *),
-      number)) != E_OK)
-  {
-    free(handle->contextData);
     freeBuffers(handle, FREE_LOCK);
     return res;
   }
 
-  for (unsigned int index = 0; index < config->threads; ++index)
-  {
-    handle->contextData[index].sector = RESERVED_SECTOR;
-    queuePush(&handle->contextPool, handle->contextData + index);
-  }
+  /* Custom initialization of default sector values */
+  struct CommandContext *contextPtr = handle->contextPool.data;
+  for (unsigned int index = 0; index < number; ++index, ++contextPtr)
+    contextPtr->sector = RESERVED_SECTOR;
 
   DEBUG_PRINT("Context pool:   %u\n", (unsigned int)(number
       * (sizeof(struct CommandContext *) + sizeof(struct CommandContext))));
+
+  /* Allocate metadata pool */
+  number = 2 * (config->threads ? config->threads : 1);
+  res = allocatePool(&handle->metadataPool, number,
+      sizeof(struct FsMetadata), 0);
+  if (res != E_OK)
+  {
+    freeBuffers(handle, FREE_FILE_POOL);
+    return res;
+  }
+
+  DEBUG_PRINT("Metadata pool:  %u\n", (unsigned int)(number
+      * (sizeof(struct FsMetadata *) + sizeof(struct FsMetadata))));
 #else
   /* Allocate single context buffer */
-  handle->contextData = malloc(sizeof(struct CommandContext));
-  if (!handle->contextData)
+  handle->context = malloc(sizeof(struct CommandContext));
+  if (!handle->context)
     return E_MEMORY;
-  handle->contextData->sector = RESERVED_SECTOR;
+  handle->context->sector = RESERVED_SECTOR;
 
   DEBUG_PRINT("Context pool:   %u\n",
       (unsigned int)sizeof(struct CommandContext));
-#endif
+
+  /* Allocate metadata pool */
+  res = allocatePool(&handle->metadataPool, 2, sizeof(struct FsMetadata), 0);
+  if (res != E_OK)
+  {
+    freeBuffers(handle, FREE_FILE_POOL);
+    return res;
+  }
+
+  DEBUG_PRINT("Metadata pool:  %u\n", (unsigned int)(2
+      * (sizeof(struct FsMetadata *) + sizeof(struct FsMetadata))));
+#endif /* FAT_THREADS */
 
 #ifdef FAT_POOLS
   /* Allocate and fill node pool */
   number = config->nodes ? config->nodes : NODE_POOL_SIZE;
-  res = allocatePool(&handle->nodePool, &handle->nodeData, FatNode, number);
+  res = allocatePool(&handle->nodePool, number, sizeof(struct FatNode),
+      FatNode);
   if (res != E_OK)
   {
     freeBuffers(handle, FREE_CONTEXT);
     return res;
   }
 
+  DEBUG_PRINT("Node pool:      %u\n", (unsigned int)(number
+      * (sizeof(struct FatNode *) + sizeof(struct FatNode))));
+
   /* Allocate and fill directory entry pool */
   number = config->directories ? config->directories : DIR_POOL_SIZE;
-  res = allocatePool(&handle->dirPool, &handle->dirData, FatDir, number);
+  res = allocatePool(&handle->dirPool, number, sizeof(struct FatDir), FatDir);
   if (res != E_OK)
   {
     freeBuffers(handle, FREE_NODE_POOL);
     return res;
   }
 
+  DEBUG_PRINT("Directory pool: %u\n", (unsigned int)(number
+      * (sizeof(struct FatDir *) + sizeof(struct FatDir))));
+
   /* Allocate and fill file entry pool */
   number = config->files ? config->files : FILE_POOL_SIZE;
-  res = allocatePool(&handle->filePool, &handle->fileData, FatFile, number);
+  res = allocatePool(&handle->filePool, number, sizeof(struct FatFile),
+      FatFile);
   if (res != E_OK)
   {
     freeBuffers(handle, FREE_DIR_POOL);
     return res;
   }
 
-  DEBUG_PRINT("Node pool:      %u\n", (unsigned int)(number
-      * (sizeof(struct FatNode *) + sizeof(struct FatNode))));
-  DEBUG_PRINT("Directory pool: %u\n", (unsigned int)(number
-      * (sizeof(struct FatDir *) + sizeof(struct FatDir))));
   DEBUG_PRINT("File pool:      %u\n", (unsigned int)(number
       * (sizeof(struct FatFile *) + sizeof(struct FatFile))));
-#endif
-
-#ifdef FAT_LFN
-  handle->nameBuffer = malloc(FILE_NAME_BUFFER * sizeof(char16_t));
-  if (!handle->nameBuffer)
-  {
-    freeBuffers(handle, FREE_FILE_POOL);
-    return E_MEMORY;
-  }
-
-  DEBUG_PRINT("LFN buffer:     %u\n", (unsigned int)(FILE_NAME_BUFFER
-      * sizeof(char16_t)));
-#endif
+#endif /* FAT_POOLS */
 
   return E_OK;
 }
@@ -192,13 +236,13 @@ static struct CommandContext *allocateContext(struct FatHandle *handle)
   struct CommandContext *context = 0;
 
   mutexLock(&handle->contextLock);
-  if (!queueEmpty(&handle->contextPool))
-    queuePop(&handle->contextPool, &context);
+  if (!queueEmpty(&handle->contextPool.queue))
+    queuePop(&handle->contextPool.queue, &context);
   mutexUnlock(&handle->contextLock);
 
   return context;
 #else
-  return handle->contextData;
+  return handle->context;
 #endif
 }
 /*----------------------------------------------------------------------------*/
@@ -211,9 +255,9 @@ static void *allocateNode(struct FatHandle *handle)
 
   lockHandle(handle);
 #ifdef FAT_POOLS
-  if (!queueEmpty(&handle->nodePool))
+  if (!queueEmpty(&handle->nodePool.queue))
   {
-    queuePop(&handle->nodePool, &node);
+    queuePop(&handle->nodePool.queue, &node);
     FatNode->init(node, &config);
   }
 #else
@@ -299,10 +343,9 @@ static enum result fetchEntry(struct CommandContext *context,
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-//TODO Replace name with metadata structure, add metadata allocation from pool
 /* Fields cluster and index should be initialized */
 static enum result fetchNode(struct CommandContext *context,
-    struct FatNode *node, char *entryName)
+    struct FatNode *node, struct FsMetadata *metadata)
 {
   struct DirEntryImage *ptr;
   enum result res;
@@ -355,18 +398,19 @@ static enum result fetchNode(struct CommandContext *context,
   }
 #endif
 
-  if (entryName)
+  if (metadata)
   {
+    metadata->type = node->type;
 #ifdef FAT_LFN
     if (hasLongName(node))
     {
-      if ((res = readLongName(context, node, entryName)) != E_OK)
+      if ((res = readLongName(context, node, metadata->name)) != E_OK)
         return res;
     }
     else
-      extractShortName(ptr, entryName);
+      extractShortName(ptr, metadata->name);
 #else
-    extractShortName(ptr, entryName);
+    extractShortName(ptr, metadata->name);
 #endif
   }
 
@@ -376,36 +420,61 @@ static enum result fetchNode(struct CommandContext *context,
 static const char *followPath(struct CommandContext *context,
     struct FatNode *node, const char *path, const struct FatNode *root)
 {
-  char nodeName[FS_NAME_LENGTH], name[FS_NAME_LENGTH];
+  struct FatHandle *handle = (struct FatHandle *)node->handle;
+  struct FsMetadata *currentNode = 0, *pathPart = 0;
 
-  path = getChunk(path, name);
-  if (!strlen(name))
+  /* Allocate temporary metadata buffers */
+  lockHandle(handle);
+  if (queueSize(&handle->metadataPool.queue) >= 2)
+  {
+    queuePop(&handle->metadataPool.queue, &currentNode);
+    queuePop(&handle->metadataPool.queue, &pathPart);
+  }
+  unlockHandle(handle);
+
+  if (!currentNode || !pathPart)
     return 0;
+
+  path = getChunk(path, pathPart->name);
+  if (!strlen(pathPart->name))
+  {
+    path = 0;
+    goto exit;
+  }
 
   node->index = 0;
   if (!root)
   {
-    if (name[0] == '/')
+    if (pathPart->name[0] == '/')
     {
       node->access = FS_ACCESS_READ | FS_ACCESS_WRITE;
       node->cluster = RESERVED_CLUSTER;
       node->payload = ((struct FatHandle *)node->handle)->rootCluster;
       node->type = FS_TYPE_DIR;
-      return path;
+      goto exit;
     }
     node->cluster = node->payload;
   }
   else
     node->cluster = root->payload;
 
-  while (fetchNode(context, node, nodeName) == E_OK)
+  while (fetchNode(context, node, currentNode) == E_OK)
   {
-    if (!strcmp(name, nodeName))
-      return path;
+    if (!strcmp(pathPart->name, currentNode->name))
+      goto exit;
     ++node->index;
   }
 
-  return 0;
+  path = 0;
+
+exit:
+  /* Return buffers to metadata pool */
+  lockHandle(handle);
+  queuePush(&handle->metadataPool.queue, pathPart);
+  queuePush(&handle->metadataPool.queue, currentNode);
+  unlockHandle(handle);
+
+  return path;
 }
 /*----------------------------------------------------------------------------*/
 static void freeBuffers(struct FatHandle *handle, enum cleanup step)
@@ -413,35 +482,28 @@ static void freeBuffers(struct FatHandle *handle, enum cleanup step)
   switch (step)
   {
     case FREE_ALL:
-    case FREE_LFN:
-#ifdef FAT_LFN
-      free(handle->nameBuffer);
-      /* No break */
-#endif
     case FREE_FILE_POOL:
 #ifdef FAT_POOLS
-      queueDeinit(&handle->filePool);
-      free(handle->fileData);
+      freePool(&handle->filePool);
 #endif
-      /* No break */
     case FREE_DIR_POOL:
 #ifdef FAT_POOLS
-      queueDeinit(&handle->dirPool);
-      free(handle->dirData);
+      freePool(&handle->dirPool);
 #endif
-      /* No break */
     case FREE_NODE_POOL:
 #ifdef FAT_POOLS
-      queueDeinit(&handle->nodePool);
-      free(handle->nodeData);
+      freePool(&handle->nodePool);
 #endif
-      /* No break */
+    case FREE_METADATA_POOL:
+#ifdef FAT_LFN
+      freePool(&handle->metadataPool);
+#endif
     case FREE_CONTEXT:
 #ifdef FAT_THREADS
-      queueDeinit(&handle->contextPool);
-      free(handle->contextData);
+      freePool(&handle->contextPool);
+#else
+      free(handle->context);
 #endif
-      /* No break */
     case FREE_LOCK:
 #ifdef FAT_THREADS
       mutexDeinit(&handle->contextLock);
@@ -457,7 +519,7 @@ static void freeContext(struct FatHandle *handle,
     const struct CommandContext *context)
 {
   mutexLock(&handle->contextLock);
-  queuePush(&handle->contextPool, context);
+  queuePush(&handle->contextPool.queue, context);
   mutexUnlock(&handle->contextLock);
 }
 #else
@@ -656,7 +718,6 @@ static uint8_t getChecksum(const char *str, uint8_t length)
 static enum result readLongName(struct CommandContext *context,
     struct FatNode *node, char *entryName)
 {
-  struct FatHandle *handle = (struct FatHandle *)node->handle;
   uint32_t cluster = node->cluster; /* Preserve cluster and index values */
   uint16_t index = node->index;
   uint8_t chunks = 0;
@@ -672,10 +733,11 @@ static enum result readLongName(struct CommandContext *context,
     struct DirEntryImage *ptr = (struct DirEntryImage *)(context->buffer
         + E_OFFSET(node->index));
 
+    /* TODO Entry count and metadata size comparison */
     if ((ptr->flags & MASK_LFN) == MASK_LFN)
     {
       ++chunks;
-      extractLongName(ptr, handle->nameBuffer
+      extractLongName(ptr, (char16_t *)entryName
           + ((ptr->ordinal & ~LFN_LAST) - 1) * LFN_ENTRY_LENGTH);
       ++node->index;
       continue;
@@ -690,7 +752,7 @@ static enum result readLongName(struct CommandContext *context,
     if (!chunks)
       res = E_ENTRY;
     else
-      uFromUtf16(entryName, handle->nameBuffer, FS_NAME_LENGTH);
+      uFromUtf16(entryName, (char16_t *)entryName, FS_NAME_LENGTH);
   }
 
   /* Restore values changed during directory processing */
@@ -699,36 +761,6 @@ static enum result readLongName(struct CommandContext *context,
   node->type = type;
 
   return res;
-}
-#endif
-/*----------------------------------------------------------------------------*/
-#ifdef FAT_POOLS
-static enum result allocatePool(struct Queue *queue, void *dataPtr,
-    const void *descriptorPtr, uint16_t number)
-{
-  const struct EntityClass *descriptor = descriptorPtr;
-  uint8_t *data;
-  enum result res;
-
-  if (!(data = malloc(descriptor->size * number)))
-    return E_MEMORY;
-
-  if ((res = queueInit(queue, sizeof(struct Entity *), number)) != E_OK)
-  {
-    free(data);
-    return E_MEMORY;
-  }
-
-  *(void **)dataPtr = data;
-  for (unsigned int index = 0; index < number; ++index)
-  {
-    /* Manual type initialization */
-    ((struct Entity *)data)->type = descriptor;
-    queuePush(queue, data);
-    data += descriptor->size;
-  }
-
-  return E_OK;
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -838,8 +870,20 @@ static enum result createNode(struct CommandContext *context,
   uint8_t chunks = 0;
   char shortName[sizeof(ptr->filename)];
   enum result res;
+
 #ifdef FAT_LFN
+  struct FsMetadata *nameBuffer = 0;
   uint8_t checksum;
+#endif
+
+#ifdef FAT_LFN
+  /* Allocate temporary metadata buffer */
+  lockHandle(handle);
+  if (!queueEmpty(&handle->metadataPool.queue))
+    queuePop(&handle->metadataPool.queue, &nameBuffer);
+  unlockHandle(handle);
+  if (!nameBuffer)
+    return E_MEMORY;
 #endif
 
   /* TODO Check for duplicates */
@@ -851,8 +895,9 @@ static enum result createNode(struct CommandContext *context,
   /* Check whether the file name is valid for use as short name */
   if (res != E_OK)
   {
-    uint16_t length = uToUtf16(handle->nameBuffer, metadata->name,
-        FILE_NAME_BUFFER) + 1;
+    uint16_t length = 1 + uToUtf16((char16_t *)nameBuffer->name,
+        metadata->name, FS_NAME_LENGTH);
+
     chunks = length / LFN_ENTRY_LENGTH;
     if (length > chunks * LFN_ENTRY_LENGTH) /* When fractional part exists */
       ++chunks;
@@ -882,7 +927,8 @@ static enum result createNode(struct CommandContext *context,
       break;
 
 #ifdef FAT_LFN
-    fillLongName(ptr, handle->nameBuffer + (current - 1) * LFN_ENTRY_LENGTH);
+    fillLongName(ptr, (char16_t *)nameBuffer->name + (current - 1)
+        * LFN_ENTRY_LENGTH);
     fillLongNameEntry(ptr, current, chunks, checksum);
 
     --current;
@@ -897,6 +943,13 @@ static enum result createNode(struct CommandContext *context,
 #endif
   }
   while ((res = fetchEntry(context, node)) == E_OK);
+
+#ifdef FAT_LFN
+  /* Return buffer to metadata pool */
+  lockHandle(handle);
+  queuePush(&handle->metadataPool.queue, nameBuffer);
+  unlockHandle(handle);
+#endif
 
   if (res != E_OK)
     return res;
@@ -1308,7 +1361,7 @@ static enum result writeSector(struct CommandContext *context,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#if defined(FAT_WRITE) && defined(FAT_LFN)
+#if defined(FAT_LFN) && defined(FAT_WRITE)
 /* Save 13 unicode characters to long file name entry */
 static void fillLongName(struct DirEntryImage *entry, char16_t *str)
 {
@@ -1321,7 +1374,7 @@ static void fillLongName(struct DirEntryImage *entry, char16_t *str)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#if defined(FAT_WRITE) && defined(FAT_LFN)
+#if defined(FAT_LFN) && defined(FAT_WRITE)
 static void fillLongNameEntry(struct DirEntryImage *ptr, uint8_t current,
     uint8_t total, uint8_t checksum)
 {
@@ -1416,7 +1469,7 @@ static void fatFree(void *object)
   lockHandle(handle);
 #ifdef FAT_POOLS
   FatNode->deinit(object);
-  queuePush(&handle->nodePool, object);
+  queuePush(&handle->nodePool.queue, object);
 #else
   deinit(object);
 #endif
@@ -1668,9 +1721,9 @@ static void *fatOpen(void *object, access_t access)
 
       lockHandle(handle);
 #ifdef FAT_POOLS
-      if (!queueEmpty(&handle->dirPool))
+      if (!queueEmpty(&handle->dirPool.queue))
       {
-        queuePop(&handle->dirPool, &dir);
+        queuePop(&handle->dirPool.queue, &dir);
         FatDir->init(dir, &config);
       }
 #else
@@ -1694,9 +1747,9 @@ static void *fatOpen(void *object, access_t access)
 
       lockHandle(handle);
 #ifdef FAT_POOLS
-      if (!queueEmpty(&handle->filePool))
+      if (!queueEmpty(&handle->filePool.queue))
       {
-        queuePop(&handle->filePool, &file);
+        queuePop(&handle->filePool.queue, &file);
         FatFile->init(file, &config);
       }
 #else
@@ -1880,7 +1933,7 @@ static enum result fatDirClose(void *object)
   lockHandle(handle);
 #ifdef FAT_POOLS
   FatDir->deinit(object);
-  queuePush(&handle->dirPool, object);
+  queuePush(&handle->dirPool.queue, object);
 #else
   deinit(object);
 #endif
@@ -2009,7 +2062,7 @@ static enum result fatFileClose(void *object)
   lockHandle(handle);
 #ifdef FAT_POOLS
   FatFile->deinit(object);
-  queuePush(&handle->filePool, object);
+  queuePush(&handle->filePool.queue, object);
 #else
   deinit(object);
 #endif

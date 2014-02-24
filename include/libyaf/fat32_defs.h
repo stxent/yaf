@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <fs.h>
+#include <list.h>
 #include <queue.h>
 #include <libyaf/macro.h>
 #include <libyaf/unicode.h>
@@ -26,40 +27,23 @@
 #define SECTOR_POW              9 /* Sector size in power of 2 */
 #define SECTOR_SIZE             (1 << SECTOR_POW) /* Sector size in bytes */
 /*----------------------------------------------------------------------------*/
-#ifdef FAT_LFN
-/* Buffer size in code points for internal long file name processing */
-#define FILE_NAME_BUFFER        FS_NAME_LENGTH
-/* Long file name entry length: 13 UTF-16LE characters */
-#define LFN_ENTRY_LENGTH        13
-#endif
-/*----------------------------------------------------------------------------*/
-#ifdef FAT_POOLS
-/* Default size of node pool */
-#define NODE_POOL_SIZE          4
-/* Default size of directory entry pool */
-#define DIR_POOL_SIZE           2
-/* Default size of file entry pool */
-#define FILE_POOL_SIZE          2
-#endif
-/*----------------------------------------------------------------------------*/
 #define FLAG_RO                 BIT(0) /* Read only */
 #define FLAG_HIDDEN             BIT(1)
 #define FLAG_SYSTEM             BIT(2) /* System entry */
 #define FLAG_VOLUME             BIT(3) /* Volume name */
 #define FLAG_DIR                BIT(4) /* Directory */
 #define FLAG_ARCHIVED           BIT(5)
+/*----------------------------------------------------------------------------*/
+#define LFN_ENTRY_LENGTH        13 /* Long file name entry length */
 #define LFN_LAST                BIT(6) /* Last LFN entry */
 #define LFN_DELETED             BIT(7) /* Deleted LFN entry */
 #define MASK_LFN                BIT_FIELD(0x0F, 0) /* Long file name chunk */
 /*----------------------------------------------------------------------------*/
-#define E_FLAG_EMPTY            (char)0xE5 /* Directory entry is free */
-/*----------------------------------------------------------------------------*/
 #define CLUSTER_EOC_VAL         0x0FFFFFF8UL
+#define E_FLAG_EMPTY            (char)0xE5 /* Directory entry free flag */
 #define FILE_SIZE_MAX           0xFFFFFFFFUL
-/* Reserved cluster number */
-#define RESERVED_CLUSTER        0
-/* Reserved sector number for initial sector reading */
-#define RESERVED_SECTOR         0xFFFFFFFFUL
+#define RESERVED_CLUSTER        0 /* Reserved cluster number */
+#define RESERVED_SECTOR         0xFFFFFFFFUL /* Initial sector number */
 /*----------------------------------------------------------------------------*/
 /* File or directory entry size power */
 #define E_POW                   (SECTOR_POW - 5)
@@ -72,10 +56,25 @@
 /* Directory entry offset in sector */
 #define E_OFFSET(index)         (((index) << 5) & (SECTOR_SIZE - 1))
 /*----------------------------------------------------------------------------*/
+#ifdef FAT_POOLS
+/* Default size of node pool */
+#define NODE_POOL_SIZE          4
+/* Default size of directory entry pool */
+#define DIR_POOL_SIZE           2
+/* Default size of file entry pool */
+#define FILE_POOL_SIZE          2
+#endif
+/*----------------------------------------------------------------------------*/
 struct CommandContext
 {
   uint32_t sector;
   uint8_t buffer[SECTOR_SIZE];
+};
+/*----------------------------------------------------------------------------*/
+struct Pool
+{
+  void *data;
+  struct Queue queue;
 };
 /*----------------------------------------------------------------------------*/
 struct FatHandle
@@ -85,42 +84,41 @@ struct FatHandle
   struct FsHandle *head;
   struct Interface *interface;
 
+  struct List openedFiles;
+  struct Pool metadataPool;
+
 #ifdef FAT_POOLS
-  struct FatNode *nodeData;
-  struct FatDir *dirData;
-  struct FatFile *fileData;
-  struct Queue nodePool, dirPool, filePool;
+  struct Pool nodePool;
+  struct Pool dirPool;
+  struct Pool filePool;
 #endif
 
-  struct CommandContext *contextData;
 #ifdef FAT_THREADS
-  struct Queue contextPool;
+  struct Pool contextPool;
   struct Mutex contextLock;
-#endif
-
-#ifdef FAT_LFN
-  char16_t *nameBuffer;
+#else
+  struct CommandContext *context;
 #endif
 
   /* Number of the first sector containing cluster data */
   uint32_t dataSector;
-  /* Starting point of the file allocation table */
-  uint32_t tableSector;
   /* First cluster of the root directory */
   uint32_t rootCluster;
+  /* Starting point of the file allocation table */
+  uint32_t tableSector;
 #ifdef FAT_WRITE
-  /* Size in sectors of each allocation table */
-  uint32_t tableSize;
   /* Number of clusters in the partition */
   uint32_t clusterCount;
   /* Last allocated cluster */
   uint32_t lastAllocated;
+  /* Size of each allocation table in sectors */
+  uint32_t tableSize;
   /* Information sector number */
   uint16_t infoSector;
   /* File allocation tables count */
   uint8_t tableCount;
 #endif
-  /* Sectors per cluster in power of 2 */
+  /* Sectors per cluster in power of two */
   uint8_t clusterSize;
 };
 /*----------------------------------------------------------------------------*/
@@ -288,13 +286,17 @@ struct InfoSectorImage
 enum cleanup
 {
   FREE_ALL = 0,
-  FREE_LFN, //FIXME Metadata pool
   FREE_FILE_POOL,
   FREE_DIR_POOL,
   FREE_NODE_POOL,
+  FREE_METADATA_POOL,
   FREE_CONTEXT,
   FREE_LOCK
 };
+/*----------------------------------------------------------------------------*/
+static enum result allocatePool(struct Pool *, unsigned int, unsigned int,
+    const void *);
+static void freePool(struct Pool *);
 /*----------------------------------------------------------------------------*/
 static enum result allocateBuffers(struct FatHandle *,
     const struct Fat32Config * const);
@@ -302,7 +304,8 @@ static struct CommandContext *allocateContext(struct FatHandle *);
 static void *allocateNode(struct FatHandle *);
 static void extractShortName(const struct DirEntryImage *, char *);
 static enum result fetchEntry(struct CommandContext *, struct FatNode *);
-static enum result fetchNode(struct CommandContext *, struct FatNode *, char *);
+static enum result fetchNode(struct CommandContext *, struct FatNode *,
+    struct FsMetadata *);
 static const char *followPath(struct CommandContext *, struct FatNode *,
     const char *, const struct FatNode *);
 static void freeBuffers(struct FatHandle *, enum cleanup);
@@ -321,10 +324,6 @@ static void extractLongName(const struct DirEntryImage *, char16_t *);
 static uint8_t getChecksum(const char *, uint8_t);
 static enum result readLongName(struct CommandContext *, struct FatNode *,
     char *);
-#endif
-/*----------------------------------------------------------------------------*/
-#ifdef FAT_POOLS
-static enum result allocatePool(struct Queue *, void *, const void *, uint16_t);
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef FAT_WRITE
@@ -352,7 +351,7 @@ static enum result writeSector(struct CommandContext *, struct FatHandle *,
     uint32_t);
 #endif
 /*----------------------------------------------------------------------------*/
-#if defined(FAT_WRITE) && defined(FAT_LFN)
+#if defined(FAT_LFN) && defined(FAT_WRITE)
 static void fillLongName(struct DirEntryImage *, char16_t *);
 static void fillLongNameEntry(struct DirEntryImage *, uint8_t, uint8_t,
     uint8_t);
