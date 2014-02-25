@@ -11,7 +11,6 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
-//#include <openssl/md5.h>
 #include "commands.hpp"
 #include "shell.hpp"
 //------------------------------------------------------------------------------
@@ -51,6 +50,8 @@ int main(int argc, char *argv[])
   fsConf.interface = mmaped;
 #ifdef FAT_POOLS
   fsConf.nodes = fsConf.directories = fsConf.files = 0;
+#endif
+#ifdef FAT_THREADS
   fsConf.threads = 2;
 #endif
 

@@ -30,8 +30,6 @@ public:
     Shell *owner;
 
   protected:
-    ShellCommand() : owner(nullptr) {}
-
     ShellCommand(Shell *shell, const char *alias) : owner(shell) {
       strcpy(name, alias);
     }
@@ -41,6 +39,7 @@ public:
   {
     argumentCount = 16,
     argumentLength = 32,
+    nameLength = 256,
     width = 80
   };
 
@@ -56,7 +55,7 @@ public:
   static uint64_t timestamp();
 
   FsHandle *rootHandle;
-  char currentDir[256], pathBuffer[256];
+  char currentDir[nameLength], pathBuffer[nameLength];
   std::vector<const ShellCommand *> commands;
 
 protected:

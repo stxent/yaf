@@ -49,10 +49,12 @@ Shell::Shell(Interface *console, FsHandle *root) :
     rootHandle(root), consoleInterface(console)
 {
   strcpy(currentDir, "/");
+  strcpy(pathBuffer, "");
+
   for (unsigned int pos = 0; pos < argumentCount; ++pos)
     argumentPool[pos] = new char[argumentLength];
 
-  mutexInit(&lock);
+  mutexInit(&lock); //TODO Add error checking
 
   log("Shell opened, size %u", (unsigned int)sizeof(Shell));
 }

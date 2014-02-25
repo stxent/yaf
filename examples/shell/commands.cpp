@@ -545,7 +545,7 @@ result RemoveEntry::run(unsigned int count, char *arguments[]) const
   bool help = false, recursive = false;
   result res;
 
-  //TODO Implement recursive remove
+  //TODO Implement recursive remove and multiple entries
   for (unsigned int i = 0; i < count; ++i)
   {
     if (!strcmp(arguments[i], "--help"))
