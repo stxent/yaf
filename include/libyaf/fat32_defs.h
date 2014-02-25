@@ -115,8 +115,8 @@ struct FatHandle
   uint32_t tableSize;
   /* Information sector number */
   uint16_t infoSector;
-  /* File allocation tables count */
-  uint8_t tableCount;
+  /* Number of file allocation tables */
+  uint8_t tableNumber;
 #endif
   /* Sectors per cluster in power of two */
   uint8_t clusterSize;
