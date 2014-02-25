@@ -19,8 +19,8 @@ enum result listInit(struct List *list, unsigned int width,
     return E_VALUE;
 
   list->data = malloc((sizeof(struct ListNode *) + width) * capacity);
-  list->first = 0;
-  list->pool = 0;
+  list->first = list->pool = 0;
+  list->width = width;
 
   for (unsigned int pos = 0; pos < capacity; ++pos)
   {
@@ -57,27 +57,26 @@ void listData(struct List *list, const struct ListNode *node, void *element)
   memcpy(element, node->data, list->width);
 }
 /*----------------------------------------------------------------------------*/
-void listErase(struct List *list, struct ListNode *node)
+struct ListNode *listErase(struct List *list, struct ListNode *node)
 {
-  struct ListNode *current = list->first;
+  struct ListNode *next;
 
   if (list->first != node)
   {
-    while (current)
-    {
-      if (current->next == node)
-      {
-        current->next = current->next->next;
-        break;
-      }
+    struct ListNode *current = list->first;
+
+    while (current->next != node)
       current = current->next;
-    }
+    current->next = current->next->next;
   }
   else
     list->first = list->first->next;
 
+  next = node->next;
   node->next = list->pool;
   list->pool = node;
+
+  return next;
 }
 /*----------------------------------------------------------------------------*/
 void listPush(struct List *list, const void *element)
@@ -88,7 +87,7 @@ void listPush(struct List *list, const void *element)
 
   list->pool = list->pool->next;
 
-  memcpy(node->data, element, list->width);
+  memcpy(node->data, &element, list->width);
   node->next = list->first;
-  list->first = node->next;
+  list->first = node;
 }

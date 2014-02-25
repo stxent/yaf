@@ -32,7 +32,7 @@ enum result listInit(struct List *, unsigned int, unsigned int);
 void listDeinit(struct List *);
 void listClear(struct List *);
 void listData(struct List *, const struct ListNode *, void *);
-void listErase(struct List *, struct ListNode *);
+struct ListNode *listErase(struct List *, struct ListNode *);
 void listPush(struct List *, const void *);
 /*----------------------------------------------------------------------------*/
 static inline struct ListNode *listFirst(const struct List *list)

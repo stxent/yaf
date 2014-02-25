@@ -84,7 +84,6 @@ struct FatHandle
   struct FsHandle *head;
   struct Interface *interface;
 
-  struct List openedFiles;
   struct Pool metadataPool;
 
 #ifdef FAT_POOLS
@@ -98,6 +97,10 @@ struct FatHandle
   struct Mutex contextLock;
 #else
   struct CommandContext *context;
+#endif
+
+#ifdef FAT_WRITE
+  struct List openedFiles;
 #endif
 
   /* Number of the first sector containing cluster data */
@@ -173,6 +176,7 @@ struct FatDir
 struct FatFileConfig
 {
   struct FsNode *node;
+  access_t access;
 };
 /*----------------------------------------------------------------------------*/
 struct FatFile
@@ -289,8 +293,9 @@ enum cleanup
   FREE_FILE_POOL,
   FREE_DIR_POOL,
   FREE_NODE_POOL,
+  FREE_FILE_LIST,
   FREE_METADATA_POOL,
-  FREE_CONTEXT,
+  FREE_CONTEXT_POOL,
   FREE_LOCK
 };
 /*----------------------------------------------------------------------------*/

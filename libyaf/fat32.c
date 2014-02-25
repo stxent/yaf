@@ -125,19 +125,21 @@ static void freePool(struct Pool *pool)
 static enum result allocateBuffers(struct FatHandle *handle,
     const struct Fat32Config * const config)
 {
-#if defined(FAT_POOLS) || defined(FAT_THREADS)
+#if defined(FAT_POOLS) || defined(FAT_WRITE)
   uint16_t number;
 #endif
   enum result res;
 
 #ifdef FAT_THREADS
+  if (!config->threads)
+    return E_VALUE;
+
   /* Create context mutex and allocate context pool */
   if ((res = mutexInit(&handle->contextLock)) != E_OK)
     return res;
 
   /* Allocate context pool */
-  number = config->threads ? config->threads : 1;
-  res = allocatePool(&handle->contextPool, number,
+  res = allocatePool(&handle->contextPool, config->threads,
       sizeof(struct CommandContext), 0);
   if (res != E_OK)
   {
@@ -147,23 +149,22 @@ static enum result allocateBuffers(struct FatHandle *handle,
 
   /* Custom initialization of default sector values */
   struct CommandContext *contextPtr = handle->contextPool.data;
-  for (unsigned int index = 0; index < number; ++index, ++contextPtr)
+  for (unsigned int index = 0; index < config->threads; ++index, ++contextPtr)
     contextPtr->sector = RESERVED_SECTOR;
 
-  DEBUG_PRINT("Context pool:   %u\n", (unsigned int)(number
+  DEBUG_PRINT("Context pool:   %u\n", (unsigned int)(config->threads
       * (sizeof(struct CommandContext *) + sizeof(struct CommandContext))));
 
   /* Allocate metadata pool */
-  number = 2 * (config->threads ? config->threads : 1);
-  res = allocatePool(&handle->metadataPool, number,
+  res = allocatePool(&handle->metadataPool, 2 * config->threads,
       sizeof(struct FsMetadata), 0);
   if (res != E_OK)
   {
-    freeBuffers(handle, FREE_FILE_POOL);
+    freeBuffers(handle, FREE_CONTEXT_POOL);
     return res;
   }
 
-  DEBUG_PRINT("Metadata pool:  %u\n", (unsigned int)(number
+  DEBUG_PRINT("Metadata pool:  %u\n", (unsigned int)(2 * config->threads
       * (sizeof(struct FsMetadata *) + sizeof(struct FsMetadata))));
 #else
   /* Allocate single context buffer */
@@ -179,13 +180,26 @@ static enum result allocateBuffers(struct FatHandle *handle,
   res = allocatePool(&handle->metadataPool, 2, sizeof(struct FsMetadata), 0);
   if (res != E_OK)
   {
-    freeBuffers(handle, FREE_FILE_POOL);
+    freeBuffers(handle, FREE_CONTEXT_POOL);
     return res;
   }
 
   DEBUG_PRINT("Metadata pool:  %u\n", (unsigned int)(2
       * (sizeof(struct FsMetadata *) + sizeof(struct FsMetadata))));
 #endif /* FAT_THREADS */
+
+#ifdef FAT_WRITE
+  number = config->files ? config->files : FILE_POOL_SIZE;
+  res = listInit(&handle->openedFiles, sizeof(struct FatFile *), number);
+  if (res != E_OK)
+  {
+    freeBuffers(handle, FREE_METADATA_POOL);
+    return res;
+  }
+
+  DEBUG_PRINT("File register:  %u\n", (unsigned int)(number
+      * (sizeof(struct ListNode *) + sizeof(struct FatFile *))));
+#endif
 
 #ifdef FAT_POOLS
   /* Allocate and fill node pool */
@@ -194,7 +208,7 @@ static enum result allocateBuffers(struct FatHandle *handle,
       FatNode);
   if (res != E_OK)
   {
-    freeBuffers(handle, FREE_CONTEXT);
+    freeBuffers(handle, FREE_FILE_LIST);
     return res;
   }
 
@@ -494,11 +508,15 @@ static void freeBuffers(struct FatHandle *handle, enum cleanup step)
 #ifdef FAT_POOLS
       freePool(&handle->nodePool);
 #endif
+    case FREE_FILE_LIST:
+#ifdef FAT_WRITE
+      listDeinit(&handle->openedFiles);
+#endif
     case FREE_METADATA_POOL:
 #ifdef FAT_LFN
       freePool(&handle->metadataPool);
 #endif
-    case FREE_CONTEXT:
+    case FREE_CONTEXT_POOL:
 #ifdef FAT_THREADS
       freePool(&handle->contextPool);
 #else
@@ -1416,15 +1434,19 @@ static void fatHandleDeinit(void *object)
 /*----------------------------------------------------------------------------*/
 static void *fatFollow(void *object, const char *path, const void *root)
 {
-  struct FatNode *node = allocateNode(object);
-  struct FatHandle *handle = (struct FatHandle *)node->handle;
+  struct FatHandle *handle = object;
   struct CommandContext *context;
-
-  if (!node)
-    return 0;
+  struct FatNode *node;
 
   if (!(context = allocateContext(handle)))
     return 0;
+
+  if (!(node = allocateNode(object)))
+  {
+    freeContext(handle, context);
+    return 0;
+  }
+
   while (path && *path)
     path = followPath(context, node, path, root);
   freeContext(handle, context);
@@ -1733,7 +1755,8 @@ static void *fatOpen(void *object, access_t access)
     case FS_TYPE_FILE:
     {
       struct FatFileConfig config = {
-          .node = object
+          .node = object,
+          .access = access
       };
       struct FatHandle *handle = (struct FatHandle *)node->handle;
       struct FatFile *file = 0;
@@ -1755,10 +1778,7 @@ static void *fatOpen(void *object, access_t access)
       unlockHandle(handle);
 
       if (file)
-      {
-        file->access = access; /* Reduce set of access rights */
         file->size = (uint32_t)size;
-      }
 
       return file;
     }
@@ -2026,7 +2046,23 @@ static enum result fatFileInit(void *object, const void *configPtr)
   if (node->type != FS_TYPE_FILE)
     return E_VALUE;
 
-  file->access = node->access;
+  if (config->access & FS_ACCESS_WRITE)
+  {
+#ifdef FAT_WRITE
+    struct FatHandle *handle = (struct FatHandle *)node->handle;
+
+    if (listFull(&handle->openedFiles))
+      return E_MEMORY; /* Descriptor list is full */
+
+    listPush(&handle->openedFiles, file);
+    DEBUG_PRINT("File descriptor inserted\n");
+#else
+    /* Trying to open file for writing on read-only filesystem */
+    return E_ACCESS;
+#endif
+  }
+
+  file->access = config->access;
   file->handle = node->handle;
   file->position = 0;
   file->size = 0;
@@ -2041,8 +2077,32 @@ static enum result fatFileInit(void *object, const void *configPtr)
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-static void fatFileDeinit(void *object __attribute__((unused)))
+static void fatFileDeinit(void *object)
 {
+  struct FatFile *file = object;
+
+  if (file->access & FS_ACCESS_WRITE)
+  {
+#ifdef FAT_WRITE
+    struct FatHandle *handle = (struct FatHandle *)file->handle;
+    struct FatFile *descriptor;
+    struct ListNode *current;
+
+    current = listFirst(&handle->openedFiles);
+    while (current)
+    {
+      listData(&handle->openedFiles, current, &descriptor);
+      if (descriptor == file)
+      {
+        listErase(&handle->openedFiles, current);
+        DEBUG_PRINT("File descriptor found and erased\n");
+        break;
+      }
+      current = listNext(current);
+    }
+#endif
+  }
+
   DEBUG_PRINT("File freed, address %08lX\n", (unsigned long)object);
 }
 /*----------------------------------------------------------------------------*/
