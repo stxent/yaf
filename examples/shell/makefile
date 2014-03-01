@@ -1,59 +1,63 @@
-PROJECT=fatshell
-TOP=../../
-PATH_HEADERS=$(TOP)include/
-PATH_COMMON=$(TOP)common/
-PATH_LIBRARY=$(TOP)libyaf/
-PATH_OS=$(TOP)os/
-INCLUDEPATH=-I$(PATH_HEADERS) -I$(PATH_HEADERS)common -I$(PATH_HEADERS)os -I./
+PROJECT = shell
 
-FATCONFIG+=-DFAT_LFN
-FATCONFIG+=-DFAT_POOLS
-FATCONFIG+=-DFAT_TIME
-FATCONFIG+=-DFAT_WRITE
+CONFIGFAT += -DFAT_LFN
+CONFIGFAT += -DFAT_POOLS
+CONFIGFAT += -DFAT_THREADS
+CONFIGFAT += -DFAT_TIME
+CONFIGFAT += -DFAT_WRITE
 
-CFLAGS=-c -std=c99 -O0 $(INCLUDEPATH) -Wall -Wextra -Winline $(FATCONFIG)
-CXXFLAGS=-c -std=c++11 -O0 $(INCLUDEPATH) -Wall -Wextra -Winline $(FATCONFIG)
-CC=gcc
-CXX=g++
+CFLAGS = -std=c11 -O0 -Wall -Wextra -Winline -pedantic
+CC = gcc
+CXXFLAGS = -std=c++11 -O0 -Wall -Wextra -Winline -pedantic
+CXX = g++
+
+CFLAGS += $(CONFIGFAT)
+CXXFLAGS += $(CONFIGFAT)
 
 ifneq ($(DEBUG), 0)
-	CFLAGS+=-DDEBUG
+	CFLAGS += -DDEBUG
+	CXXFLAGS += -DDEBUG
 endif
 
-all: project
+PROJECTDIR = ../..
+SOURCEDIRS = $(addprefix $(PROJECTDIR)/, common libyaf os examples/$(PROJECT))
+INCLUDEPATH = -I./ -I$(PROJECTDIR)/include -I$(PROJECTDIR)/include/common -I$(PROJECTDIR)/include/os
 
-project: main.o shell.o commands.o entity.o fat32.o unicode.o rtc.o mutex.o mmi.o queue.o
-	$(CXX) main.o shell.o commands.o entity.o fat32.o unicode.o rtc.o mutex.o mmi.o queue.o -lrt -lpthread -lcrypto -o $(PROJECT)
+DEPENDENCIES := $(shell find -name ".depend")
+CSOURCES := $(shell find $(SOURCEDIRS) -name "*.c")
+CXXSOURCES := $(shell find $(SOURCEDIRS) -name "*.cpp")
+COBJECTS = $(CSOURCES:%.c=%.o)
+CXXOBJECTS = $(CXXSOURCES:%.cpp=%.o)
+LIBS = -lpthread -lrt -lcrypto
 
-entity.o: $(PATH_COMMON)entity.c $(PATH_HEADERS)common/entity.h
-	$(CC) $(CFLAGS) $(PATH_COMMON)entity.c
+.PHONY: all clean depend
+.SUFFIXES:
 
-queue.o: $(PATH_COMMON)queue.c $(PATH_HEADERS)common/queue.h
-	$(CC) $(CFLAGS) $(PATH_COMMON)queue.c
+all: $(PROJECT)
 
-fat32.o: $(PATH_LIBRARY)fat32.c $(PATH_HEADERS)libyaf/fat32.h $(PATH_HEADERS)libyaf/fat32_defs.h
-	$(CC) $(CFLAGS) $(PATH_LIBRARY)fat32.c
+$(PROJECT): $(COBJECTS) $(CXXOBJECTS)
+	$(CXX) $(CXXFLAGS) $(LIBS) $(COBJECTS) $(CXXOBJECTS) -o $(PROJECT)
 
-unicode.o: $(PATH_LIBRARY)unicode.c $(PATH_HEADERS)libyaf/unicode.h
-	$(CC) $(CFLAGS) $(PATH_LIBRARY)unicode.c
+%.o: %.c
+	$(CC) -c $(CFLAGS) $(INCLUDEPATH) $< -o $@
 
-mutex.o: $(PATH_OS)mutex.c $(PATH_HEADERS)os/mutex.h
-	$(CC) $(CFLAGS) $(PATH_OS)mutex.c
+%.o: %.cpp
+	$(CXX) -c $(CXXFLAGS) $(INCLUDEPATH) $< -o $@
 
-rtc.o: rtc.c rtc.h
-	$(CC) $(CFLAGS) rtc.c
+.depend:
+	for src in $(COBJECTS) ; do \
+		$(CC) -MM $(CFLAGS) $(INCLUDEPATH) -MT "$$src" "$$(echo $$src | sed s/o$$/c/)" ; \
+	done > $@ ; \
+	for src in $(CXXOBJECTS) ; do \
+		$(CXX) -MM $(CXXFLAGS) $(INCLUDEPATH) -MT "$$src" "$$(echo $$src | sed s/o$$/cpp/)" ; \
+	done >> $@
 
-mmi.o: mmi.c mmi.h
-	$(CC) $(CFLAGS) mmi.c
-
-main.o: main.cpp
-	$(CXX) $(CXXFLAGS) main.cpp
-
-shell.o: shell.cpp
-	$(CXX) $(CXXFLAGS) shell.cpp
-
-commands.o: commands.cpp
-	$(CXX) $(CXXFLAGS) commands.cpp
+depend: .depend
+	@touch .depend
 
 clean:
-	rm -rf *.o *.lst $(PROJECT)
+	rm -f $(DEPENDENCIES)
+	rm -f $(COBJECTS) $(CXXOBJECTS)
+	rm -f $(PROJECT)
+
+-include $(DEPENDENCIES)
