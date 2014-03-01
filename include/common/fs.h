@@ -269,7 +269,7 @@ static inline enum result fsUnlink(void *node)
  */
 static inline void fsUnmount(void *node)
 {
-  return ((struct FsNodeClass *)CLASS(node))->unmount(node);
+  ((struct FsNodeClass *)CLASS(node))->unmount(node);
 }
 /*----------------------------------------------------------------------------*/
 /**

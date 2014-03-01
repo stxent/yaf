@@ -17,8 +17,7 @@ enum result queueInit(struct Queue *queue, unsigned int width,
   if (!capacity || capacity > USHRT_MAX)
     return E_VALUE;
 
-  queue->data = malloc(width * capacity);
-  if (!queue->data)
+  if (!(queue->data = malloc(width * capacity)))
     return E_MEMORY;
 
   queue->width = width;
@@ -37,14 +36,17 @@ void queuePeek(const struct Queue *queue, void *element)
 {
   assert(queue->size);
 
-  memcpy(element, queue->data + queue->width * queue->floor, queue->width);
+  memcpy(element, (char *)queue->data + queue->width * queue->floor,
+      queue->width);
 }
 /*----------------------------------------------------------------------------*/
 void queuePop(struct Queue *queue, void *element)
 {
   assert(queue->size);
 
-  memcpy(element, queue->data + queue->width * queue->floor, queue->width);
+  memcpy(element, (char *)queue->data + queue->width * queue->floor,
+      queue->width);
+
   if (++queue->floor == queue->capacity)
     queue->floor = 0;
   --queue->size;
@@ -54,7 +56,9 @@ void queuePush(struct Queue *queue, const void *element)
 {
   assert(queue->size < queue->capacity);
 
-  memcpy(queue->data + queue->width * queue->ceil, &element, queue->width);
+  memcpy((char *)queue->data + queue->width * queue->ceil, &element,
+      queue->width);
+
   if (++queue->ceil == queue->capacity)
     queue->ceil = 0;
   ++queue->size;
