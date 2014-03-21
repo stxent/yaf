@@ -322,10 +322,10 @@ result ListEntries::run(unsigned int count, char *arguments[]) const
       uint64_t size = 0;
       access_t access = 0;
 
-      if ((res = fsGet(node, FS_NODE_SIZE, &size)) != E_OK)
-        break;
+      //Try to get update time
+      fsGet(node, FS_NODE_TIME, &atime);
 
-      if ((res = fsGet(node, FS_NODE_TIME, &atime)) != E_OK)
+      if ((res = fsGet(node, FS_NODE_SIZE, &size)) != E_OK)
         break;
 
       if ((res = fsGet(node, FS_NODE_ACCESS, &access)) != E_OK)

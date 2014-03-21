@@ -48,10 +48,12 @@ int main(int argc, char *argv[])
 
   struct Fat32Config fsConf;
   fsConf.interface = mmaped;
-#ifdef FAT_POOLS
-  fsConf.nodes = fsConf.directories = fsConf.files = 0;
+#ifdef CONFIG_FAT_POOLS
+  fsConf.nodes = 4;
+  fsConf.directories = 2;
+  fsConf.files = 2;
 #endif
-#ifdef FAT_THREADS
+#ifdef CONFIG_FAT_THREADS
   fsConf.threads = 2;
 #endif
 
