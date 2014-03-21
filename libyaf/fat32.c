@@ -885,17 +885,14 @@ static enum result createNode(struct CommandContext *context,
   struct FatHandle *handle = (struct FatHandle *)node->handle;
   struct DirEntryImage *ptr;
   uint32_t sector;
-  uint8_t chunks = 0;
   char shortName[sizeof(ptr->filename)];
+  uint8_t chunks = 0;
   enum result res;
 
 #ifdef FAT_LFN
-  struct FsMetadata *nameBuffer = 0;
-  uint8_t checksum;
-#endif
-
-#ifdef FAT_LFN
   /* Allocate temporary metadata buffer */
+  struct FsMetadata *nameBuffer = 0;
+
   lockHandle(handle);
   if (!queueEmpty(&handle->metadataPool.queue))
     queuePop(&handle->metadataPool.queue, &nameBuffer);
@@ -919,7 +916,6 @@ static enum result createNode(struct CommandContext *context,
     chunks = length / LFN_ENTRY_LENGTH;
     if (length > chunks * LFN_ENTRY_LENGTH) /* When fractional part exists */
       ++chunks;
-    checksum = getChecksum(shortName, sizeof(ptr->filename));
   }
 #endif
 
@@ -931,38 +927,39 @@ static enum result createNode(struct CommandContext *context,
   /* Save start cluster and index values before filling the chain */
   node->nameCluster = node->cluster;
   node->nameIndex = node->index;
-#endif
 
-  uint8_t current = chunks;
-  do
+  if (chunks)
   {
-    sector = getSector(handle, node->cluster) + E_SECTOR(node->index);
-    if ((res = readSector(context, handle, sector)) != E_OK)
-      break;
-    ptr = (struct DirEntryImage *)(context->buffer + E_OFFSET(node->index));
+    const uint8_t checksum = getChecksum(shortName, sizeof(ptr->filename));
 
-    if (!current)
-      break;
-
-#ifdef FAT_LFN
-    fillLongName(ptr, (char16_t *)nameBuffer->name + (current - 1)
-        * LFN_ENTRY_LENGTH);
-    fillLongNameEntry(ptr, current, chunks, checksum);
-
-    --current;
-    ++node->index;
-
-    if (!(node->index & (E_POW - 1)))
+    for (uint8_t current = chunks; current; --current)
     {
-      /* Write back updated sector when switching sectors */
-      if ((res = writeSector(context, handle, sector)) != E_OK)
+      sector = getSector(handle, node->cluster) + E_SECTOR(node->index);
+      if ((res = readSector(context, handle, sector)) != E_OK)
+        break;
+      ptr = (struct DirEntryImage *)(context->buffer + E_OFFSET(node->index));
+
+      fillLongName(ptr, (char16_t *)nameBuffer->name + (current - 1)
+          * LFN_ENTRY_LENGTH);
+      fillLongNameEntry(ptr, current, chunks, checksum);
+
+      ++node->index;
+
+      if (!(node->index & (E_POW - 1)))
+      {
+        /* Write back updated sector when switching sectors */
+        if ((res = writeSector(context, handle, sector)) != E_OK)
+          break;
+      }
+
+      if ((res = fetchEntry(context, node)) == E_ENTRY)
+        res = E_OK;
+
+      if (res != E_OK)
         break;
     }
-#endif
   }
-  while ((res = fetchEntry(context, node)) == E_OK);
 
-#ifdef FAT_LFN
   /* Return buffer to metadata pool */
   lockHandle(handle);
   queuePush(&handle->metadataPool.queue, nameBuffer);
@@ -971,6 +968,10 @@ static enum result createNode(struct CommandContext *context,
 
   if (res != E_OK)
     return res;
+
+  /* Buffer is already filled with actual sector data */
+  ptr = (struct DirEntryImage *)(context->buffer + E_OFFSET(node->index));
+  sector = getSector(handle, node->cluster) + E_SECTOR(node->index);
 
   /* Fill uninitialized node fields */
   node->access = FS_ACCESS_READ | FS_ACCESS_WRITE;
