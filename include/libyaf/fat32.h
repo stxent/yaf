@@ -19,19 +19,19 @@ struct Fat32Config
   /** Pointer to previously opened interface. */
   struct Interface *interface;
 
-#if defined(FAT_POOLS) || defined(FAT_WRITE)
+#if defined(CONFIG_FAT_POOLS) || defined(CONFIG_FAT_WRITE)
   /** Number of descriptors in file pools. */
   uint16_t files;
 #endif
 
-#ifdef FAT_POOLS
+#ifdef CONFIG_FAT_POOLS
   /** Number of node descriptors in node pool. */
   uint16_t nodes;
   /** Number of directory descriptors in directory entry pool. */
   uint16_t directories;
 #endif
 
-#ifdef FAT_THREADS
+#ifdef CONFIG_FAT_THREADS
   /** Number of threads that can use the same handle simultaneously. */
   uint16_t threads;
 #endif

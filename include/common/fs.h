@@ -16,7 +16,9 @@
 #include <stdint.h>
 #include <entity.h>
 /*----------------------------------------------------------------------------*/
-#define FS_NAME_LENGTH 128
+#ifndef CONFIG_FILENAME_LENGTH
+#define CONFIG_FILENAME_LENGTH 64
+#endif
 /*----------------------------------------------------------------------------*/
 typedef uint8_t access_t;
 /*----------------------------------------------------------------------------*/
@@ -71,7 +73,7 @@ enum fsSeekOrigin
 struct FsMetadata
 {
   /** Symbolic name of the node. */
-  char name[FS_NAME_LENGTH];
+  char name[CONFIG_FILENAME_LENGTH];
   /** Type of the node. */
   enum fsNodeType type;
 };

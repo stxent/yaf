@@ -15,17 +15,34 @@
 #include <libyaf/macro.h>
 #include <libyaf/unicode.h>
 /*----------------------------------------------------------------------------*/
-#ifdef FAT_THREADS
+#ifdef CONFIG_FAT_THREADS
 #include <mutex.h>
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef FAT_TIME
+#ifdef CONFIG_FAT_TIME
 #include "rtc.h"
 #endif
 /*----------------------------------------------------------------------------*/
-/* Sector size may be 512, 1024, 2048, 4096 bytes, default is 512 */
-#define SECTOR_POW              9 /* Sector size in power of 2 */
-#define SECTOR_SIZE             (1 << SECTOR_POW) /* Sector size in bytes */
+/*
+ * Sector size may be 512, 1024, 2048 or 4096 bytes, default is 512.
+ * Size is configured as an exponent of the value.
+ */
+#ifdef CONFIG_FAT_SECTOR
+#define SECTOR_EXP              CONFIG_FAT_SECTOR
+#else
+#define SECTOR_EXP              9
+#endif
+/* Sector size in bytes */
+#define SECTOR_SIZE             (1 << SECTOR_EXP)
+/*----------------------------------------------------------------------------*/
+#ifdef CONFIG_FAT_POOLS
+/* Default size of node pool */
+#define NODE_POOL_SIZE          4
+/* Default size of directory entry pool */
+#define DIR_POOL_SIZE           2
+/* Default size of file entry pool */
+#define FILE_POOL_SIZE          2
+#endif
 /*----------------------------------------------------------------------------*/
 #define FLAG_RO                 BIT(0) /* Read only */
 #define FLAG_HIDDEN             BIT(1)
@@ -45,25 +62,16 @@
 #define RESERVED_CLUSTER        0 /* Reserved cluster number */
 #define RESERVED_SECTOR         0xFFFFFFFFUL /* Initial sector number */
 /*----------------------------------------------------------------------------*/
-/* File or directory entry size power */
-#define E_POW                   (SECTOR_POW - 5)
 /* Table entries per FAT sector power */
-#define TE_COUNT                (SECTOR_POW - 2)
+#define CELL_COUNT              (SECTOR_EXP - 2)
 /* Table entry offset in FAT sector */
-#define TE_OFFSET(arg)          (((arg) & ((1 << TE_COUNT) - 1)) << 2)
-/* Directory entry position in cluster */
-#define E_SECTOR(index)         ((index) >> E_POW)
+#define CELL_OFFSET(arg)        (((arg) & ((1 << CELL_COUNT) - 1)) << 2)
+/* File or directory entry size power */
+#define ENTRY_EXP               (SECTOR_EXP - 5)
 /* Directory entry offset in sector */
-#define E_OFFSET(index)         (((index) << 5) & (SECTOR_SIZE - 1))
-/*----------------------------------------------------------------------------*/
-#ifdef FAT_POOLS
-/* Default size of node pool */
-#define NODE_POOL_SIZE          4
-/* Default size of directory entry pool */
-#define DIR_POOL_SIZE           2
-/* Default size of file entry pool */
-#define FILE_POOL_SIZE          2
-#endif
+#define ENTRY_OFFSET(index)     (((index) << 5) & (SECTOR_SIZE - 1))
+/* Directory entry position in cluster */
+#define ENTRY_SECTOR(index)     ((index) >> ENTRY_EXP)
 /*----------------------------------------------------------------------------*/
 struct CommandContext
 {
@@ -86,20 +94,20 @@ struct FatHandle
 
   struct Pool metadataPool;
 
-#ifdef FAT_POOLS
+#ifdef CONFIG_FAT_POOLS
   struct Pool nodePool;
   struct Pool dirPool;
   struct Pool filePool;
 #endif
 
-#ifdef FAT_THREADS
+#ifdef CONFIG_FAT_THREADS
   struct Pool contextPool;
   struct Mutex contextLock;
 #else
   struct CommandContext *context;
 #endif
 
-#ifdef FAT_WRITE
+#ifdef CONFIG_FAT_WRITE
   struct List openedFiles;
 #endif
 
@@ -109,7 +117,7 @@ struct FatHandle
   uint32_t rootCluster;
   /* Starting point of the file allocation table */
   uint32_t tableSector;
-#ifdef FAT_WRITE
+#ifdef CONFIG_FAT_WRITE
   /* Number of clusters in the partition */
   uint32_t clusterCount;
   /* Last allocated cluster */
@@ -140,7 +148,7 @@ struct FatNode
   uint32_t cluster;
   /* First cluster of the entry */
   uint32_t payload;
-#ifdef FAT_LFN
+#ifdef CONFIG_FAT_UNICODE
   /* Directory cluster of the first name entry */
   uint32_t nameCluster;
   /* First name entry position in the parent cluster */
@@ -193,7 +201,7 @@ struct FatFile
   uint32_t position;
   /* Current cluster inside data chain */
   uint32_t currentCluster;
-#ifdef FAT_WRITE
+#ifdef CONFIG_FAT_WRITE
   /* Directory cluster where entry located */
   uint32_t parentCluster;
   /* Entry position in parent cluster */
@@ -324,14 +332,14 @@ static enum result readBuffer(struct FatHandle *, uint32_t, uint8_t *,
 static enum result readSector(struct CommandContext *, struct FatHandle *,
     uint32_t);
 /*----------------------------------------------------------------------------*/
-#ifdef FAT_LFN
+#ifdef CONFIG_FAT_UNICODE
 static void extractLongName(const struct DirEntryImage *, char16_t *);
 static uint8_t getChecksum(const char *, uint8_t);
 static enum result readLongName(struct CommandContext *, struct FatNode *,
     char *);
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef FAT_WRITE
+#ifdef CONFIG_FAT_WRITE
 static enum result allocateCluster(struct CommandContext *, struct FatHandle *,
     uint32_t *);
 static enum result clearCluster(struct CommandContext *, struct FatHandle *,
@@ -356,7 +364,7 @@ static enum result writeSector(struct CommandContext *, struct FatHandle *,
     uint32_t);
 #endif
 /*----------------------------------------------------------------------------*/
-#if defined(FAT_LFN) && defined(FAT_WRITE)
+#if defined(CONFIG_FAT_UNICODE) && defined(CONFIG_FAT_WRITE)
 static void fillLongName(struct DirEntryImage *, char16_t *);
 static void fillLongNameEntry(struct DirEntryImage *, uint8_t, uint8_t,
     uint8_t);
@@ -434,23 +442,23 @@ static inline uint32_t getSector(struct FatHandle *handle, uint32_t cluster)
 /* File or directory entries per directory cluster */
 static inline uint16_t nodeCount(struct FatHandle *handle)
 {
-  return 1 << E_POW << handle->clusterSize;
+  return 1 << ENTRY_EXP << handle->clusterSize;
 }
 /*----------------------------------------------------------------------------*/
 /* Calculate current sector in data cluster for read or write operations */
 static inline uint8_t sectorInCluster(struct FatHandle *handle, uint32_t offset)
 {
-  return (offset >> SECTOR_POW) & ((1 << handle->clusterSize) - 1);
+  return (offset >> SECTOR_EXP) & ((1 << handle->clusterSize) - 1);
 }
 /*----------------------------------------------------------------------------*/
-#ifdef FAT_LFN
+#ifdef CONFIG_FAT_UNICODE
 static inline bool hasLongName(struct FatNode *node)
 {
   return node->cluster != node->nameCluster || node->index != node->nameIndex;
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef FAT_THREADS
+#ifdef CONFIG_FAT_THREADS
 static inline void lockHandle(struct FatHandle *handle)
 {
   mutexLock(&handle->contextLock);
@@ -462,7 +470,7 @@ static inline void lockHandle(struct FatHandle *handle __attribute__((unused)))
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef FAT_THREADS
+#ifdef CONFIG_FAT_THREADS
 static inline void unlockHandle(struct FatHandle *handle)
 {
   mutexUnlock(&handle->contextLock);
