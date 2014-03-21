@@ -19,10 +19,6 @@
 #include <mutex.h>
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_TIME
-#include "rtc.h"
-#endif
-/*----------------------------------------------------------------------------*/
 /*
  * Sector size may be 512, 1024, 2048 or 4096 bytes, default is 512.
  * Size is configured as an exponent of the value.
@@ -35,14 +31,9 @@
 /* Sector size in bytes */
 #define SECTOR_SIZE             (1 << SECTOR_EXP)
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_POOLS
-/* Default size of node pool */
-#define NODE_POOL_SIZE          4
-/* Default size of directory entry pool */
-#define DIR_POOL_SIZE           2
-/* Default size of file entry pool */
-#define FILE_POOL_SIZE          2
-#endif
+#define NODE_POOL_SIZE          4 /* Default size of node pool */
+#define DIR_POOL_SIZE           2 /* Default size of directory entry pool */
+#define FILE_POOL_SIZE          2 /* Default size of file entry pool */
 /*----------------------------------------------------------------------------*/
 #define FLAG_RO                 BIT(0) /* Read only */
 #define FLAG_HIDDEN             BIT(1)

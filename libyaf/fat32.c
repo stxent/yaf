@@ -9,6 +9,10 @@
 #include <libyaf/fat32.h>
 #include <libyaf/fat32_defs.h>
 /*----------------------------------------------------------------------------*/
+#ifdef CONFIG_FAT_TIME
+#include "rtc.h" //FIXME Rewrite
+#endif
+/*----------------------------------------------------------------------------*/
 #ifdef DEBUG
 #include <stdio.h>
 #include <stdlib.h>
@@ -1839,7 +1843,8 @@ static enum result fatSet(void *object, enum fsNodeData type, const void *data)
 }
 #else
 static enum result fatSet(void *object __attribute__((unused)),
-    const struct FsMetadata *metadata __attribute__((unused)))
+    enum fsNodeData type __attribute__((unused)),
+    const void *data __attribute__((unused)))
 {
   return E_ERROR;
 }
@@ -2442,7 +2447,7 @@ static uint32_t fatFileWrite(void *object, const void *buffer, uint32_t length)
 }
 #else
 static uint32_t fatFileWrite(void *entry __attribute__((unused)),
-    const uint8_t *buffer __attribute__((unused)),
+    const void *buffer __attribute__((unused)),
     uint32_t length __attribute__((unused)))
 {
   return 0;
