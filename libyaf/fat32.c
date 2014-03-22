@@ -22,7 +22,8 @@
 #endif
 /*----------------------------------------------------------------------------*/
 /* Get size of an array placed in structure */
-#define ARRAY_SIZE(parent, array) (sizeof(((struct parent *)0)->array))
+#define ARRAY_SIZE(parent, array) \
+    (sizeof(((struct parent *)0)->array) / sizeof(*((struct parent *)0)->array))
 /*------------------Class descriptors-----------------------------------------*/
 static const struct FsHandleClass fatHandleTable = {
     .size = sizeof(struct FatHandle),
@@ -443,57 +444,58 @@ static const char *followPath(struct CommandContext *context,
     struct FatNode *node, const char *path, const struct FatNode *root)
 {
   struct FatHandle *handle = (struct FatHandle *)node->handle;
-  struct FsMetadata *currentNode = 0, *pathPart = 0;
+  struct FsMetadata *currentName = 0, *pathPart = 0;
+  enum result res;
 
   /* Allocate temporary metadata buffers */
   lockHandle(handle);
   if (queueSize(&handle->metadataPool.queue) >= 2)
   {
-    queuePop(&handle->metadataPool.queue, &currentNode);
+    queuePop(&handle->metadataPool.queue, &currentName);
     queuePop(&handle->metadataPool.queue, &pathPart);
   }
   unlockHandle(handle);
 
-  if (!currentNode || !pathPart)
+  if (!currentName || !pathPart)
     return 0;
 
   path = getChunk(path, pathPart->name);
-  if (!strlen(pathPart->name))
-  {
-    path = 0;
-    goto exit;
-  }
 
-  node->index = 0;
-  if (!root)
+  if (strlen(pathPart->name))
   {
-    if (pathPart->name[0] == '/')
+    node->index = 0;
+
+    if (!root && pathPart->name[0] == '/')
     {
+      /* Resulting node is the root node */
       node->access = FS_ACCESS_READ | FS_ACCESS_WRITE;
       node->cluster = RESERVED_CLUSTER;
       node->payload = ((struct FatHandle *)node->handle)->rootCluster;
       node->type = FS_TYPE_DIR;
-      goto exit;
     }
-    node->cluster = node->payload;
+    else
+    {
+      node->cluster = root ? root->payload : node->payload;
+
+      while ((res = fetchNode(context, node, currentName)) == E_OK)
+      {
+        if (!strcmp(pathPart->name, currentName->name))
+          break;
+        ++node->index;
+      }
+
+      /* Check whether the node is found */
+      if (res != E_OK)
+        path = 0;
+    }
   }
   else
-    node->cluster = root->payload;
+    path = 0;
 
-  while (fetchNode(context, node, currentNode) == E_OK)
-  {
-    if (!strcmp(pathPart->name, currentNode->name))
-      goto exit;
-    ++node->index;
-  }
-
-  path = 0;
-
-exit:
   /* Return buffers to metadata pool */
   lockHandle(handle);
   queuePush(&handle->metadataPool.queue, pathPart);
-  queuePush(&handle->metadataPool.queue, currentNode);
+  queuePush(&handle->metadataPool.queue, currentName);
   unlockHandle(handle);
 
   return path;
@@ -613,7 +615,7 @@ static enum result mount(struct FatHandle *handle)
 
   /* Read first sector */
   if ((res = readSector(context, handle, 0)) != E_OK)
-    goto error;
+    goto exit;
 
   struct BootSectorImage *boot = (struct BootSectorImage *)context->buffer;
 
@@ -621,14 +623,14 @@ static enum result mount(struct FatHandle *handle)
   if (boot->bootSignature != 0xAA55)
   {
     res = E_ERROR;
-    goto error;
+    goto exit;
   }
 
   /* Check sector size, fixed size of 2 ^ SECTOR_EXP allowed */
   if (boot->bytesPerSector != SECTOR_SIZE)
   {
     res = E_ERROR;
-    goto error;
+    goto exit;
   }
 
   /* Calculate sectors per cluster count */
@@ -660,20 +662,21 @@ static enum result mount(struct FatHandle *handle)
 
   /* Read information sector */
   if ((res = readSector(context, handle, handle->infoSector)) != E_OK)
-    goto error;
+    goto exit;
   struct InfoSectorImage *info = (struct InfoSectorImage *)context->buffer;
 
   /* Check info sector signatures (RRaA at 0x0000 and rrAa at 0x01E4) */
   if (info->firstSignature != 0x41615252 || info->infoSignature != 0x61417272)
-    goto error;
+  {
+    res = E_ERROR;
+    goto exit;
+  }
   handle->lastAllocated = info->lastAllocated;
 
   DEBUG_PRINT("Free clusters:  %u\n", (unsigned int)info->freeClusters);
 #endif
 
-  return E_OK;
-
-error:
+exit:
   freeContext(handle, context);
   return res;
 }
