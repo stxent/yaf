@@ -761,8 +761,11 @@ static enum result readLongName(struct CommandContext *context,
     uint16_t offset = ((entry->ordinal & ~LFN_LAST) - 1);
 
     /* Compare resulting file name length and name buffer capacity */
-    if (offset > ((CONFIG_FILENAME_LENGTH - 1) / LFN_ENTRY_LENGTH / 2) - 1)
+    if (offset > ((CONFIG_FILENAME_LENGTH - 1) / 2 / LFN_ENTRY_LENGTH) - 1)
       return E_MEMORY;
+
+    if (entry->ordinal & LFN_LAST)
+      *((char16_t *)name + (offset + 1) * LFN_ENTRY_LENGTH) = 0;
 
     extractLongName(entry, (char16_t *)name + offset * LFN_ENTRY_LENGTH);
     ++chunks;
@@ -919,12 +922,17 @@ static enum result createNode(struct CommandContext *context,
   /* Check whether the file name is valid for use as short name */
   if (res != E_OK)
   {
-    uint16_t length = 1 + uToUtf16((char16_t *)nameBuffer->name,
-        metadata->name, CONFIG_FILENAME_LENGTH);
+    uint16_t length = uToUtf16((char16_t *)nameBuffer->name, metadata->name,
+        LFN_ENTRY_LENGTH * (CONFIG_FILENAME_LENGTH / 2 / LFN_ENTRY_LENGTH));
 
     chunks = length / LFN_ENTRY_LENGTH;
-    if (length > chunks * LFN_ENTRY_LENGTH) /* When fractional part exists */
+    if (length > chunks * LFN_ENTRY_LENGTH)
+    {
+      /* Append additional entry when last chunk is incomplete */
       ++chunks;
+      memset((char16_t *)nameBuffer->name + length, 0,
+          (chunks * LFN_ENTRY_LENGTH) - length);
+    }
   }
 #endif
 
@@ -1393,15 +1401,14 @@ static enum result writeSector(struct CommandContext *context,
 #endif
 /*----------------------------------------------------------------------------*/
 #if defined(CONFIG_FAT_UNICODE) && defined(CONFIG_FAT_WRITE)
-/* Save 13 unicode characters to long file name entry */
-static void fillLongName(struct DirEntryImage *entry, char16_t *str)
+/* Save Unicode characters to long file name entry */
+static void fillLongName(struct DirEntryImage *entry, char16_t *name)
 {
-  //FIXME Add checking for the end of the string
-  memcpy(entry->longName0, str, sizeof(entry->longName0));
-  str += sizeof(entry->longName0) / sizeof(char16_t);
-  memcpy(entry->longName1, str, sizeof(entry->longName1));
-  str += sizeof(entry->longName1) / sizeof(char16_t);
-  memcpy(entry->longName2, str, sizeof(entry->longName2));
+  memcpy(entry->longName0, name, sizeof(entry->longName0));
+  name += sizeof(entry->longName0) / sizeof(char16_t);
+  memcpy(entry->longName1, name, sizeof(entry->longName1));
+  name += sizeof(entry->longName1) / sizeof(char16_t);
+  memcpy(entry->longName2, name, sizeof(entry->longName2));
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -1409,9 +1416,9 @@ static void fillLongName(struct DirEntryImage *entry, char16_t *str)
 static void fillLongNameEntry(struct DirEntryImage *entry, uint8_t current,
     uint8_t total, uint8_t checksum)
 {
-  /* Clear unused fields */
+  /* Clear reserved fields */
   entry->unused0 = 0;
-  entry->unused3 = 0; /* Zero value required */
+  entry->unused3 = 0;
 
   entry->flags = MASK_LFN;
   entry->checksum = checksum;
