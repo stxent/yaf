@@ -5,37 +5,34 @@
  */
 
 #include <assert.h>
-#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <list.h>
 /*----------------------------------------------------------------------------*/
-enum result listInit(struct List *list, unsigned int width,
-    unsigned int capacity)
+static void freeListChain(struct ListNode *current)
 {
-  struct ListNode *node;
+  struct ListNode *buffer;
 
-  if (!capacity || capacity > USHRT_MAX)
-    return E_VALUE;
-
-  list->data = malloc((sizeof(struct ListNode *) + width) * capacity);
+  while (current)
+  {
+    buffer = current;
+    current = current->next;
+    free(buffer);
+  }
+}
+/*----------------------------------------------------------------------------*/
+enum result listInit(struct List *list, unsigned int width)
+{
   list->first = list->pool = 0;
   list->width = width;
-
-  for (unsigned int pos = 0; pos < capacity; ++pos)
-  {
-    node = (struct ListNode *)((char *)list->data
-        + (sizeof(struct ListNode *) + width) * pos);
-    node->next = list->pool;
-    list->pool = node;
-  }
 
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
 void listDeinit(struct List *list)
 {
-  free(list->data);
+  freeListChain(list->first);
+  freeListChain(list->pool);
 }
 /*----------------------------------------------------------------------------*/
 void listClear(struct List *list)
@@ -79,15 +76,40 @@ struct ListNode *listErase(struct List *list, struct ListNode *node)
   return next;
 }
 /*----------------------------------------------------------------------------*/
-void listPush(struct List *list, const void *element)
+enum result listPush(struct List *list, const void *element)
 {
-  struct ListNode *node = list->pool;
+  struct ListNode *node;
 
-  assert(node);
+  if (list->pool)
+  {
+    node = list->pool;
+    list->pool = list->pool->next;
+  }
+  else
+  {
+    node = malloc(sizeof(struct ListNode *) + list->width);
 
-  list->pool = list->pool->next;
+    if (!node)
+      return E_MEMORY;
+  }
 
   memcpy(node->data, &element, list->width);
   node->next = list->first;
   list->first = node;
+
+  return E_OK;
+}
+/*----------------------------------------------------------------------------*/
+unsigned int listSize(struct List *list)
+{
+  struct ListNode *current = list->first;
+  unsigned int result = 0;
+
+  while (current)
+  {
+    ++result;
+    current = current->next;
+  }
+
+  return result;
 }

@@ -130,9 +130,6 @@ static void freePool(struct Pool *pool)
 static enum result allocateBuffers(struct FatHandle *handle,
     const struct Fat32Config * const config)
 {
-#if defined(CONFIG_FAT_POOLS) || defined(CONFIG_FAT_WRITE)
-  uint16_t number;
-#endif
   enum result res;
 
 #ifdef CONFIG_FAT_THREADS
@@ -194,19 +191,17 @@ static enum result allocateBuffers(struct FatHandle *handle,
 #endif /* CONFIG_FAT_THREADS */
 
 #ifdef CONFIG_FAT_WRITE
-  number = config->files ? config->files : FILE_POOL_SIZE;
-  res = listInit(&handle->openedFiles, sizeof(struct FatFile *), number);
+  res = listInit(&handle->openedFiles, sizeof(struct FatFile *));
   if (res != E_OK)
   {
     freeBuffers(handle, FREE_METADATA_POOL);
     return res;
   }
-
-  DEBUG_PRINT("File register:  %u\n", (unsigned int)(number
-      * (sizeof(struct ListNode *) + sizeof(struct FatFile *))));
 #endif
 
 #ifdef CONFIG_FAT_POOLS
+  uint16_t number;
+
   /* Allocate and fill node pool */
   number = config->nodes ? config->nodes : NODE_POOL_SIZE;
   res = allocatePool(&handle->nodePool, number, sizeof(struct FatNode),
@@ -2075,11 +2070,11 @@ static enum result fatFileInit(void *object, const void *configPtr)
   {
 #ifdef CONFIG_FAT_WRITE
     struct FatHandle *handle = (struct FatHandle *)node->handle;
+    enum result res;
 
-    if (listFull(&handle->openedFiles))
-      return E_MEMORY; /* Descriptor list is full */
+    if ((res = listPush(&handle->openedFiles, file)) != E_OK)
+      return res;
 
-    listPush(&handle->openedFiles, file);
     DEBUG_PRINT("File descriptor inserted\n");
 #else
     /* Trying to open file for writing on read-only filesystem */

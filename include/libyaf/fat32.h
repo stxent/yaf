@@ -19,12 +19,9 @@ struct Fat32Config
   /** Pointer to previously opened interface. */
   struct Interface *interface;
 
-#if defined(CONFIG_FAT_POOLS) || defined(CONFIG_FAT_WRITE)
+#ifdef CONFIG_FAT_POOLS
   /** Number of descriptors in file pools. */
   uint16_t files;
-#endif
-
-#ifdef CONFIG_FAT_POOLS
   /** Number of node descriptors in node pool. */
   uint16_t nodes;
   /** Number of directory descriptors in directory entry pool. */

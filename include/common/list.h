@@ -18,8 +18,6 @@ struct ListNode
 /*----------------------------------------------------------------------------*/
 struct List
 {
-  void *data;
-
   /** First element of the list containing data nodes. */
   struct ListNode *first;
   /** First element of the free nodes list. */
@@ -28,12 +26,13 @@ struct List
   unsigned int width;
 };
 /*----------------------------------------------------------------------------*/
-enum result listInit(struct List *, unsigned int, unsigned int);
+enum result listInit(struct List *, unsigned int);
 void listDeinit(struct List *);
 void listClear(struct List *);
 void listData(struct List *, const struct ListNode *, void *);
 struct ListNode *listErase(struct List *, struct ListNode *);
-void listPush(struct List *, const void *);
+enum result listPush(struct List *, const void *);
+unsigned int listSize(struct List *);
 /*----------------------------------------------------------------------------*/
 static inline struct ListNode *listFirst(const struct List *list)
 {
@@ -48,11 +47,6 @@ static inline struct ListNode *listNext(const struct ListNode *node)
 static inline bool listEmpty(const struct List *list)
 {
   return list->first != 0;
-}
-/*----------------------------------------------------------------------------*/
-static inline bool listFull(const struct List *list)
-{
-  return list->pool == 0;
 }
 /*----------------------------------------------------------------------------*/
 #endif /* LIST_H_ */
