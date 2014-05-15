@@ -23,14 +23,18 @@ public:
   class ShellCommand
   {
   public:
-    virtual ~ShellCommand() {}
+    virtual ~ShellCommand() {
+      delete[] name;
+    }
+
     virtual result run(unsigned int count, char *arguments[]) const = 0;
 
-    char name[12];
+    char *name;
     Shell *owner;
 
   protected:
     ShellCommand(Shell *shell, const char *alias) : owner(shell) {
+      name = new char[strlen(alias) + 1];
       strcpy(name, alias);
     }
   };

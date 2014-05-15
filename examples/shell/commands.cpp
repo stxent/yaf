@@ -229,12 +229,14 @@ result CopyEntry::run(unsigned int count, char *arguments[]) const
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result ExitShell::run(unsigned int count, char *arguments[]) const
+result ExitShell::run(unsigned int count __attribute__((unused)),
+    char *arguments[] __attribute__((unused))) const
 {
   return E_ERROR;
 }
 //------------------------------------------------------------------------------
-result ListCommands::run(unsigned int count, char *arguments[]) const
+result ListCommands::run(unsigned int count __attribute__((unused)),
+    char *arguments[] __attribute__((unused))) const
 {
   for (auto iter = owner->commands.begin(); iter != owner->commands.end();
       ++iter)
