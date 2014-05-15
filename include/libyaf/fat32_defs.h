@@ -347,6 +347,7 @@ static enum result markFree(struct CommandContext *, struct FatNode *);
 static char processCharacter(char);
 static enum result setupDirCluster(struct CommandContext *,
     const struct FatNode *);
+static enum result syncFile(struct CommandContext *, struct FatFile *);
 static enum result updateTable(struct CommandContext *, struct FatHandle *,
     uint32_t);
 static enum result writeBuffer(struct FatHandle *, uint32_t, const uint8_t *,
@@ -365,6 +366,7 @@ static void fillLongNameEntry(struct DirEntryImage *, uint8_t, uint8_t,
 static enum result fatHandleInit(void *, const void *);
 static void fatHandleDeinit(void *);
 static void *fatFollow(void *, const char *, const void *);
+static enum result fatSync(void *);
 
 /* Node functions */
 static enum result fatNodeInit(void *, const void *);
@@ -396,7 +398,6 @@ static enum result fatFileClose(void *);
 static bool fatFileEnd(void *);
 static uint32_t fatFileRead(void *, void *, uint32_t);
 static enum result fatFileSeek(void *, uint64_t, enum fsSeekOrigin);
-static enum result fatFileSync(void *);
 static uint64_t fatFileTell(void *);
 static uint32_t fatFileWrite(void *, const void *, uint32_t);
 
@@ -404,7 +405,6 @@ static uint32_t fatFileWrite(void *, const void *, uint32_t);
 static enum result fatMount(void *, void *);
 static void fatUnmount(void *);
 static uint32_t fatDirRead(void *, void *, uint32_t);
-static enum result fatDirSync(void *);
 static uint32_t fatDirWrite(void *, const void *, uint32_t);
 static enum result fatFileFetch(void *, void *);
 /*----------------------------------------------------------------------------*/

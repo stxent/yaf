@@ -83,6 +83,7 @@ struct FsHandleClass
   CLASS_HEADER
 
   void *(*follow)(void *, const char *, const void *);
+  enum result (*sync)(void *);
 };
 /*----------------------------------------------------------------------------*/
 struct FsHandle
@@ -121,7 +122,6 @@ struct FsEntryClass
   enum result (*fetch)(void *, void *);
   uint32_t (*read)(void *, void *, uint32_t);
   enum result (*seek)(void *, uint64_t, enum fsSeekOrigin);
-  enum result (*sync)(void *);
   uint64_t (*tell)(void *);
   uint32_t (*write)(void *, const void *, uint32_t);
 };
@@ -144,6 +144,15 @@ struct FsEntry
 static inline void *fsFollow(void *handle, const char *path, const void *root)
 {
   return ((struct FsHandleClass *)CLASS(handle))->follow(handle, path, root);
+}
+/*----------------------------------------------------------------------------*/
+/**
+ * Write information about changed entries to physical device.
+ * @param handle Pointer to an FsHandle object.
+ */
+static inline enum result fsSync(void *handle)
+{
+  return ((struct FsHandleClass *)CLASS(handle))->sync(handle);
 }
 /*----------------------------------------------------------------------------*/
 /**
@@ -328,15 +337,6 @@ static inline enum result fsSeek(void *entry, uint64_t offset,
     enum fsSeekOrigin origin)
 {
   return ((struct FsEntryClass *)CLASS(entry))->seek(entry, offset, origin);
-}
-/*----------------------------------------------------------------------------*/
-/**
- * Write changed entry information to physical device.
- * @param entry Pointer to a previously opened entry.
- */
-static inline enum result fsSync(void *entry)
-{
-  return ((struct FsEntryClass *)CLASS(entry))->sync(entry);
 }
 /*----------------------------------------------------------------------------*/
 /**

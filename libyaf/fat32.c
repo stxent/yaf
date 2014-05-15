@@ -30,7 +30,8 @@ static const struct FsHandleClass fatHandleTable = {
     .init = fatHandleInit,
     .deinit = fatHandleDeinit,
 
-    .follow = fatFollow
+    .follow = fatFollow,
+    .sync = fatSync
 };
 
 static const struct FsNodeClass fatNodeTable = {
@@ -66,7 +67,6 @@ static const struct FsEntryClass fatDirTable = {
 
     /* Stubs */
     .read = fatDirRead,
-    .sync = fatDirSync,
     .write = fatDirWrite
 };
 
@@ -79,7 +79,6 @@ static const struct FsEntryClass fatFileTable = {
     .end = fatFileEnd,
     .read = fatFileRead,
     .seek = fatFileSeek,
-    .sync = fatFileSync,
     .tell = fatFileTell,
     .write = fatFileWrite,
 
@@ -1348,6 +1347,44 @@ static enum result setupDirCluster(struct CommandContext *context,
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_WRITE
+static enum result syncFile(struct CommandContext *context,
+    struct FatFile *file)
+{
+  struct FatHandle *handle = (struct FatHandle *)file->handle;
+  uint32_t sector;
+  enum result res;
+
+  if (!(file->access & FS_ACCESS_WRITE))
+    return E_ERROR;
+
+  sector = getSector(handle, file->parentCluster)
+      + ENTRY_SECTOR(file->parentIndex);
+  if ((res = readSector(context, handle, sector)) != E_OK)
+    return res;
+
+  /* Pointer to entry position in sector */
+  struct DirEntryImage *entry = (struct DirEntryImage *)(context->buffer
+      + ENTRY_OFFSET(file->parentIndex));
+  /* Update first cluster when writing to empty file or truncating file */
+  entry->clusterHigh = (uint16_t)(file->payload >> 16);
+  entry->clusterLow = (uint16_t)file->payload;
+  /* Update file size */
+  entry->size = file->size;
+
+#ifdef CONFIG_FAT_TIME
+  /* Update last modified date */
+  //FIXME rewrite
+  entry->time = rtcGetTime();
+  entry->date = rtcGetDate();
+#endif
+
+  res = writeSector(context, handle, sector);
+
+  return res;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef CONFIG_FAT_WRITE
 /* Copy current sector into FAT sectors located at offset */
 static enum result updateTable(struct CommandContext *context,
     struct FatHandle *handle, uint32_t offset)
@@ -1476,6 +1513,33 @@ static void *fatFollow(void *object, const char *path, const void *root)
   }
   else
     return node;
+}
+/*----------------------------------------------------------------------------*/
+static enum result fatSync(void *object)
+{
+  struct FatHandle *handle = object;
+  struct CommandContext *context;
+  struct FatFile *descriptor;
+  struct ListNode *current;
+  enum result res;
+
+  if (!(context = allocateContext(handle)))
+    return E_MEMORY;
+
+  current = listFirst(&handle->openedFiles);
+  while (current)
+  {
+    listData(&handle->openedFiles, current, &descriptor);
+    if ((res = syncFile(context, descriptor)) != E_OK)
+    {
+      freeContext(handle, context);
+      return res;
+    }
+    current = listNext(current);
+  }
+
+  freeContext(handle, context);
+  return E_OK;
 }
 /*------------------Node functions--------------------------------------------*/
 static enum result fatNodeInit(void *object, const void *configPtr)
@@ -2128,13 +2192,24 @@ static void fatFileDeinit(void *object)
 /*----------------------------------------------------------------------------*/
 static enum result fatFileClose(void *object)
 {
-#ifdef CONFIG_FAT_WRITE
-  if (((struct FatFile *)object)->access & FS_ACCESS_WRITE)
-    fatFileSync(object);
-#endif
-
   struct FatHandle *handle =
       (struct FatHandle *)((struct FatNode *)object)->handle;
+
+#ifdef CONFIG_FAT_WRITE
+  if (((struct FatFile *)object)->access & FS_ACCESS_WRITE)
+  {
+    struct CommandContext *context;
+    enum result res;
+
+    if (!(context = allocateContext(handle)))
+      return E_MEMORY;
+    res = syncFile(context, object);
+    freeContext(handle, context);
+
+    if (res != E_OK)
+      return res;
+  }
+#endif
 
   lockHandle(handle);
 #ifdef CONFIG_FAT_POOLS
@@ -2288,57 +2363,6 @@ static enum result fatFileSeek(void *object, uint64_t offset,
 
   return E_OK;
 }
-/*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
-static enum result fatFileSync(void *object)
-{
-  struct FatFile *file = object;
-  struct FatHandle *handle = (struct FatHandle *)file->handle;
-  struct CommandContext *context;
-  uint32_t sector;
-  enum result res;
-
-  if (!(file->access & FS_ACCESS_WRITE))
-    return E_ERROR;
-
-  if (!(context = allocateContext(handle)))
-    return E_MEMORY;
-
-  sector = getSector(handle, file->parentCluster)
-      + ENTRY_SECTOR(file->parentIndex);
-  if ((res = readSector(context, handle, sector)) != E_OK)
-  {
-    freeContext(handle, context);
-    return res;
-  }
-
-  /* Pointer to entry position in sector */
-  struct DirEntryImage *entry = (struct DirEntryImage *)(context->buffer
-      + ENTRY_OFFSET(file->parentIndex));
-  /* Update first cluster when writing to empty file or truncating file */
-  entry->clusterHigh = (uint16_t)(file->payload >> 16);
-  entry->clusterLow = (uint16_t)file->payload;
-  /* Update file size */
-  entry->size = file->size;
-
-#ifdef CONFIG_FAT_TIME
-  /* Update last modified date */
-  //FIXME rewrite
-  entry->time = rtcGetTime();
-  entry->date = rtcGetDate();
-#endif
-
-  res = writeSector(context, handle, sector);
-  freeContext(handle, context);
-
-  return res;
-}
-#else
-static enum result fatFileSync(void *object __attribute__((unused)))
-{
-  return E_ERROR;
-}
-#endif
 /*----------------------------------------------------------------------------*/
 static uint64_t fatFileTell(void *object)
 {
@@ -2522,11 +2546,6 @@ static uint32_t fatDirRead(void *object __attribute__((unused)),
 {
   /* Use fatDirFetch instead */
   return 0;
-}
-/*----------------------------------------------------------------------------*/
-static enum result fatDirSync(void *object __attribute__((unused)))
-{
-  return E_ERROR;
 }
 /*----------------------------------------------------------------------------*/
 static uint32_t fatDirWrite(void *object __attribute__((unused)),
