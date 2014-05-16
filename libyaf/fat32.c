@@ -800,10 +800,7 @@ static enum result allocateCluster(struct CommandContext *context,
   while (current != handle->lastAllocated)
   {
     if (current >= handle->clusterCount)
-    {
-      DEBUG_PRINT("Reached end of partition, continue from third cluster\n");
       current = 2;
-    }
 
     res = readSector(context, handle, handle->tableSector
         + (current >> CELL_COUNT));
@@ -841,7 +838,7 @@ static enum result allocateCluster(struct CommandContext *context,
           return res;
       }
 
-      DEBUG_PRINT("Allocated new cluster: %u, source %u\n", current, *cluster);
+      DEBUG_PRINT("Allocated cluster: %u, reference %u\n", current, *cluster);
       handle->lastAllocated = current;
       *cluster = current;
 
@@ -862,7 +859,7 @@ static enum result allocateCluster(struct CommandContext *context,
     ++current;
   }
 
-  DEBUG_PRINT("Allocation error, possibly partition is full\n");
+  DEBUG_PRINT("Allocation error, partition can be full\n");
   return E_ERROR;
 }
 #endif
@@ -2016,14 +2013,14 @@ static enum result fatDirInit(void *object, const void *configPtr)
   dir->payload = node->payload;
   dir->currentCluster = node->payload;
   dir->currentIndex = 0;
-  DEBUG_PRINT("Dir allocated, address %08lX\n", (unsigned long)object);
+  DEBUG_PRINT("Directory allocated, address %08lX\n", (unsigned long)object);
 
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
 static void fatDirDeinit(void *object __attribute__((unused)))
 {
-  DEBUG_PRINT("Dir freed, address %08lX\n", (unsigned long)object);
+  DEBUG_PRINT("Directory freed, address %08lX\n", (unsigned long)object);
 }
 /*----------------------------------------------------------------------------*/
 static enum result fatDirClose(void *object)
@@ -2138,8 +2135,6 @@ static enum result fatFileInit(void *object, const void *configPtr)
 
     if ((res = listPush(&handle->openedFiles, file)) != E_OK)
       return res;
-
-    DEBUG_PRINT("File descriptor inserted\n");
 #else
     /* Trying to open file for writing on read-only filesystem */
     return E_ACCESS;
@@ -2179,7 +2174,6 @@ static void fatFileDeinit(void *object)
       if (descriptor == file)
       {
         listErase(&handle->openedFiles, current);
-        DEBUG_PRINT("File descriptor found and erased\n");
         break;
       }
       current = listNext(current);
@@ -2514,12 +2508,13 @@ uint32_t countFree(void *object)
     }
   }
   for (uint8_t i = 0; i < handle->tableNumber; ++i)
+  {
     for (uint8_t j = 0; j < handle->tableNumber; ++j)
+    {
       if (i != j && count[i] != count[j])
-      {
-        DEBUG_PRINT("FAT records count differs: %u and %u\n", count[i],
-            count[j]);
-      }
+        DEBUG_PRINT("FAT sizes differ: %u and %u\n", count[i], count[j]);
+    }
+  }
   empty = count[0];
 
   freeContext(handle, context);
