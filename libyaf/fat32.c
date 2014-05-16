@@ -1520,13 +1520,13 @@ static enum result fatSync(void *object)
   struct FatHandle *handle = object;
   struct CommandContext *context;
   struct FatFile *descriptor;
-  struct ListNode *current;
   enum result res;
 
   if (!(context = allocateContext(handle)))
     return E_MEMORY;
 
-  current = listFirst(&handle->openedFiles);
+  void *current = listFirst(&handle->openedFiles);
+
   while (current)
   {
     listData(&handle->openedFiles, current, &descriptor);
@@ -2170,9 +2170,9 @@ static void fatFileDeinit(void *object)
 #ifdef CONFIG_FAT_WRITE
     struct FatHandle *handle = (struct FatHandle *)file->handle;
     struct FatFile *descriptor;
-    struct ListNode *current;
 
-    current = listFirst(&handle->openedFiles);
+    void *current = listFirst(&handle->openedFiles);
+
     while (current)
     {
       listData(&handle->openedFiles, current, &descriptor);

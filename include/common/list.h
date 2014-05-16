@@ -13,7 +13,9 @@
 /*----------------------------------------------------------------------------*/
 struct ListNode
 {
+  /** Pointer to the next element or to an end of the list. */
   struct ListNode *next;
+  /** Beginning of the user data. */
   char data[];
 };
 /*----------------------------------------------------------------------------*/
@@ -30,26 +32,26 @@ struct List
 enum result listInit(struct List *, unsigned int);
 void listDeinit(struct List *);
 void listClear(struct List *);
-struct ListNode *listErase(struct List *, struct ListNode *);
+void *listErase(struct List *, void *);
 enum result listPush(struct List *, const void *);
 
 unsigned int listCapacity(const struct List *);
 unsigned int listSize(const struct List *);
 /*----------------------------------------------------------------------------*/
-static inline void listData(const struct List *list,
-    const struct ListNode *node, void *element)
+static inline void listData(const struct List *list, const void *node,
+    void *element)
 {
-  memcpy(element, node->data, list->width);
+  memcpy(element, ((const struct ListNode *)node)->data, list->width);
 }
 /*----------------------------------------------------------------------------*/
-static inline struct ListNode *listFirst(const struct List *list)
+static inline void *listFirst(const struct List *list)
 {
   return list->first;
 }
 /*----------------------------------------------------------------------------*/
-static inline struct ListNode *listNext(const struct ListNode *node)
+static inline void *listNext(const void *node)
 {
-  return node->next;
+  return ((struct ListNode *)node)->next;
 }
 /*----------------------------------------------------------------------------*/
 static inline bool listEmpty(const struct List *list)

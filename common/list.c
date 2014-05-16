@@ -61,7 +61,7 @@ void listClear(struct List *list)
   }
 }
 /*----------------------------------------------------------------------------*/
-struct ListNode *listErase(struct List *list, struct ListNode *node)
+void *listErase(struct List *list, void *node)
 {
   struct ListNode *next;
 
@@ -76,8 +76,8 @@ struct ListNode *listErase(struct List *list, struct ListNode *node)
   else
     list->first = list->first->next;
 
-  next = node->next;
-  node->next = list->pool;
+  next = ((struct ListNode *)node)->next;
+  ((struct ListNode *)node)->next = list->pool;
   list->pool = node;
 
   return next;
