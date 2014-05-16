@@ -6,8 +6,20 @@
 
 #include <assert.h>
 #include <stdlib.h>
-#include <string.h>
 #include <list.h>
+/*----------------------------------------------------------------------------*/
+static unsigned int countListNodes(const struct ListNode *current)
+{
+  unsigned int result = 0;
+
+  while (current)
+  {
+    ++result;
+    current = current->next;
+  }
+
+  return result;
+}
 /*----------------------------------------------------------------------------*/
 static void freeListChain(struct ListNode *current)
 {
@@ -47,11 +59,6 @@ void listClear(struct List *list)
     current->next = list->pool;
     list->pool = current;
   }
-}
-/*----------------------------------------------------------------------------*/
-void listData(struct List *list, const struct ListNode *node, void *element)
-{
-  memcpy(element, node->data, list->width);
 }
 /*----------------------------------------------------------------------------*/
 struct ListNode *listErase(struct List *list, struct ListNode *node)
@@ -100,16 +107,12 @@ enum result listPush(struct List *list, const void *element)
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-unsigned int listSize(struct List *list)
+unsigned int listCapacity(const struct List *list)
 {
-  struct ListNode *current = list->first;
-  unsigned int result = 0;
-
-  while (current)
-  {
-    ++result;
-    current = current->next;
-  }
-
-  return result;
+  return countListNodes(list->pool);
+}
+/*----------------------------------------------------------------------------*/
+unsigned int listSize(const struct List *list)
+{
+  return countListNodes(list->first);
 }

@@ -8,6 +8,7 @@
 #define LIST_H_
 /*----------------------------------------------------------------------------*/
 #include <stdbool.h>
+#include <string.h>
 #include <error.h>
 /*----------------------------------------------------------------------------*/
 struct ListNode
@@ -29,10 +30,17 @@ struct List
 enum result listInit(struct List *, unsigned int);
 void listDeinit(struct List *);
 void listClear(struct List *);
-void listData(struct List *, const struct ListNode *, void *);
 struct ListNode *listErase(struct List *, struct ListNode *);
 enum result listPush(struct List *, const void *);
-unsigned int listSize(struct List *);
+
+unsigned int listCapacity(const struct List *);
+unsigned int listSize(const struct List *);
+/*----------------------------------------------------------------------------*/
+static inline void listData(const struct List *list,
+    const struct ListNode *node, void *element)
+{
+  memcpy(element, node->data, list->width);
+}
 /*----------------------------------------------------------------------------*/
 static inline struct ListNode *listFirst(const struct List *list)
 {
