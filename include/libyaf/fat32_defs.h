@@ -9,10 +9,10 @@
 /*----------------------------------------------------------------------------*/
 #include <stdbool.h>
 #include <stdint.h>
+#include <bits.h>
 #include <fs.h>
 #include <list.h>
 #include <queue.h>
-#include <libyaf/macro.h>
 #include <libyaf/unicode.h>
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_THREADS
