@@ -4,6 +4,7 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
+#include <memory.h>
 #include <libyaf/unicode.h>
 /*----------------------------------------------------------------------------*/
 #undef DEBUG
@@ -43,6 +44,8 @@ uint16_t uFromUtf16(char *dest, const char16_t *src, uint16_t maxLength)
 
   while ((value = *src++) && ptr - dest < maxLength - 1)
   {
+    value = fromLittleEndian16(value);
+
     if (value <= 0x007F)
     {
       *ptr++ = (char)value;

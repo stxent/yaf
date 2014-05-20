@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <memory.h>
 #include <libyaf/fat32.h>
 #include <libyaf/fat32_defs.h>
 /*----------------------------------------------------------------------------*/
@@ -403,7 +404,8 @@ static enum result fetchNode(struct CommandContext *context,
   node->access = FS_ACCESS_READ;
   if (!(entry->flags & FLAG_RO))
     node->access |= FS_ACCESS_WRITE;
-  node->payload = entry->clusterHigh << 16 | entry->clusterLow;
+  node->payload = (uint32_t)fromLittleEndian16(entry->clusterHigh) << 16
+      | (uint32_t)fromLittleEndian16(entry->clusterLow);
 
 #ifdef CONFIG_FAT_UNICODE
   if (!found || found != chunks || checksum != getChecksum(entry->filename,
@@ -614,14 +616,14 @@ static enum result mount(struct FatHandle *handle)
   struct BootSectorImage *boot = (struct BootSectorImage *)context->buffer;
 
   /* Check boot sector signature (55AA at 0x01FE) */
-  if (boot->bootSignature != 0xAA55)
+  if (fromBigEndian16(boot->bootSignature) != 0x55AAU)
   {
     res = E_ERROR;
     goto exit;
   }
 
   /* Check sector size, fixed size of 2 ^ SECTOR_EXP allowed */
-  if (boot->bytesPerSector != SECTOR_SIZE)
+  if (fromLittleEndian16(boot->bytesPerSector) != SECTOR_SIZE)
   {
     res = E_ERROR;
     goto exit;
@@ -633,9 +635,10 @@ static enum result mount(struct FatHandle *handle)
   while (sizePow >>= 1)
     ++handle->clusterSize;
 
-  handle->tableSector = boot->reservedSectors;
-  handle->dataSector = handle->tableSector + boot->fatCopies * boot->fatSize;
-  handle->rootCluster = boot->rootCluster;
+  handle->tableSector = fromLittleEndian16(boot->reservedSectors);
+  handle->dataSector = handle->tableSector
+      + boot->fatCopies * fromLittleEndian32(boot->fatSize);
+  handle->rootCluster = fromLittleEndian32(boot->rootCluster);
 
   DEBUG_PRINT("Cluster size:   %u\n", (unsigned int)(1 << handle->clusterSize));
   DEBUG_PRINT("Table sector:   %u\n", (unsigned int)handle->tableSector);
@@ -643,16 +646,17 @@ static enum result mount(struct FatHandle *handle)
 
 #ifdef CONFIG_FAT_WRITE
   handle->tableNumber = boot->fatCopies;
-  handle->tableSize = boot->fatSize;
-  handle->clusterCount = ((boot->partitionSize
+  handle->tableSize = fromLittleEndian32(boot->fatSize);
+  handle->clusterCount = ((fromLittleEndian32(boot->partitionSize)
       - handle->dataSector) >> handle->clusterSize) + 2;
-  handle->infoSector = boot->infoSector;
+  handle->infoSector = fromLittleEndian16(boot->infoSector);
 
   DEBUG_PRINT("Info sector:    %u\n", (unsigned int)handle->infoSector);
   DEBUG_PRINT("Table copies:   %u\n", (unsigned int)handle->tableNumber);
   DEBUG_PRINT("Table size:     %u\n", (unsigned int)handle->tableSize);
   DEBUG_PRINT("Cluster count:  %u\n", (unsigned int)handle->clusterCount);
-  DEBUG_PRINT("Sectors count:  %u\n", (unsigned int)boot->partitionSize);
+  DEBUG_PRINT("Sectors count:  %u\n",
+      (unsigned int)fromLittleEndian32(boot->partitionSize));
 
   /* Read information sector */
   if ((res = readSector(context, handle, handle->infoSector)) != E_OK)
@@ -660,14 +664,16 @@ static enum result mount(struct FatHandle *handle)
   struct InfoSectorImage *info = (struct InfoSectorImage *)context->buffer;
 
   /* Check info sector signatures (RRaA at 0x0000 and rrAa at 0x01E4) */
-  if (info->firstSignature != 0x41615252 || info->infoSignature != 0x61417272)
+  if (fromBigEndian32(info->firstSignature) != 0x52526141UL
+      || fromBigEndian32(info->infoSignature) != 0x72724161UL)
   {
     res = E_ERROR;
     goto exit;
   }
-  handle->lastAllocated = info->lastAllocated;
+  handle->lastAllocated = fromLittleEndian32(info->lastAllocated);
 
-  DEBUG_PRINT("Free clusters:  %u\n", (unsigned int)info->freeClusters);
+  DEBUG_PRINT("Free clusters:  %u\n",
+      (unsigned int)fromLittleEndian32(info->freeClusters));
 #endif
 
 exit:
@@ -847,8 +853,9 @@ static enum result allocateCluster(struct CommandContext *context,
         return res;
 
       struct InfoSectorImage *info = (struct InfoSectorImage *)context->buffer;
-      info->lastAllocated = current;
-      --info->freeClusters;
+      info->lastAllocated = toLittleEndian32(current);
+      info->freeClusters =
+          toLittleEndian32(fromLittleEndian32(info->freeClusters) + 1);
 
       if ((res = writeSector(context, handle, handle->infoSector)))
         return res;
@@ -1015,8 +1022,8 @@ static void fillDirEntry(struct DirEntryImage *entry,
   if (!(node->access & FS_ACCESS_WRITE))
     entry->flags |= FLAG_RO;
 
-  entry->clusterHigh = (uint16_t)(node->payload >> 16);
-  entry->clusterLow = (uint16_t)node->payload;
+  entry->clusterHigh = toLittleEndian16((uint16_t)(node->payload >> 16));
+  entry->clusterLow = toLittleEndian16((uint16_t)node->payload);
   entry->size = 0;
 
 #ifdef CONFIG_FAT_TIME
@@ -1218,7 +1225,8 @@ static enum result freeChain(struct CommandContext *context,
 
   struct InfoSectorImage *info = (struct InfoSectorImage *)context->buffer;
   /* Set free clusters count */
-  info->freeClusters += released;
+  info->freeClusters =
+      toLittleEndian32(fromLittleEndian32(info->freeClusters) + released);
 
   if ((res = writeSector(context, handle, handle->infoSector)) != E_OK)
     return res;
@@ -1329,8 +1337,8 @@ static enum result setupDirCluster(struct CommandContext *context,
   fillDirEntry(entry, node);
   if (node->cluster != handle->rootCluster)
   {
-    entry->clusterHigh = (uint16_t)(node->cluster >> 16);
-    entry->clusterLow = (uint16_t)node->cluster;
+    entry->clusterHigh = toLittleEndian16((uint16_t)(node->payload >> 16));
+    entry->clusterLow = toLittleEndian16((uint16_t)node->payload);
   }
   else
     entry->clusterLow = entry->clusterHigh = 0;
@@ -1363,10 +1371,10 @@ static enum result syncFile(struct CommandContext *context,
   struct DirEntryImage *entry = (struct DirEntryImage *)(context->buffer
       + ENTRY_OFFSET(file->parentIndex));
   /* Update first cluster when writing to empty file or truncating file */
-  entry->clusterHigh = (uint16_t)(file->payload >> 16);
-  entry->clusterLow = (uint16_t)file->payload;
+  entry->clusterHigh = toLittleEndian16((uint16_t)(file->payload >> 16));
+  entry->clusterLow = toLittleEndian16((uint16_t)file->payload);
   /* Update file size */
-  entry->size = file->size;
+  entry->size = toLittleEndian32(file->size);
 
 #ifdef CONFIG_FAT_TIME
   /* Update last modified date */
@@ -1658,7 +1666,7 @@ static enum result fatGet(void *object, enum fsNodeData type, void *data)
     }
     case FS_NODE_SIZE:
     {
-      *(uint64_t *)data = (uint64_t)entry->size;
+      *(uint64_t *)data = (uint64_t)fromLittleEndian32(entry->size);
       break;
     }
 #ifdef CONFIG_FAT_TIME
