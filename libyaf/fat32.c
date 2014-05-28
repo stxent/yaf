@@ -8,6 +8,7 @@
 #include <string.h>
 #include <memory.h>
 #include <libyaf/fat32.h>
+#include <libyaf/fat32_aux.h>
 #include <libyaf/fat32_defs.h>
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_TIME
@@ -136,16 +137,22 @@ static enum result allocateBuffers(struct FatHandle *handle,
   if (!config->threads)
     return E_VALUE;
 
-  /* Create context mutex and allocate context pool */
-  if ((res = mutexInit(&handle->contextLock)) != E_OK)
+  /* Create consistency and memory locks */
+  if ((res = mutexInit(&handle->consistencyMutex)) != E_OK)
     return res;
+
+  if ((res = mutexInit(&handle->memoryMutex)) != E_OK)
+  {
+    mutexDeinit(&handle->consistencyMutex);
+    return res;
+  }
 
   /* Allocate context pool */
   res = allocatePool(&handle->contextPool, config->threads,
       sizeof(struct CommandContext), 0);
   if (res != E_OK)
   {
-    freeBuffers(handle, FREE_LOCK);
+    freeBuffers(handle, FREE_LOCKS);
     return res;
   }
 
@@ -249,10 +256,10 @@ static struct CommandContext *allocateContext(struct FatHandle *handle)
 #ifdef CONFIG_FAT_THREADS
   struct CommandContext *context = 0;
 
-  mutexLock(&handle->contextLock);
+  mutexLock(&handle->memoryMutex);
   if (!queueEmpty(&handle->contextPool.queue))
     queuePop(&handle->contextPool.queue, &context);
-  mutexUnlock(&handle->contextLock);
+  mutexUnlock(&handle->memoryMutex);
 
   return context;
 #else
@@ -267,7 +274,7 @@ static void *allocateNode(struct FatHandle *handle)
   };
   struct FatNode *node = 0;
 
-  lockHandle(handle);
+  lockPools(handle);
 #ifdef CONFIG_FAT_POOLS
   if (!queueEmpty(&handle->nodePool.queue))
   {
@@ -277,7 +284,7 @@ static void *allocateNode(struct FatHandle *handle)
 #else
   node = init(FatNode, &config);
 #endif
-  unlockHandle(handle);
+  unlockPools(handle);
 
   return node;
 }
@@ -444,13 +451,13 @@ static const char *followPath(struct CommandContext *context,
   enum result res;
 
   /* Allocate temporary metadata buffers */
-  lockHandle(handle);
+  lockPools(handle);
   if (queueSize(&handle->metadataPool.queue) >= 2)
   {
     queuePop(&handle->metadataPool.queue, &currentName);
     queuePop(&handle->metadataPool.queue, &pathPart);
   }
-  unlockHandle(handle);
+  unlockPools(handle);
 
   if (!currentName || !pathPart)
     return 0;
@@ -489,10 +496,10 @@ static const char *followPath(struct CommandContext *context,
     path = 0;
 
   /* Return buffers to metadata pool */
-  lockHandle(handle);
+  lockPools(handle);
   queuePush(&handle->metadataPool.queue, pathPart);
   queuePush(&handle->metadataPool.queue, currentName);
-  unlockHandle(handle);
+  unlockPools(handle);
 
   return path;
 }
@@ -528,9 +535,10 @@ static void freeBuffers(struct FatHandle *handle, enum cleanup step)
 #else
       free(handle->context);
 #endif
-    case FREE_LOCK:
+    case FREE_LOCKS:
 #ifdef CONFIG_FAT_THREADS
-      mutexDeinit(&handle->contextLock);
+      mutexDeinit(&handle->memoryMutex);
+      mutexDeinit(&handle->consistencyMutex);
 #endif
       break;
     default:
@@ -542,9 +550,9 @@ static void freeBuffers(struct FatHandle *handle, enum cleanup step)
 static void freeContext(struct FatHandle *handle,
     const struct CommandContext *context)
 {
-  mutexLock(&handle->contextLock);
+  mutexLock(&handle->memoryMutex);
   queuePush(&handle->contextPool.queue, context);
-  mutexUnlock(&handle->contextLock);
+  mutexUnlock(&handle->memoryMutex);
 }
 #else
 static void freeContext(struct FatHandle *handle __attribute__((unused)),
@@ -906,10 +914,11 @@ static enum result createNode(struct CommandContext *context,
   /* Allocate temporary metadata buffer */
   struct FsMetadata *nameBuffer = 0;
 
-  lockHandle(handle);
+  lockPools(handle);
   if (!queueEmpty(&handle->metadataPool.queue))
     queuePop(&handle->metadataPool.queue, &nameBuffer);
-  unlockHandle(handle);
+  unlockPools(handle);
+
   if (!nameBuffer)
     return E_MEMORY;
 #endif
@@ -980,9 +989,9 @@ static enum result createNode(struct CommandContext *context,
   }
 
   /* Return buffer to metadata pool */
-  lockHandle(handle);
+  lockPools(handle);
   queuePush(&handle->metadataPool.queue, nameBuffer);
-  unlockHandle(handle);
+  unlockPools(handle);
 #endif
 
   if (res != E_OK)
@@ -997,13 +1006,11 @@ static enum result createNode(struct CommandContext *context,
   node->type = metadata->type;
   memcpy(entry->filename, shortName, sizeof(entry->filename));
   /* Node data pointer is already initialized */
-
   fillDirEntry(entry, node);
 
-  if ((res = writeSector(context, handle, sector)) != E_OK)
-    return res;
+  res = writeSector(context, handle, sector);
 
-  return E_OK;
+  return res;
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -1121,6 +1128,7 @@ static enum result findGap(struct CommandContext *context, struct FatNode *node,
   while (chunks != chainLength)
   {
     bool allocateParent = false;
+
     switch ((res = fetchEntry(context, node)))
     {
       case E_ENTRY:
@@ -1128,22 +1136,27 @@ static enum result findGap(struct CommandContext *context, struct FatNode *node,
         parent = node->cluster;
         allocateParent = false;
         break;
+
       case E_FAULT:
         index = 0;
         allocateParent = true;
         break;
+
       default:
         if (res != E_OK)
           return res;
     }
+
     if (res == E_FAULT || res == E_ENTRY)
     {
       int16_t chunksLeft = (int16_t)(chainLength - chunks)
           - (int16_t)(nodeCount(handle) - node->index);
+
       while (chunksLeft > 0)
       {
         if ((res = allocateCluster(context, handle, &node->cluster)) != E_OK)
           return res;
+
         if (allocateParent)
         {
           parent = node->cluster;
@@ -1198,11 +1211,11 @@ static enum result freeChain(struct CommandContext *context,
 
   while (clusterUsed(current))
   {
-    /* Get FAT sector with next cluster value */
+    /* Read allocation table sector with next cluster value */
     res = readSector(context, handle, handle->tableSector
         + (current >> CELL_COUNT));
     if (res != E_OK)
-      return res;
+      break;
 
     next = *(uint32_t *)(context->buffer + CELL_OFFSET(current));
     *(uint32_t *)(context->buffer + CELL_OFFSET(current)) = 0;
@@ -1211,7 +1224,7 @@ static enum result freeChain(struct CommandContext *context,
     if (current >> CELL_COUNT != next >> CELL_COUNT)
     {
       if ((res = updateTable(context, handle, current >> CELL_COUNT)) != E_OK)
-        return res;
+        break;
     }
 
     ++released;
@@ -1219,19 +1232,22 @@ static enum result freeChain(struct CommandContext *context,
     current = next;
   }
 
+  if (res != E_OK)
+    return res;
+
   /* Update information sector */
   if ((res = readSector(context, handle, handle->infoSector)) != E_OK)
     return res;
 
   struct InfoSectorImage *info = (struct InfoSectorImage *)context->buffer;
   /* Set free clusters count */
-  info->freeClusters =
-      toLittleEndian32(fromLittleEndian32(info->freeClusters) + released);
+  info->freeClusters = toLittleEndian32(fromLittleEndian32(info->freeClusters)
+      + released);
 
-  if ((res = writeSector(context, handle, handle->infoSector)) != E_OK)
-    return res;
+  /* TODO Cache information sector updates */
+  res = writeSector(context, handle, handle->infoSector);
 
-  return E_OK;
+  return res;
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -1364,8 +1380,14 @@ static enum result syncFile(struct CommandContext *context,
 
   sector = getSector(handle, file->parentCluster)
       + ENTRY_SECTOR(file->parentIndex);
+
+  /* Lock handle to prevent directory modifications from other threads */
+  lockHandle(handle);
   if ((res = readSector(context, handle, sector)) != E_OK)
+  {
+    unlockHandle(handle);
     return res;
+  }
 
   /* Pointer to entry position in sector */
   struct DirEntryImage *entry = (struct DirEntryImage *)(context->buffer
@@ -1384,6 +1406,7 @@ static enum result syncFile(struct CommandContext *context,
 #endif
 
   res = writeSector(context, handle, sector);
+  unlockHandle(handle);
 
   return res;
 }
@@ -1575,14 +1598,14 @@ static void fatFree(void *object)
   struct FatHandle *handle =
       (struct FatHandle *)((struct FatNode *)object)->handle;
 
-  lockHandle(handle);
+  lockPools(handle);
 #ifdef CONFIG_FAT_POOLS
   FatNode->deinit(object);
   queuePush(&handle->nodePool.queue, object);
 #else
   deinit(object);
 #endif
-  unlockHandle(handle);
+  unlockPools(handle);
 }
 /*----------------------------------------------------------------------------*/
 static enum result fatGet(void *object, enum fsNodeData type, void *data)
@@ -1600,6 +1623,7 @@ static enum result fatGet(void *object, enum fsNodeData type, void *data)
     {
       if (!hasLongName(node))
         break; /* Short name cannot be read without sector reload */
+
       if (!(context = allocateContext(handle)))
         return E_MEMORY;
 
@@ -1608,8 +1632,10 @@ static enum result fatGet(void *object, enum fsNodeData type, void *data)
       metadata->type = node->type;
       res = readLongName(context, node, metadata->name);
       freeContext(handle, context);
+
       return res;
     }
+
     case FS_NODE_NAME:
     {
       if (!hasLongName(node))
@@ -1622,16 +1648,19 @@ static enum result fatGet(void *object, enum fsNodeData type, void *data)
       return res;
     }
 #endif
+
     case FS_NODE_ACCESS:
     {
       *(access_t *)data = node->access;
       return E_OK;
     }
+
     case FS_NODE_TYPE:
     {
       *(enum fsNodeType *)data = node->type;
       return E_OK;
     }
+
     default:
       break;
   }
@@ -1659,16 +1688,19 @@ static enum result fatGet(void *object, enum fsNodeData type, void *data)
       extractShortName(entry, metadata->name);
       break;
     }
+
     case FS_NODE_NAME:
     {
       extractShortName(entry, (char *)data);
       break;
     }
+
     case FS_NODE_SIZE:
     {
       *(uint64_t *)data = (uint64_t)fromLittleEndian32(entry->size);
       break;
     }
+
 #ifdef CONFIG_FAT_TIME
     case FS_NODE_TIME:
     {
@@ -1684,6 +1716,7 @@ static enum result fatGet(void *object, enum fsNodeData type, void *data)
       break;
     }
 #endif
+
     default:
       res = E_VALUE;
       break;
@@ -1718,20 +1751,16 @@ static enum result fatLink(void *object, const struct FsMetadata *metadata,
     return E_MEMORY;
 
   allocatedNode->payload = target->payload;
-
+  lockHandle(handle);
   res = createNode(context, allocatedNode, node, metadata);
+  unlockHandle(handle);
+
   freeContext(handle, context);
 
-  if (res != E_OK)
-  {
-    fatFree(allocatedNode);
-    return res;
-  }
-
-  if (!result)
+  if (res != E_OK || !result)
     fatFree(allocatedNode);
 
-  return E_OK;
+  return res;
 }
 #else
 static enum result fatLink(void *object __attribute__((unused)),
@@ -1763,40 +1792,49 @@ static enum result fatMake(void *object, const struct FsMetadata *metadata,
   else
     allocatedNode = result; /* Use a node provided by user */
 
-  if (!(context = allocateContext(handle)))
+  if ((context = allocateContext(handle)))
   {
+    allocatedNode->payload = RESERVED_CLUSTER;
+
+    /* Prevent unexpected modifications from other threads */
+    lockHandle(handle);
+
+    res = E_OK;
+    if (metadata->type == FS_TYPE_DIR)
+    {
+      res = allocateCluster(context, handle, &allocatedNode->payload);
+
+      if (res == E_OK)
+      {
+        /* Coherence checking is not needed for directory setup */
+        unlockHandle(handle);
+        res = setupDirCluster(context, allocatedNode);
+        lockHandle(handle);
+      }
+      else
+      {
+        /* Return value is ignored */
+        freeChain(context, handle, allocatedNode->payload);
+      }
+    }
+
+    if (res == E_OK)
+    {
+      res = createNode(context, allocatedNode, node, metadata);
+
+      if (res != E_OK && metadata->type == FS_TYPE_DIR)
+        freeChain(context, handle, allocatedNode->payload);
+    }
+
+    unlockHandle(handle);
+    freeContext(handle, context);
+  }
+  else
     res = E_MEMORY;
-    goto free_node;
-  }
 
-  allocatedNode->payload = RESERVED_CLUSTER;
-  if (metadata->type == FS_TYPE_DIR)
-  {
-    res = allocateCluster(context, handle, &allocatedNode->payload);
-    if (res != E_OK)
-      goto free_context;
-  }
-
-  if ((res = createNode(context, allocatedNode, node, metadata)) != E_OK)
-    goto creation_error;
-
-  if (metadata->type == FS_TYPE_DIR)
-  {
-    if ((res = setupDirCluster(context, allocatedNode)) != E_OK)
-      goto setup_error;
-  }
-
-  goto free_context;
-
-setup_error:
-  markFree(context, allocatedNode);
-creation_error:
-  freeChain(context, handle, allocatedNode->payload);
-free_context:
-  freeContext(handle, context);
-free_node:
   if (!result)
     fatFree(allocatedNode);
+
   return res;
 }
 #else
@@ -1825,7 +1863,7 @@ static void *fatOpen(void *object, access_t access)
       struct FatHandle *handle = (struct FatHandle *)node->handle;
       struct FatDir *dir = 0;
 
-      lockHandle(handle);
+      lockPools(handle);
 #ifdef CONFIG_FAT_POOLS
       if (!queueEmpty(&handle->dirPool.queue))
       {
@@ -1835,7 +1873,7 @@ static void *fatOpen(void *object, access_t access)
 #else
       dir = init(FatDir, &config);
 #endif
-      unlockHandle(handle);
+      unlockPools(handle);
 
       return dir;
     }
@@ -1852,7 +1890,7 @@ static void *fatOpen(void *object, access_t access)
       if (fatGet(node, FS_NODE_SIZE, &size) != E_OK)
         return 0;
 
-      lockHandle(handle);
+      lockPools(handle);
 #ifdef CONFIG_FAT_POOLS
       if (!queueEmpty(&handle->filePool.queue))
       {
@@ -1862,7 +1900,7 @@ static void *fatOpen(void *object, access_t access)
 #else
       file = init(FatFile, &config);
 #endif
-      unlockHandle(handle);
+      unlockPools(handle);
 
       if (file)
         file->size = (uint32_t)size;
@@ -1936,7 +1974,7 @@ static enum result fatTruncate(void *object)
     return E_ACCESS;
 
   if (!(context = allocateContext(handle)))
-    return E_ERROR;
+    return E_MEMORY;
 
   if (node->type == FS_TYPE_DIR && node->payload != RESERVED_CLUSTER)
   {
@@ -1965,13 +2003,15 @@ static enum result fatTruncate(void *object)
   }
 
   /* Mark clusters as free */
+  lockHandle(handle);
   res = freeChain(context, handle, node->payload);
-  if (res != E_OK)
-    return res;
-  freeContext(handle, context);
+  unlockHandle(handle);
 
-  node->payload = RESERVED_CLUSTER;
-  return E_OK;
+  if (res == E_OK)
+    node->payload = RESERVED_CLUSTER;
+
+  freeContext(handle, context);
+  return res;
 }
 #else
 static enum result fatTruncate(void *object __attribute__((unused)))
@@ -1994,12 +2034,12 @@ static enum result fatUnlink(void *object)
   if (!(context = allocateContext(handle)))
     return E_MEMORY;
 
+  lockHandle(handle);
   res = markFree(context, node);
-  freeContext(handle, context);
-  if (res != E_OK)
-    return res;
+  unlockHandle(handle);
 
-  return E_OK;
+  freeContext(handle, context);
+  return res;
 }
 #else
 static enum result fatUnlink(void *object __attribute__((unused)))
@@ -2036,14 +2076,14 @@ static enum result fatDirClose(void *object)
   struct FatHandle *handle =
       (struct FatHandle *)((struct FatNode *)object)->handle;
 
-  lockHandle(handle);
+  lockPools(handle);
 #ifdef CONFIG_FAT_POOLS
   FatDir->deinit(object);
   queuePush(&handle->dirPool.queue, object);
 #else
   deinit(object);
 #endif
-  unlockHandle(handle);
+  unlockPools(handle);
 
   return E_OK;
 }
@@ -2213,14 +2253,14 @@ static enum result fatFileClose(void *object)
   }
 #endif
 
-  lockHandle(handle);
+  lockPools(handle);
 #ifdef CONFIG_FAT_POOLS
   FatFile->deinit(object);
   queuePush(&handle->filePool.queue, object);
 #else
   deinit(object);
 #endif
-  unlockHandle(handle);
+  unlockPools(handle);
 
   return E_OK;
 }
@@ -2389,11 +2429,19 @@ static uint32_t fatFileWrite(void *object, const void *buffer, uint32_t length)
 
   if (file->payload == RESERVED_CLUSTER)
   {
-    if (allocateCluster(context, handle, &file->payload) != E_OK)
+    enum result res;
+
+    /* Lock handle to prevent table modifications from other threads */
+    lockHandle(handle);
+    res = allocateCluster(context, handle, &file->payload);
+    unlockHandle(handle);
+
+    if (res != E_OK)
     {
       freeContext(handle, context);
       return 0;
     }
+
     file->currentCluster = file->payload;
   }
 
@@ -2416,12 +2464,21 @@ static uint32_t fatFileWrite(void *object, const void *buffer, uint32_t length)
 
       /* Allocate new cluster when next cluster does not exist */
       res = getNextCluster(context, handle, &file->currentCluster);
-      if ((res != E_FAULT && res != E_OK) || (res == E_FAULT
-          && allocateCluster(context, handle, &file->currentCluster) != E_OK))
+
+      if (res == E_FAULT)
+      {
+        /* Prevent table modifications from other threads */
+        lockHandle(handle);
+        res = allocateCluster(context, handle, &file->currentCluster);
+        unlockHandle(handle);
+      }
+
+      if (res != E_OK)
       {
         freeContext(handle, context);
         return 0;
       }
+
       current = 0;
     }
 

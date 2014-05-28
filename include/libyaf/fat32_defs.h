@@ -93,7 +93,8 @@ struct FatHandle
 
 #ifdef CONFIG_FAT_THREADS
   struct Pool contextPool;
-  struct Mutex contextLock;
+  struct Mutex consistencyMutex;
+  struct Mutex memoryMutex;
 #else
   struct CommandContext *context;
 #endif
@@ -295,7 +296,7 @@ enum cleanup
   FREE_FILE_LIST,
   FREE_METADATA_POOL,
   FREE_CONTEXT_POOL,
-  FREE_LOCK
+  FREE_LOCKS
 };
 /*----------------------------------------------------------------------------*/
 static enum result allocatePool(struct Pool *, unsigned int, unsigned int,
@@ -407,70 +408,5 @@ static void fatUnmount(void *);
 static uint32_t fatDirRead(void *, void *, uint32_t);
 static uint32_t fatDirWrite(void *, const void *, uint32_t);
 static enum result fatFileFetch(void *, void *);
-/*----------------------------------------------------------------------------*/
-static inline bool clusterFree(uint32_t cluster)
-{
-  return !(cluster & 0x0FFFFFFFUL);
-}
-/*----------------------------------------------------------------------------*/
-static inline bool clusterEoc(uint32_t cluster)
-{
-  return (cluster & 0x0FFFFFF8UL) == 0x0FFFFFF8UL;
-}
-/*----------------------------------------------------------------------------*/
-static inline bool clusterUsed(uint32_t cluster)
-{
-  return (cluster & 0x0FFFFFFFUL) >= 0x00000002UL
-      && (cluster & 0x0FFFFFFFUL) <= 0x0FFFFFEFUL;
-}
-/*----------------------------------------------------------------------------*/
-/* Calculate first sector number of the cluster */
-static inline uint32_t getSector(struct FatHandle *handle, uint32_t cluster)
-{
-  return handle->dataSector + (((cluster) - 2) << handle->clusterSize);
-}
-/*----------------------------------------------------------------------------*/
-/* File or directory entries per directory cluster */
-static inline uint16_t nodeCount(struct FatHandle *handle)
-{
-  return 1 << ENTRY_EXP << handle->clusterSize;
-}
-/*----------------------------------------------------------------------------*/
-/* Calculate current sector in data cluster for read or write operations */
-static inline uint8_t sectorInCluster(struct FatHandle *handle, uint32_t offset)
-{
-  return (offset >> SECTOR_EXP) & ((1 << handle->clusterSize) - 1);
-}
-/*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_UNICODE
-static inline bool hasLongName(struct FatNode *node)
-{
-  return node->cluster != node->nameCluster || node->index != node->nameIndex;
-}
-#endif
-/*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_THREADS
-static inline void lockHandle(struct FatHandle *handle)
-{
-  mutexLock(&handle->contextLock);
-}
-#else
-static inline void lockHandle(struct FatHandle *handle __attribute__((unused)))
-{
-
-}
-#endif
-/*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_THREADS
-static inline void unlockHandle(struct FatHandle *handle)
-{
-  mutexUnlock(&handle->contextLock);
-}
-#else
-static inline void unlockHandle(struct FatHandle *handle __attribute__((unused)))
-{
-
-}
-#endif
 /*----------------------------------------------------------------------------*/
 #endif /* FAT32_DEFS_H_ */
