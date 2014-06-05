@@ -874,7 +874,7 @@ static enum result allocateCluster(struct CommandContext *context,
     ++current;
   }
 
-  DEBUG_PRINT("Allocation error, partition can be full\n");
+  DEBUG_PRINT("Allocation error, partition may be full\n");
   return E_ERROR;
 }
 #endif
@@ -2181,7 +2181,7 @@ static enum result fatFileInit(void *object, const void *configPtr)
     struct FatHandle *handle = (struct FatHandle *)node->handle;
     enum result res;
 
-    if ((res = listPush(&handle->openedFiles, file)) != E_OK)
+    if ((res = listPush(&handle->openedFiles, &file)) != E_OK)
       return res;
 #else
     /* Trying to open file for writing on read-only filesystem */

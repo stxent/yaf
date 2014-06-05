@@ -99,7 +99,7 @@ enum result listPush(struct List *list, const void *element)
       return E_MEMORY;
   }
 
-  memcpy(node->data, &element, list->width);
+  memcpy(node->data, element, list->width);
   node->next = list->first;
   list->first = node;
 
