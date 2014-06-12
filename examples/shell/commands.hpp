@@ -16,8 +16,8 @@ public:
   virtual result run(unsigned int, const char * const *) const;
 
 private:
-  bool processArguments(unsigned int, const char * const *, const char **,
-      result *) const;
+  result processArguments(unsigned int, const char * const *,
+      const char **) const;
 };
 //------------------------------------------------------------------------------
 class CopyEntry : public Shell::ShellCommand
@@ -31,6 +31,10 @@ private:
   {
     bufferLength = 1024
   };
+
+  result copyContent(FsNode *, FsNode *, unsigned int) const;
+  result processArguments(unsigned int, const char * const *, const char **,
+      const char **, unsigned int *) const;
 };
 //------------------------------------------------------------------------------
 class ExitShell : public Shell::ShellCommand

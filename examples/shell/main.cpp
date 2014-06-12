@@ -85,17 +85,18 @@ int main(int argc, char *argv[])
     getline(cin, command);
 
     enum result res = shell.execute(command.c_str());
+
     switch (res)
     {
       case E_OK:
         break;
+
       case E_ACCESS:
       case E_BUSY:
       case E_ENTRY:
-        break;
       case E_VALUE:
-        cout << "Syntax error" << endl;
         break;
+
       default:
         terminate = true;
         break;

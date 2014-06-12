@@ -26,17 +26,17 @@ Shell::ShellCommand::ShellCommand(const char *alias, Shell &shell) :
   strcpy(buffer, alias);
 }
 //------------------------------------------------------------------------------
-char *Shell::extractName(char *path)
+const char *Shell::extractName(const char *path)
 {
   int length, pos;
 
   for (length = 0, pos = strlen(path) - 1; pos >= 0; --pos, ++length)
   {
     if (path[pos] == '/')
-      return length ? path + pos + 1 : 0;
+      return length ? path + pos + 1 : nullptr;
   }
 
-  return length ? path : 0;
+  return length ? path : nullptr;
 }
 //------------------------------------------------------------------------------
 void Shell::joinPaths(char *buffer, const char *directory, const char *path)
@@ -47,8 +47,10 @@ void Shell::joinPaths(char *buffer, const char *directory, const char *path)
   }
   else if (path[0] != '/')
   {
+    unsigned int directoryLength = strlen(directory);
+
     strcpy(buffer, directory);
-    if (strlen(directory) > 1 && directory[strlen(directory) - 1] != '/')
+    if (directoryLength > 1 && directory[directoryLength - 1] != '/')
       strcat(buffer, "/");
     strcat(buffer, path);
   }
@@ -182,7 +184,7 @@ uint64_t Shell::timestamp()
   uint64_t result;
 
   clock_gettime(CLOCK_REALTIME, &rawtime);
-  result = rawtime.tv_sec * 1e6 + rawtime.tv_nsec / 1e3;
+  result = rawtime.tv_sec * 1000000 + rawtime.tv_nsec / 1000;
 
   return result;
 }

@@ -80,7 +80,7 @@ public:
   result execute(const char *);
   void log(const char *, ...);
 
-  static char *extractName(char *);
+  static const char *extractName(const char *);
   static void joinPaths(char *, const char *, const char *);
   static uint64_t timestamp();
 

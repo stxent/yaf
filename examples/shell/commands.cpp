@@ -8,8 +8,8 @@
 #include <ctime>
 #include "commands.hpp"
 //------------------------------------------------------------------------------
-bool ChangeDirectory::processArguments(unsigned int count,
-    const char * const *arguments, const char **path, result *res) const
+result ChangeDirectory::processArguments(unsigned int count,
+    const char * const *arguments, const char **path) const
 {
   bool help = false;
 
@@ -27,18 +27,13 @@ bool ChangeDirectory::processArguments(unsigned int count,
   {
     owner.log("Usage: cd DIRECTORY");
     owner.log("  --help  print help message");
-    *res = E_OK;
-    return false;
+    return E_BUSY;
   }
 
   if (*path == nullptr)
-  {
-    *res = E_ENTRY;
-    return false;
-  }
+    return E_ENTRY;
 
-  *res = E_OK;
-  return true;
+  return E_OK;
 }
 //------------------------------------------------------------------------------
 result ChangeDirectory::run(unsigned int count,
@@ -47,7 +42,7 @@ result ChangeDirectory::run(unsigned int count,
   const char *path = nullptr;
   result res;
 
-  if (!processArguments(count, arguments, &path, &res))
+  if ((res = processArguments(count, arguments, &path)) != E_OK)
     return res;
 
   FsNode *node;
@@ -76,146 +71,30 @@ result ChangeDirectory::run(unsigned int count,
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result CopyEntry::run(unsigned int count, const char * const *arguments) const
+result CopyEntry::copyContent(FsNode *sourceNode, FsNode *destinationNode,
+    unsigned int chunkSize) const
 {
-  const char *sourcePath = nullptr, *targetPath = nullptr;
+  FsEntry *sourceFile = nullptr, *destinationFile = nullptr;
   char buffer[bufferLength];
-  unsigned int chunkSize = bufferLength;
-  bool help = false;
-
-  for (unsigned int i = 0; i < count; ++i)
-  {
-    if (!strcmp(arguments[i], "--chunk-size") && i < count - 1)
-    {
-      chunkSize = atoi(arguments[++i]);
-      continue;
-    }
-    if (!strcmp(arguments[i], "--help"))
-    {
-      help = true;
-      continue;
-    }
-    if (sourcePath == nullptr)
-    {
-      sourcePath = arguments[i];
-      continue;
-    }
-    if (targetPath == nullptr)
-    {
-      targetPath = arguments[i];
-      continue;
-    }
-  }
-
-  if (help)
-  {
-    owner.log("Usage: cp SOURCE DESTINATION");
-    owner.log("  --chunk-size  set chunk size, up to %u bytes", bufferLength);
-    owner.log("  --help        print help message");
-    return E_OK;
-  }
-
-  if (!chunkSize || chunkSize > bufferLength)
-  {
-    owner.log("cp: wrong chunk size, got %u, allowed up to %u", chunkSize,
-        bufferLength);
-    return E_VALUE;
-  }
-
-  if (sourcePath == nullptr || targetPath == nullptr)
-    return E_ENTRY;
-
-  FsNode *location = nullptr, *source = nullptr, *target = nullptr;
-  FsMetadata info;
-  result res;
-
-  //Find destination directory
-  Shell::joinPaths(context.pathBuffer, context.currentDir, targetPath);
-  location = (FsNode *)fsFollow(owner.handle(), context.pathBuffer, nullptr);
-  if (location != nullptr)
-  {
-    fsFree(location);
-    owner.log("cp: %s: entry already exists", context.pathBuffer);
-    return E_ENTRY;
-  }
-
-  //Find source entry
-  Shell::joinPaths(context.pathBuffer, context.currentDir, sourcePath);
-  source = (FsNode *)fsFollow(owner.handle(), context.pathBuffer, nullptr);
-  if (source == nullptr)
-  {
-    owner.log("cp: %s: no such file or directory", context.pathBuffer);
-    return E_ENTRY;
-  }
-  if ((res = fsGet(source, FS_NODE_METADATA, &info)) != E_OK
-      || info.type != FS_TYPE_FILE)
-  {
-    fsFree(source);
-    if (res == E_OK)
-    {
-      owner.log("cp: %s: entry is not a file", context.pathBuffer);
-      return E_ENTRY;
-    }
-    else
-      return res;
-  }
-
-  //Find destination directory where entry should be placed
-  Shell::joinPaths(context.pathBuffer, context.currentDir, targetPath);
-  char *namePosition = Shell::extractName(context.pathBuffer);
-  if (namePosition == nullptr)
-    return E_VALUE; //Node name not found
-
-  strcpy(info.name, namePosition);
-  *namePosition = '\0';
-
-  location = (FsNode *)fsFollow(owner.handle(), context.pathBuffer, nullptr);
-  if (location == nullptr)
-  {
-    fsFree(source);
-    owner.log("cp: %s: target directory not found", context.pathBuffer);
-    return E_ENTRY;
-  }
-
-  //Clone node descriptor
-  target = (FsNode *)fsClone(location);
-  if (target == nullptr)
-  {
-    fsFree(location);
-    fsFree(source);
-    owner.log("cp: node allocation failed");
-    return E_MEMORY;
-  }
-
-  //Create new node
-  if (fsMake(location, &info, target) != E_OK)
-  {
-    fsFree(target);
-    fsFree(location);
-    fsFree(source);
-    owner.log("cp: node creation failed");
-    return E_ERROR;
-  }
-  fsFree(location);
-
-  FsEntry *sourceFile = nullptr, *targetFile = nullptr;
 
   //Open file entries
-  sourceFile = (FsEntry *)fsOpen(source, FS_ACCESS_READ);
-  fsFree(source);
-  targetFile = (FsEntry *)fsOpen(target, FS_ACCESS_WRITE);
-  fsFree(target);
-
-  if (sourceFile == nullptr || targetFile == nullptr)
+  sourceFile = (FsEntry *)fsOpen(sourceNode, FS_ACCESS_READ);
+  if (sourceFile == nullptr)
   {
-    if (sourceFile)
-      fsClose(sourceFile);
-    owner.log("cp: opening failed", sourcePath);
-    return E_ERROR;
+    owner.log("cp: source file opening error");
+    return E_ENTRY;
+  }
+
+  destinationFile = (FsEntry *)fsOpen(destinationNode, FS_ACCESS_WRITE);
+  if (destinationFile == nullptr)
+  {
+    fsClose(sourceFile);
+    owner.log("cp: source file opening error");
+    return E_ENTRY;
   }
 
   uint32_t read = 0, written = 0;
-  res = E_OK;
+  result res = E_OK;
 
   //Copy file content
   while (!fsEnd(sourceFile))
@@ -232,7 +111,7 @@ result CopyEntry::run(unsigned int count, const char * const *arguments) const
     read += inCount;
 
     outCount = inCount;
-    inCount = fsWrite(targetFile, buffer, outCount);
+    inCount = fsWrite(destinationFile, buffer, outCount);
     if (inCount != outCount)
     {
       owner.log("cp: write error at %u", written);
@@ -243,7 +122,148 @@ result CopyEntry::run(unsigned int count, const char * const *arguments) const
   }
 
   fsClose(sourceFile);
-  fsClose(targetFile);
+  fsClose(destinationFile);
+
+  return res;
+}
+//------------------------------------------------------------------------------
+result CopyEntry::processArguments(unsigned int count,
+    const char * const *arguments, const char **source,
+    const char **destination, unsigned int *chunkSize) const
+{
+  bool help = false;
+
+  for (unsigned int i = 0; i < count; ++i)
+  {
+    if (!strcmp(arguments[i], "--chunk-size") && i < count - 1)
+    {
+      *chunkSize = atoi(arguments[++i]);
+      continue;
+    }
+    if (!strcmp(arguments[i], "--help"))
+    {
+      help = true;
+      continue;
+    }
+    if (*source == nullptr)
+    {
+      *source = arguments[i];
+      continue;
+    }
+    if (*destination == nullptr)
+    {
+      *destination = arguments[i];
+      continue;
+    }
+  }
+
+  if (help)
+  {
+    owner.log("Usage: cp SOURCE DESTINATION");
+    owner.log("  --chunk-size  set chunk size, up to %u bytes", bufferLength);
+    owner.log("  --help        print help message");
+    return E_BUSY;
+  }
+
+  if (!*chunkSize || *chunkSize > bufferLength)
+  {
+    owner.log("cp: wrong chunk size, got %u, allowed up to %u", chunkSize,
+        bufferLength);
+    return E_VALUE;
+  }
+
+  if (*source == nullptr || *destination == nullptr)
+  {
+    owner.log("cp: not enough arguments");
+    return E_ENTRY;
+  }
+
+  return E_OK;
+}
+//------------------------------------------------------------------------------
+result CopyEntry::run(unsigned int count, const char * const *arguments) const
+{
+  const char *sourcePath = nullptr, *destinationPath = nullptr;
+  unsigned int chunkSize = bufferLength;
+  result res;
+
+  res = processArguments(count, arguments, &sourcePath, &destinationPath,
+      &chunkSize);
+  if (res != E_OK)
+    return res;
+
+  FsNode *destination = nullptr, *location = nullptr, *source = nullptr;
+  FsMetadata info;
+  fsNodeType type;
+
+  Shell::joinPaths(context.pathBuffer, context.currentDir, destinationPath);
+  const char *namePosition = Shell::extractName(context.pathBuffer);
+  if (namePosition == nullptr)
+    return E_VALUE; //Node name not found
+
+  //Fill target entry metadata
+  info.type = FS_TYPE_FILE;
+  strcpy(info.name, namePosition);
+
+  //Remove the file name from the destination path
+  context.pathBuffer[namePosition - context.pathBuffer] = '\0';
+
+  //Find destination directory where entry should be placed
+  location = (FsNode *)fsFollow(owner.handle(), context.pathBuffer, nullptr);
+  if (location == nullptr)
+  {
+    fsFree(source);
+    owner.log("cp: %s: target directory not found", context.pathBuffer);
+    return E_ENTRY;
+  }
+  //Check target directory entry type
+  res = fsGet(location, FS_NODE_TYPE, &type);
+  if (res != E_OK || type != FS_TYPE_DIR)
+  {
+    fsFree(location);
+    owner.log("cp: %s: target directory type error", context.pathBuffer);
+    return res == E_OK ? E_ENTRY : res;
+  }
+
+  //Find source entry
+  Shell::joinPaths(context.pathBuffer, context.currentDir, sourcePath);
+  source = (FsNode *)fsFollow(owner.handle(), context.pathBuffer, nullptr);
+  if (source == nullptr)
+  {
+    owner.log("cp: %s: no such file", context.pathBuffer);
+    return E_ENTRY;
+  }
+  //Check source entry type
+  res = fsGet(source, FS_NODE_TYPE, &type);
+  if (res != E_OK || type != FS_TYPE_FILE)
+  {
+    fsFree(location);
+    fsFree(source);
+    owner.log("cp: %s: source entry type error", context.pathBuffer);
+    return res == E_OK ? E_ENTRY : res;
+  }
+
+  //Clone node descriptor
+  destination = (FsNode *)fsClone(location);
+  if (destination == nullptr)
+  {
+    fsFree(location);
+    fsFree(source);
+    owner.log("cp: node allocation failed");
+    return E_ERROR;
+  }
+
+  //Create new node
+  res = fsMake(location, &info, destination);
+  fsFree(location);
+
+  if (res != E_OK)
+    owner.log("cp: node creation failed");
+  else
+    res = copyContent(source, destination, chunkSize);
+
+  fsFree(destination);
+  fsFree(source);
 
   return res;
 }
@@ -430,12 +450,15 @@ result MakeDirectory::run(unsigned int count,
   info.type = FS_TYPE_DIR;
 
   //Find destination directory where named entry should be placed
-  char *namePosition = Shell::extractName(context.pathBuffer);
+  const char *namePosition = Shell::extractName(context.pathBuffer);
   if (!namePosition)
     return E_VALUE; //No entry name found
 
+  info.type = FS_TYPE_DIR;
   strcpy(info.name, namePosition);
-  *namePosition = '\0';
+
+  //Remove the directory name from the path
+  context.pathBuffer[namePosition - context.pathBuffer] = '\0';
 
   FsNode *location = (FsNode *)fsFollow(owner.handle(), context.pathBuffer,
       nullptr);
