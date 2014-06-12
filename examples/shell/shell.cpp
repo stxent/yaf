@@ -21,9 +21,16 @@ Shell::ShellCommand::~ShellCommand()
 }
 //------------------------------------------------------------------------------
 Shell::ShellCommand::ShellCommand(const char *alias, Shell &shell) :
-    context(shell.context), owner(shell), buffer(new char[strlen(alias) + 1])
+    owner(shell), context(nullptr), buffer(new char[strlen(alias) + 1])
 {
   strcpy(buffer, alias);
+}
+//------------------------------------------------------------------------------
+Shell::ShellCommand::ShellCommand(const ShellCommand &other) :
+    owner(other.owner), context(nullptr),
+    buffer(new char[strlen(other.buffer) + 1])
+{
+  strcpy(buffer, other.buffer);
 }
 //------------------------------------------------------------------------------
 const char *Shell::extractName(const char *path)

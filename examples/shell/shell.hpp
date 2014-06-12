@@ -27,7 +27,7 @@ public:
   CommandBuilder() {}
 
 private:
-  static const A *create(Shell &shell) {
+  static A *create(Shell &shell) {
     return new A(shell);
   }
 };
@@ -62,15 +62,21 @@ public:
     virtual result run(unsigned int count,
         const char * const *arguments) const = 0;
 
+    void link(ShellContext *commandContext) {
+      context = commandContext;
+    }
+
     const char *name() const {
       return buffer;
     }
 
   protected:
     ShellCommand(const char *, Shell &);
+    ShellCommand(const ShellCommand &other);
 
-    ShellContext &context;
     Shell &owner;
+
+    ShellContext *context;
     char *buffer;
   };
 
@@ -86,7 +92,10 @@ public:
 
   template<class A> void append(CommandBuilder<A> builder)
   {
-    registeredCommands.push_back(builder.create(*this));
+    A *command = builder.create(*this);
+
+    command->link(&context);
+    registeredCommands.push_back(command);
   }
 
   const std::vector<const ShellCommand *> &commands() const {

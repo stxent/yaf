@@ -48,11 +48,11 @@ result ChangeDirectory::run(unsigned int count,
   FsNode *node;
   FsEntry *dir;
 
-  Shell::joinPaths(context.pathBuffer, context.currentDir, path);
-  node = (FsNode *)fsFollow(owner.handle(), context.pathBuffer, nullptr);
+  Shell::joinPaths(context->pathBuffer, context->currentDir, path);
+  node = (FsNode *)fsFollow(owner.handle(), context->pathBuffer, nullptr);
   if (node == nullptr)
   {
-    owner.log("cd: %s: no such directory", context.pathBuffer);
+    owner.log("cd: %s: no such directory", context->pathBuffer);
     return E_ENTRY;
   }
 
@@ -61,12 +61,12 @@ result ChangeDirectory::run(unsigned int count,
 
   if (dir == nullptr)
   {
-    owner.log("cd: %s: access denied", context.pathBuffer);
+    owner.log("cd: %s: access denied", context->pathBuffer);
     return E_ACCESS;
   }
 
   fsClose(dir);
-  strcpy(context.currentDir, context.pathBuffer);
+  strcpy(context->currentDir, context->pathBuffer);
 
   return E_OK;
 }
@@ -196,8 +196,8 @@ result CopyEntry::run(unsigned int count, const char * const *arguments) const
   FsMetadata info;
   fsNodeType type;
 
-  Shell::joinPaths(context.pathBuffer, context.currentDir, destinationPath);
-  const char *namePosition = Shell::extractName(context.pathBuffer);
+  Shell::joinPaths(context->pathBuffer, context->currentDir, destinationPath);
+  const char *namePosition = Shell::extractName(context->pathBuffer);
   if (namePosition == nullptr)
     return E_VALUE; //Node name not found
 
@@ -206,14 +206,14 @@ result CopyEntry::run(unsigned int count, const char * const *arguments) const
   strcpy(info.name, namePosition);
 
   //Remove the file name from the destination path
-  context.pathBuffer[namePosition - context.pathBuffer] = '\0';
+  context->pathBuffer[namePosition - context->pathBuffer] = '\0';
 
   //Find destination directory where entry should be placed
-  location = (FsNode *)fsFollow(owner.handle(), context.pathBuffer, nullptr);
+  location = (FsNode *)fsFollow(owner.handle(), context->pathBuffer, nullptr);
   if (location == nullptr)
   {
     fsFree(source);
-    owner.log("cp: %s: target directory not found", context.pathBuffer);
+    owner.log("cp: %s: target directory not found", context->pathBuffer);
     return E_ENTRY;
   }
   //Check target directory entry type
@@ -221,16 +221,16 @@ result CopyEntry::run(unsigned int count, const char * const *arguments) const
   if (res != E_OK || type != FS_TYPE_DIR)
   {
     fsFree(location);
-    owner.log("cp: %s: target directory type error", context.pathBuffer);
+    owner.log("cp: %s: target directory type error", context->pathBuffer);
     return res == E_OK ? E_ENTRY : res;
   }
 
   //Find source entry
-  Shell::joinPaths(context.pathBuffer, context.currentDir, sourcePath);
-  source = (FsNode *)fsFollow(owner.handle(), context.pathBuffer, nullptr);
+  Shell::joinPaths(context->pathBuffer, context->currentDir, sourcePath);
+  source = (FsNode *)fsFollow(owner.handle(), context->pathBuffer, nullptr);
   if (source == nullptr)
   {
-    owner.log("cp: %s: no such file", context.pathBuffer);
+    owner.log("cp: %s: no such file", context->pathBuffer);
     return E_ENTRY;
   }
   //Check source entry type
@@ -239,7 +239,7 @@ result CopyEntry::run(unsigned int count, const char * const *arguments) const
   {
     fsFree(location);
     fsFree(source);
-    owner.log("cp: %s: source entry type error", context.pathBuffer);
+    owner.log("cp: %s: source entry type error", context->pathBuffer);
     return res == E_OK ? E_ENTRY : res;
   }
 
@@ -323,19 +323,19 @@ result ListEntries::run(unsigned int count, const char * const *arguments) const
     return E_OK;
   }
 
-  Shell::joinPaths(context.pathBuffer, context.currentDir, path);
-  FsNode *node = (FsNode *)fsFollow(owner.handle(), context.pathBuffer,
+  Shell::joinPaths(context->pathBuffer, context->currentDir, path);
+  FsNode *node = (FsNode *)fsFollow(owner.handle(), context->pathBuffer,
       nullptr);
   if (node == nullptr)
   {
-    owner.log("ls: %s: no such directory", context.pathBuffer);
+    owner.log("ls: %s: no such directory", context->pathBuffer);
     return E_ENTRY;
   }
 
   FsEntry *dir = (FsEntry *)fsOpen(node, FS_ACCESS_READ);
   if (dir == nullptr)
   {
-    owner.log("ls: %s: open directory failed", context.pathBuffer);
+    owner.log("ls: %s: open directory failed", context->pathBuffer);
     return E_DEVICE;
   }
 
@@ -436,13 +436,13 @@ result MakeDirectory::run(unsigned int count,
     return E_ENTRY;
 
   //Check for target entry existence
-  Shell::joinPaths(context.pathBuffer, context.currentDir, target);
+  Shell::joinPaths(context->pathBuffer, context->currentDir, target);
   FsNode *destinationNode = (FsNode *)fsFollow(owner.handle(),
-      context.pathBuffer, nullptr);
+      context->pathBuffer, nullptr);
   if (destinationNode == nullptr)
   {
     fsFree(destinationNode);
-    owner.log("mkdir: %s: entry already exists", context.pathBuffer);
+    owner.log("mkdir: %s: entry already exists", context->pathBuffer);
     return E_ENTRY;
   }
 
@@ -450,7 +450,7 @@ result MakeDirectory::run(unsigned int count,
   info.type = FS_TYPE_DIR;
 
   //Find destination directory where named entry should be placed
-  const char *namePosition = Shell::extractName(context.pathBuffer);
+  const char *namePosition = Shell::extractName(context->pathBuffer);
   if (!namePosition)
     return E_VALUE; //No entry name found
 
@@ -458,13 +458,13 @@ result MakeDirectory::run(unsigned int count,
   strcpy(info.name, namePosition);
 
   //Remove the directory name from the path
-  context.pathBuffer[namePosition - context.pathBuffer] = '\0';
+  context->pathBuffer[namePosition - context->pathBuffer] = '\0';
 
-  FsNode *location = (FsNode *)fsFollow(owner.handle(), context.pathBuffer,
+  FsNode *location = (FsNode *)fsFollow(owner.handle(), context->pathBuffer,
       nullptr);
   if (location == nullptr)
   {
-    owner.log("mkdir: %s: target directory not found", context.pathBuffer);
+    owner.log("mkdir: %s: target directory not found", context->pathBuffer);
     return E_ENTRY;
   }
   else
@@ -474,7 +474,7 @@ result MakeDirectory::run(unsigned int count,
         || type != FS_TYPE_DIR)
     {
       fsFree(location);
-      owner.log("mkdir: %s: wrong destination type", context.pathBuffer);
+      owner.log("mkdir: %s: wrong destination type", context->pathBuffer);
       return res == E_OK ? E_ENTRY : res;
     }
   }
@@ -544,12 +544,12 @@ result RemoveDirectory::run(unsigned int count,
   if (target == nullptr)
     return E_ENTRY;
 
-  Shell::joinPaths(context.pathBuffer, context.currentDir, target);
+  Shell::joinPaths(context->pathBuffer, context->currentDir, target);
   FsNode *destinationNode = (FsNode *)fsFollow(owner.handle(),
-      context.pathBuffer, nullptr);
+      context->pathBuffer, nullptr);
   if (destinationNode == nullptr)
   {
-    owner.log("rmdir: %s: no such entry", context.pathBuffer);
+    owner.log("rmdir: %s: no such entry", context->pathBuffer);
     return E_ENTRY;
   }
 
@@ -559,19 +559,19 @@ result RemoveDirectory::run(unsigned int count,
   if ((res = fsGet(destinationNode, FS_NODE_TYPE, &type)) != E_OK
       || type != FS_TYPE_DIR)
   {
-    owner.log("rmdir: %s: wrong entry type", context.pathBuffer);
+    owner.log("rmdir: %s: wrong entry type", context->pathBuffer);
     goto free_node;
   }
 
   if ((res = fsTruncate(destinationNode)) != E_OK)
   {
-    owner.log("rmdir: %s: directory not empty", context.pathBuffer);
+    owner.log("rmdir: %s: directory not empty", context->pathBuffer);
     goto free_node;
   }
 
   if ((res = fsUnlink(destinationNode)) != E_OK)
   {
-    owner.log("rmdir: %s: unlinking failed", context.pathBuffer);
+    owner.log("rmdir: %s: unlinking failed", context->pathBuffer);
     goto free_node;
   }
 
@@ -613,12 +613,12 @@ result RemoveEntry::run(unsigned int count, const char * const *arguments) const
   if (target == nullptr)
     return E_ENTRY;
 
-  Shell::joinPaths(context.pathBuffer, context.currentDir, target);
+  Shell::joinPaths(context->pathBuffer, context->currentDir, target);
   FsNode *destinationNode = (FsNode *)fsFollow(owner.handle(),
-      context.pathBuffer, nullptr);
+      context->pathBuffer, nullptr);
   if (destinationNode == nullptr)
   {
-    owner.log("rm: %s: no such entry", context.pathBuffer);
+    owner.log("rm: %s: no such entry", context->pathBuffer);
     return E_ENTRY;
   }
 
@@ -628,19 +628,19 @@ result RemoveEntry::run(unsigned int count, const char * const *arguments) const
   if ((res = fsGet(destinationNode, FS_NODE_TYPE, &type)) != E_OK
       || (type == FS_TYPE_DIR && !recursive))
   {
-    owner.log("rm: %s: wrong entry type", context.pathBuffer);
+    owner.log("rm: %s: wrong entry type", context->pathBuffer);
     goto free_node;
   }
 
   if ((res = fsTruncate(destinationNode)) != E_OK)
   {
-    owner.log("rm: %s: payload removing failed", context.pathBuffer);
+    owner.log("rm: %s: payload removing failed", context->pathBuffer);
     goto free_node;
   }
 
   if ((res = fsUnlink(destinationNode)) != E_OK)
   {
-    owner.log("rm: %s: unlinking failed", context.pathBuffer);
+    owner.log("rm: %s: unlinking failed", context->pathBuffer);
     goto free_node;
   }
 
