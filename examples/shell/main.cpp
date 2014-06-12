@@ -65,15 +65,15 @@ int main(int argc, char *argv[])
   }
 
   Shell shell(0, handle);
-  CommandLinker<ChangeDirectory>::attach(&shell);
-  CommandLinker<CopyEntry>::attach(&shell);
-  CommandLinker<ExitShell>::attach(&shell);
-  CommandLinker<ListCommands>::attach(&shell);
-  CommandLinker<ListEntries>::attach(&shell);
-  CommandLinker<MakeDirectory>::attach(&shell);
-  CommandLinker<MeasureTime>::attach(&shell);
-  CommandLinker<RemoveDirectory>::attach(&shell);
-  CommandLinker<RemoveEntry>::attach(&shell);
+  shell.append(CommandBuilder<ChangeDirectory>());
+  shell.append(CommandBuilder<CopyEntry>());
+  shell.append(CommandBuilder<ExitShell>());
+  shell.append(CommandBuilder<ListCommands>());
+  shell.append(CommandBuilder<ListEntries>());
+  shell.append(CommandBuilder<MakeDirectory>());
+  shell.append(CommandBuilder<MeasureTime>());
+  shell.append(CommandBuilder<RemoveDirectory>());
+  shell.append(CommandBuilder<RemoveEntry>());
 
   bool terminate = false;
 

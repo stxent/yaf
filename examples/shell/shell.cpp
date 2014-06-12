@@ -15,6 +15,17 @@
 //------------------------------------------------------------------------------
 using namespace std;
 //------------------------------------------------------------------------------
+Shell::ShellCommand::~ShellCommand()
+{
+  delete[] buffer;
+}
+//------------------------------------------------------------------------------
+Shell::ShellCommand::ShellCommand(const char *alias, Shell &shell) :
+    context(shell.context), owner(shell), buffer(new char[strlen(alias) + 1])
+{
+  strcpy(buffer, alias);
+}
+//------------------------------------------------------------------------------
 char *Shell::extractName(char *path)
 {
   int length, pos;
@@ -48,8 +59,8 @@ void Shell::joinPaths(char *buffer, const char *directory, const char *path)
 Shell::Shell(Interface *console, FsHandle *root) :
     rootHandle(root), consoleInterface(console)
 {
-  strcpy(currentDir, "/");
-  strcpy(pathBuffer, "");
+  strcpy(context.currentDir, "/");
+  strcpy(context.pathBuffer, "");
 
   for (unsigned int pos = 0; pos < argumentCount; ++pos)
     argumentPool[pos] = new char[argumentLength];
@@ -61,10 +72,12 @@ Shell::Shell(Interface *console, FsHandle *root) :
 //------------------------------------------------------------------------------
 Shell::~Shell()
 {
-  for (auto iter = commands.begin(); iter != commands.end(); ++iter)
-    delete *iter;
+  for(auto entry : registeredCommands)
+    delete entry;
+
   for (unsigned int pos = 0; pos < argumentCount; ++pos)
     delete[] argumentPool[pos];
+
   mutexDeinit(&lock);
 
   log("Shell closed");
@@ -136,12 +149,12 @@ result Shell::execute(const char *input)
 
   if (line)
   {
-    for (auto iter = commands.begin(); iter != commands.end(); ++iter)
+    for (auto entry : registeredCommands)
     {
-      if (!strcmp((*iter)->name, argumentPool[0]))
+      if (!strcmp(entry->name(), argumentPool[0]))
       {
         mutexLock(&lock);
-        result res = (*iter)->run(line - 1, argumentPool + 1);
+        result res = entry->run(line - 1, argumentPool + 1);
         mutexUnlock(&lock);
         return res;
       }
@@ -161,11 +174,6 @@ void Shell::log(const char *format, ...)
 
   strcat(logBuffer, "\n");
   printf(logBuffer);
-}
-//------------------------------------------------------------------------------
-const char *Shell::path()
-{
-  return currentDir;
 }
 //------------------------------------------------------------------------------
 uint64_t Shell::timestamp()

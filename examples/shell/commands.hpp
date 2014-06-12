@@ -12,23 +12,15 @@
 class ChangeDirectory : public Shell::ShellCommand
 {
 public:
-  ChangeDirectory(Shell *owner) : ShellCommand(owner, "cd") {}
-  virtual result run(unsigned int count, char *arguments[]) const;
+  ChangeDirectory(Shell &owner) : ShellCommand("cd", owner) {}
+  virtual result run(unsigned int, char *[]) const;
 };
-//------------------------------------------------------------------------------
-////TODO Extend with different hash and checksum types
-//class ComputeHash : public Shell::ShellCommand
-//{
-//public:
-//  ComputeHash(Shell *owner) : ShellCommand(owner, "md5sum") {}
-//  virtual result run(unsigned int count, char *arguments[]) const;
-//};
 //------------------------------------------------------------------------------
 class CopyEntry : public Shell::ShellCommand
 {
 public:
-  CopyEntry(Shell *owner) : ShellCommand(owner, "cp") {}
-  virtual result run(unsigned int count, char *arguments[]) const;
+  CopyEntry(Shell &owner) : ShellCommand("cp", owner) {}
+  virtual result run(unsigned int, char *[]) const;
 
 private:
   enum : unsigned int
@@ -40,50 +32,50 @@ private:
 class ExitShell : public Shell::ShellCommand
 {
 public:
-  ExitShell(Shell *owner) : ShellCommand(owner, "exit") {}
-  virtual result run(unsigned int count, char *arguments[]) const;
+  ExitShell(Shell &owner) : ShellCommand("exit", owner) {}
+  virtual result run(unsigned int, char *[]) const;
 };
 //------------------------------------------------------------------------------
 class ListCommands : public Shell::ShellCommand
 {
 public:
-  ListCommands(Shell *owner) : ShellCommand(owner, "help") {}
-  virtual result run(unsigned int count, char *arguments[]) const;
+  ListCommands(Shell &owner) : ShellCommand("help", owner) {}
+  virtual result run(unsigned int, char *[]) const;
 };
 //------------------------------------------------------------------------------
 class ListEntries : public Shell::ShellCommand
 {
 public:
-  ListEntries(Shell *owner) : ShellCommand(owner, "ls") {}
-  virtual result run(unsigned int count, char *arguments[]) const;
+  ListEntries(Shell &owner) : ShellCommand("ls", owner) {}
+  virtual result run(unsigned int, char *[]) const;
 };
 //------------------------------------------------------------------------------
 class MakeDirectory : public Shell::ShellCommand
 {
 public:
-  MakeDirectory(Shell *owner) : ShellCommand(owner, "mkdir") {}
-  virtual result run(unsigned int count, char *arguments[]) const;
+  MakeDirectory(Shell &owner) : ShellCommand("mkdir", owner) {}
+  virtual result run(unsigned int, char *[]) const;
 };
 //------------------------------------------------------------------------------
 class MeasureTime : public Shell::ShellCommand
 {
 public:
-  MeasureTime(Shell *owner) : ShellCommand(owner, "time") {}
-  virtual result run(unsigned int count, char *arguments[]) const;
+  MeasureTime(Shell &owner) : ShellCommand("time", owner) {}
+  virtual result run(unsigned int, char *[]) const;
 };
 //------------------------------------------------------------------------------
 class RemoveDirectory : public Shell::ShellCommand
 {
 public:
-  RemoveDirectory(Shell *owner) : ShellCommand(owner, "rmdir") {}
-  virtual result run(unsigned int count, char *arguments[]) const;
+  RemoveDirectory(Shell &owner) : ShellCommand("rmdir", owner) {}
+  virtual result run(unsigned int, char *[]) const;
 };
 //------------------------------------------------------------------------------
 class RemoveEntry : public Shell::ShellCommand
 {
 public:
-  RemoveEntry(Shell *owner) : ShellCommand(owner, "rm") {}
-  virtual result run(unsigned int count, char *arguments[]) const;
+  RemoveEntry(Shell &owner) : ShellCommand("rm", owner) {}
+  virtual result run(unsigned int, char *[]) const;
 };
 //------------------------------------------------------------------------------
 #endif //COMMANDS_HPP_

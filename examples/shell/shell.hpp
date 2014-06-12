@@ -17,68 +17,100 @@ extern "C" {
 #include <mutex.h>
 }
 //------------------------------------------------------------------------------
+class Shell;
+//------------------------------------------------------------------------------
+template<class A> class CommandBuilder
+{
+  friend class Shell;
+
+public:
+  CommandBuilder() {}
+
+private:
+  static const A *create(Shell &shell) {
+    return new A(shell);
+  }
+};
+//------------------------------------------------------------------------------
 class Shell
 {
+  friend class ShellCommand;
+
 public:
-  class ShellCommand
-  {
-  public:
-    virtual ~ShellCommand() {
-      delete[] name;
-    }
-
-    virtual result run(unsigned int count, char *arguments[]) const = 0;
-
-    char *name;
-    Shell *owner;
-
-  protected:
-    ShellCommand(Shell *shell, const char *alias) : owner(shell) {
-      name = new char[strlen(alias) + 1];
-      strcpy(name, alias);
-    }
-  };
-
   enum
   {
     argumentCount = 16,
     argumentLength = 32,
-    nameLength = 256,
     width = 80
+  };
+
+  struct ShellContext
+  {
+    enum
+    {
+      nameLength = 256
+    };
+
+    char currentDir[nameLength];
+    char pathBuffer[nameLength];
+  };
+
+  class ShellCommand
+  {
+  public:
+    virtual ~ShellCommand();
+    virtual result run(unsigned int count, char *arguments[]) const = 0;
+
+    const char *name() const {
+      return buffer;
+    }
+
+  protected:
+    ShellCommand(const char *, Shell &);
+
+    ShellContext &context;
+    Shell &owner;
+    char *buffer;
   };
 
   Shell(struct Interface *console, struct FsHandle *root);
   ~Shell();
 
-  result execute(const char *input);
-  void log(const char *format, ...);
-  const char *path();
+  result execute(const char *);
+  void log(const char *, ...);
 
-  static char *extractName(char *path);
-  static void joinPaths(char *buffer, const char *directory, const char *path);
+  static char *extractName(char *);
+  static void joinPaths(char *, const char *, const char *);
   static uint64_t timestamp();
 
-  FsHandle *rootHandle;
-  char currentDir[nameLength], pathBuffer[nameLength];
-  std::vector<const ShellCommand *> commands;
+  template<class A> void append(CommandBuilder<A> builder)
+  {
+    registeredCommands.push_back(builder.create(*this));
+  }
 
-protected:
-  Interface *consoleInterface;
+  const std::vector<const ShellCommand *> &commands() const {
+    return registeredCommands;
+  }
 
-  char *argumentPool[argumentCount];
-  char logBuffer[width * 2 + 1];
-  Mutex lock;
-};
-//------------------------------------------------------------------------------
-template <class A> class CommandLinker
-{
-public:
-  static void attach(Shell *shell) {
-    shell->commands.push_back(new A(shell));
+  FsHandle *handle() const {
+    return rootHandle;
+  }
+
+  const char *path() const
+  {
+    return context.currentDir;
   }
 
 private:
-  CommandLinker() {}
+  FsHandle *rootHandle;
+  Interface *consoleInterface;
+
+  std::vector<const ShellCommand *> registeredCommands;
+
+  ShellContext context;
+  char *argumentPool[argumentCount];
+  char logBuffer[width * 2 + 1];
+  Mutex lock;
 };
 //------------------------------------------------------------------------------
 #endif //SHELL_HPP_
