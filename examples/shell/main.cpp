@@ -12,6 +12,7 @@
 #include <iostream>
 #include <vector>
 #include "commands.hpp"
+#include "crypto.hpp"
 #include "shell.hpp"
 //------------------------------------------------------------------------------
 extern "C"
@@ -74,6 +75,8 @@ int main(int argc, char *argv[])
   shell.append(CommandBuilder<MeasureTime>());
   shell.append(CommandBuilder<RemoveDirectory>());
   shell.append(CommandBuilder<RemoveEntry>());
+
+  shell.append(CommandBuilder<ComputeHash>());
 
   bool terminate = false;
 
