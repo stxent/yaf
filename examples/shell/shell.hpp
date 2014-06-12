@@ -59,7 +59,8 @@ public:
   {
   public:
     virtual ~ShellCommand();
-    virtual result run(unsigned int count, char *arguments[]) const = 0;
+    virtual result run(unsigned int count,
+        const char * const *arguments) const = 0;
 
     const char *name() const {
       return buffer;

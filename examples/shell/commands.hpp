@@ -13,14 +13,18 @@ class ChangeDirectory : public Shell::ShellCommand
 {
 public:
   ChangeDirectory(Shell &owner) : ShellCommand("cd", owner) {}
-  virtual result run(unsigned int, char *[]) const;
+  virtual result run(unsigned int, const char * const *) const;
+
+private:
+  bool processArguments(unsigned int, const char * const *, const char **,
+      result *) const;
 };
 //------------------------------------------------------------------------------
 class CopyEntry : public Shell::ShellCommand
 {
 public:
   CopyEntry(Shell &owner) : ShellCommand("cp", owner) {}
-  virtual result run(unsigned int, char *[]) const;
+  virtual result run(unsigned int, const char * const *) const;
 
 private:
   enum : unsigned int
@@ -33,49 +37,49 @@ class ExitShell : public Shell::ShellCommand
 {
 public:
   ExitShell(Shell &owner) : ShellCommand("exit", owner) {}
-  virtual result run(unsigned int, char *[]) const;
+  virtual result run(unsigned int, const char * const *) const;
 };
 //------------------------------------------------------------------------------
 class ListCommands : public Shell::ShellCommand
 {
 public:
   ListCommands(Shell &owner) : ShellCommand("help", owner) {}
-  virtual result run(unsigned int, char *[]) const;
+  virtual result run(unsigned int, const char * const *) const;
 };
 //------------------------------------------------------------------------------
 class ListEntries : public Shell::ShellCommand
 {
 public:
   ListEntries(Shell &owner) : ShellCommand("ls", owner) {}
-  virtual result run(unsigned int, char *[]) const;
+  virtual result run(unsigned int, const char * const *) const;
 };
 //------------------------------------------------------------------------------
 class MakeDirectory : public Shell::ShellCommand
 {
 public:
   MakeDirectory(Shell &owner) : ShellCommand("mkdir", owner) {}
-  virtual result run(unsigned int, char *[]) const;
+  virtual result run(unsigned int, const char * const *) const;
 };
 //------------------------------------------------------------------------------
 class MeasureTime : public Shell::ShellCommand
 {
 public:
   MeasureTime(Shell &owner) : ShellCommand("time", owner) {}
-  virtual result run(unsigned int, char *[]) const;
+  virtual result run(unsigned int, const char * const *) const;
 };
 //------------------------------------------------------------------------------
 class RemoveDirectory : public Shell::ShellCommand
 {
 public:
   RemoveDirectory(Shell &owner) : ShellCommand("rmdir", owner) {}
-  virtual result run(unsigned int, char *[]) const;
+  virtual result run(unsigned int, const char * const *) const;
 };
 //------------------------------------------------------------------------------
 class RemoveEntry : public Shell::ShellCommand
 {
 public:
   RemoveEntry(Shell &owner) : ShellCommand("rm", owner) {}
-  virtual result run(unsigned int, char *[]) const;
+  virtual result run(unsigned int, const char * const *) const;
 };
 //------------------------------------------------------------------------------
 #endif //COMMANDS_HPP_
