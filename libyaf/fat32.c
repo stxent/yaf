@@ -626,14 +626,14 @@ static enum result mount(struct FatHandle *handle)
   /* Check boot sector signature (55AA at 0x01FE) */
   if (fromBigEndian16(boot->bootSignature) != 0x55AAU)
   {
-    res = E_ERROR;
+    res = E_DEVICE;
     goto exit;
   }
 
   /* Check sector size, fixed size of 2 ^ SECTOR_EXP allowed */
   if (fromLittleEndian16(boot->bytesPerSector) != SECTOR_SIZE)
   {
-    res = E_ERROR;
+    res = E_DEVICE;
     goto exit;
   }
 
@@ -675,7 +675,7 @@ static enum result mount(struct FatHandle *handle)
   if (fromBigEndian32(info->firstSignature) != 0x52526141UL
       || fromBigEndian32(info->infoSignature) != 0x72724161UL)
   {
-    res = E_ERROR;
+    res = E_DEVICE;
     goto exit;
   }
   handle->lastAllocated = fromLittleEndian32(info->lastAllocated);
@@ -875,7 +875,7 @@ static enum result allocateCluster(struct CommandContext *context,
   }
 
   DEBUG_PRINT("Allocation error, partition may be full\n");
-  return E_ERROR;
+  return E_MEMORY;
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -1064,7 +1064,7 @@ static enum result fillShortName(char *shortName, const char *name)
   {
     /* Dot not found */
     if (length > nameLength)
-      res = E_ERROR;
+      res = E_VALUE;
     dot = 0;
   }
   else
@@ -1072,7 +1072,7 @@ static enum result fillShortName(char *shortName, const char *name)
     /* Check whether file name and extension have adequate length */
     uint8_t position = dot - name;
     if (position > nameLength || length - position - 1 > extLength)
-      res = E_ERROR;
+      res = E_VALUE;
   }
 
   uint8_t pos = 0;
@@ -1088,7 +1088,7 @@ static enum result fillShortName(char *shortName, const char *name)
 
     char converted = processCharacter(symbol);
     if (converted != symbol)
-      res = E_ERROR;
+      res = E_VALUE;
     if (!converted)
       continue;
     shortName[pos++] = converted;
@@ -1376,7 +1376,7 @@ static enum result syncFile(struct CommandContext *context,
   enum result res;
 
   if (!(file->access & FS_ACCESS_WRITE))
-    return E_ERROR;
+    return E_ACCESS;
 
   sector = getSector(handle, file->parentCluster)
       + ENTRY_SECTOR(file->parentIndex);
@@ -1780,6 +1780,9 @@ static enum result fatMake(void *object, const struct FsMetadata *metadata,
   struct FatHandle *handle = (struct FatHandle *)node->handle;
   struct CommandContext *context;
   enum result res;
+
+  if (node->type != FS_TYPE_DIR)
+    return E_VALUE;
 
   if (!(node->access & FS_ACCESS_WRITE))
     return E_ACCESS;
@@ -2374,7 +2377,7 @@ static enum result fatFileSeek(void *object, uint64_t offset,
       break;
   }
   if (offset > file->size)
-    return E_ERROR;
+    return E_VALUE;
 
   uint32_t clusterCount = offset;
   uint32_t current;
