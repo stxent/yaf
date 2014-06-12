@@ -7,9 +7,7 @@
 #ifndef SHELL_HPP_
 #define SHELL_HPP_
 //------------------------------------------------------------------------------
-#include <algorithm>
 #include <cstdarg>
-#include <cstring>
 #include <vector>
 //------------------------------------------------------------------------------
 extern "C" {
@@ -59,8 +57,7 @@ public:
   {
   public:
     virtual ~ShellCommand();
-    virtual result run(unsigned int count,
-        const char * const *arguments) const = 0;
+    virtual result run(unsigned int count, const char * const *arguments) = 0;
 
     void link(ShellContext *commandContext) {
       context = commandContext;
@@ -98,7 +95,7 @@ public:
     registeredCommands.push_back(command);
   }
 
-  const std::vector<const ShellCommand *> &commands() const {
+  const std::vector<ShellCommand *> &commands() const {
     return registeredCommands;
   }
 
@@ -115,7 +112,7 @@ private:
   FsHandle *rootHandle;
   Interface *consoleInterface;
 
-  std::vector<const ShellCommand *> registeredCommands;
+  std::vector<ShellCommand *> registeredCommands;
 
   ShellContext context;
   char *argumentPool[argumentCount];

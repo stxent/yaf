@@ -9,7 +9,7 @@
 #define _BSD_SOURCE
 
 #include <cstdio> //FIXME
-#include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include "shell.hpp"
 //------------------------------------------------------------------------------

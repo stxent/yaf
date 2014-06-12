@@ -5,6 +5,7 @@
  */
 
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include "commands.hpp"
 //------------------------------------------------------------------------------
@@ -37,7 +38,7 @@ result ChangeDirectory::processArguments(unsigned int count,
 }
 //------------------------------------------------------------------------------
 result ChangeDirectory::run(unsigned int count,
-    const char * const *arguments) const
+    const char * const *arguments)
 {
   const char *path = nullptr;
   result res;
@@ -181,7 +182,7 @@ result CopyEntry::processArguments(unsigned int count,
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result CopyEntry::run(unsigned int count, const char * const *arguments) const
+result CopyEntry::run(unsigned int count, const char * const *arguments)
 {
   const char *sourcePath = nullptr, *destinationPath = nullptr;
   unsigned int chunkSize = bufferLength;
@@ -268,12 +269,12 @@ result CopyEntry::run(unsigned int count, const char * const *arguments) const
   return res;
 }
 //------------------------------------------------------------------------------
-result ExitShell::run(unsigned int, const char * const *) const
+result ExitShell::run(unsigned int, const char * const *)
 {
   return E_ERROR;
 }
 //------------------------------------------------------------------------------
-result ListCommands::run(unsigned int, const char * const *) const
+result ListCommands::run(unsigned int, const char * const *)
 {
   for(auto entry : owner.commands())
     owner.log("%s", entry->name());
@@ -281,7 +282,7 @@ result ListCommands::run(unsigned int, const char * const *) const
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result ListEntries::run(unsigned int count, const char * const *arguments) const
+result ListEntries::run(unsigned int count, const char * const *arguments)
 {
   const char *filter = nullptr, *path = nullptr;
   int verifyCount = -1;
@@ -407,7 +408,7 @@ result ListEntries::run(unsigned int count, const char * const *arguments) const
 }
 //------------------------------------------------------------------------------
 result MakeDirectory::run(unsigned int count,
-    const char * const *arguments) const
+    const char * const *arguments)
 {
   const char *target = nullptr;
   bool help = false;
@@ -498,7 +499,7 @@ result MakeDirectory::run(unsigned int count,
   return res;
 }
 //------------------------------------------------------------------------------
-result MeasureTime::run(unsigned int count, const char * const *arguments) const
+result MeasureTime::run(unsigned int count, const char * const *arguments)
 {
   uint64_t start, delta;
   result res = E_VALUE;
@@ -518,7 +519,7 @@ result MeasureTime::run(unsigned int count, const char * const *arguments) const
 }
 //------------------------------------------------------------------------------
 result RemoveDirectory::run(unsigned int count,
-    const char * const *arguments) const
+    const char * const *arguments)
 {
   const char *target = nullptr;
   bool help = false;
@@ -580,7 +581,7 @@ free_node:
   return res;
 }
 //------------------------------------------------------------------------------
-result RemoveEntry::run(unsigned int count, const char * const *arguments) const
+result RemoveEntry::run(unsigned int count, const char * const *arguments)
 {
   const char *target = nullptr;
   bool help = false, recursive = false;
