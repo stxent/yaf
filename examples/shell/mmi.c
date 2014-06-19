@@ -55,7 +55,7 @@ static const struct InterfaceClass mmiTable = {
     .write = mmiWrite
 };
 /*----------------------------------------------------------------------------*/
-const struct InterfaceClass *Mmi = &mmiTable;
+const struct InterfaceClass * const Mmi = &mmiTable;
 /*----------------------------------------------------------------------------*/
 #ifdef DEBUG
 void mmiGetStat(void *object, uint64_t *results)
@@ -91,27 +91,32 @@ void getSizeStr(uint64_t size, char *str)
 /*----------------------------------------------------------------------------*/
 static enum result mmiInit(void *object, const void *configPtr)
 {
-  const char *path = configPtr;
-  struct Mmi *dev = object;
+  const char * const path = configPtr;
+  struct Mmi * const dev = object;
 #ifdef DEBUG
   char size2str[16];
 #endif
 
   if (!path)
     return E_ERROR;
+
   if (mutexInit(&dev->lock) != E_OK)
     return E_ERROR;
+
   dev->position = 0;
   dev->offset = 0;
   dev->size = 0;
+
   dev->file = open(path, O_RDWR);
   if (!dev->file)
     return E_ERROR;
   if (fstat(dev->file, &(dev->info)) == -1 || dev->info.st_size == 0)
     return E_ERROR;
+
   dev->data = mmap(0, dev->info.st_size, PROT_WRITE, MAP_SHARED, dev->file, 0);
   if (dev->data == MAP_FAILED)
     return E_ERROR;
+
   dev->size = dev->info.st_size;
 
 #ifdef DEBUG
@@ -126,7 +131,7 @@ static enum result mmiInit(void *object, const void *configPtr)
 /*----------------------------------------------------------------------------*/
 static void mmiDeinit(void *object)
 {
-  struct Mmi *dev = object;
+  struct Mmi * const dev = object;
 
   munmap(dev->data, dev->info.st_size);
   close(dev->file);
@@ -143,7 +148,7 @@ static enum result mmiCallback(void *object __attribute__((unused)),
 /*----------------------------------------------------------------------------*/
 static enum result mmiGet(void *object, enum ifOption option, void *data)
 {
-  struct Mmi *dev = object;
+  struct Mmi * const dev = object;
 
   switch (option)
   {
@@ -158,13 +163,13 @@ static enum result mmiGet(void *object, enum ifOption option, void *data)
 static enum result mmiSet(void *object, enum ifOption option,
     const void *data)
 {
-  struct Mmi *dev = object;
+  struct Mmi * const dev = object;
   uint64_t newPos;
 
   switch (option)
   {
     case IF_ADDRESS:
-      newPos = *(uint64_t *)data;
+      newPos = *(const uint64_t *)data;
       if (newPos + dev->offset >= dev->size)
       {
 #ifdef DEBUG
@@ -175,6 +180,7 @@ static enum result mmiSet(void *object, enum ifOption option,
       }
       dev->position = newPos;
       return E_OK;
+
     default:
       return E_ERROR;
   }
@@ -182,7 +188,7 @@ static enum result mmiSet(void *object, enum ifOption option,
 /*----------------------------------------------------------------------------*/
 static uint32_t mmiRead(void *object, uint8_t *buffer, uint32_t length)
 {
-  struct Mmi *dev = object;
+  struct Mmi * const dev = object;
 
   mutexLock(&dev->lock);
   memcpy(buffer, dev->data + dev->position + dev->offset, length);
@@ -203,7 +209,7 @@ static uint32_t mmiRead(void *object, uint8_t *buffer, uint32_t length)
 /*----------------------------------------------------------------------------*/
 static uint32_t mmiWrite(void *object, const uint8_t *buffer, uint32_t length)
 {
-  struct Mmi *dev = object;
+  struct Mmi * const dev = object;
 
   mutexLock(&dev->lock);
   memcpy(dev->data + dev->position + dev->offset, buffer, length);
@@ -225,24 +231,27 @@ static uint32_t mmiWrite(void *object, const uint8_t *buffer, uint32_t length)
 enum result mmiSetPartition(void *object, struct MbrDescriptor *desc)
 {
   const char validTypes[] = {0x0B, 0x0C, 0x1B, 0x1C, 0x00};
-  struct Mmi *dev = object;
+  struct Mmi * const dev = object;
 
   if (!strchr(validTypes, desc->type))
     return E_ERROR;
+
   dev->size = desc->size << MMI_SECTOR_POW;
   dev->offset = desc->offset << MMI_SECTOR_POW;
+
 #ifdef DEBUG
   printf("mmaped_io: partition type 0x%02X, size %u sectors, "
       "offset %u sectors\n",
       desc->type, (unsigned int)desc->size, (unsigned int)desc->offset);
 #endif
+
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
 enum result mmiReadTable(void *object, uint32_t sector, uint8_t index,
     struct MbrDescriptor *desc)
 {
-  struct Mmi *dev = object;
+  struct Mmi * const dev = object;
   uint8_t *ptr;
   uint64_t position = sector << MMI_SECTOR_POW;
   uint8_t buffer[1 << MMI_SECTOR_POW];
@@ -258,8 +267,10 @@ enum result mmiReadTable(void *object, uint32_t sector, uint8_t index,
   ptr = buffer + 0x01BE + (index << 4); /* Pointer to partition entry */
   if (!*(ptr + 0x04)) /* Empty entry */
     return E_ERROR;
+
   desc->type = *(ptr + 0x04); /* File system descriptor */
   desc->offset = *(uint32_t *)(ptr + 0x08);
   desc->size = *(uint32_t *)(ptr + 0x0C);
+
   return E_OK;
 }

@@ -37,8 +37,7 @@ result ChangeDirectory::processArguments(unsigned int count,
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result ChangeDirectory::run(unsigned int count,
-    const char * const *arguments)
+result ChangeDirectory::run(unsigned int count, const char * const *arguments)
 {
   const char *path = nullptr;
   result res;
@@ -407,8 +406,7 @@ result ListEntries::run(unsigned int count, const char * const *arguments)
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result MakeDirectory::run(unsigned int count,
-    const char * const *arguments)
+result MakeDirectory::run(unsigned int count, const char * const *arguments)
 {
   const char *target = nullptr;
   bool help = false;
@@ -518,8 +516,7 @@ result MeasureTime::run(unsigned int count, const char * const *arguments)
   return res;
 }
 //------------------------------------------------------------------------------
-result RemoveDirectory::run(unsigned int count,
-    const char * const *arguments)
+result RemoveDirectory::run(unsigned int count, const char * const *arguments)
 {
   const char *target = nullptr;
   bool help = false;

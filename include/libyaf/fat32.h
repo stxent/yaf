@@ -12,7 +12,7 @@
 #include <interface.h>
 #include <fs.h>
 /*----------------------------------------------------------------------------*/
-extern const struct FsHandleClass *FatHandle;
+extern const struct FsHandleClass * const FatHandle;
 /*----------------------------------------------------------------------------*/
 struct Fat32Config
 {

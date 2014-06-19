@@ -88,10 +88,10 @@ static const struct FsEntryClass fatFileTable = {
     .fetch = fatFileFetch
 };
 /*----------------------------------------------------------------------------*/
-const struct FsHandleClass *FatHandle = (void *)&fatHandleTable;
-const struct FsNodeClass *FatNode = (void *)&fatNodeTable;
-const struct FsEntryClass *FatDir = (void *)&fatDirTable;
-const struct FsEntryClass *FatFile = (void *)&fatFileTable;
+const struct FsHandleClass * const FatHandle = &fatHandleTable;
+const struct FsNodeClass * const FatNode = &fatNodeTable;
+const struct FsEntryClass * const FatDir = &fatDirTable;
+const struct FsEntryClass * const FatFile = &fatFileTable;
 /*----------------------------------------------------------------------------*/
 static enum result allocatePool(struct Pool *pool, unsigned int capacity,
     unsigned int width, const void *initializer)
@@ -113,7 +113,7 @@ static enum result allocatePool(struct Pool *pool, unsigned int capacity,
   for (unsigned int index = 0; index < capacity; ++index)
   {
     if (initializer)
-      ((struct Entity *)data)->type = (const struct EntityClass *)initializer;
+      ((struct Entity *)data)->descriptor = initializer;
 
     queuePush(&pool->queue, data);
     data += width;
@@ -1940,7 +1940,7 @@ static enum result fatSet(void *object, enum fsNodeData type, const void *data)
   {
     case FS_NODE_ACCESS:
     {
-      node->access = *(access_t *)data;
+      node->access = *(const access_t *)data;
       if (node->access & FS_ACCESS_WRITE)
         entry->flags &= ~FLAG_RO;
       else
@@ -2500,7 +2500,8 @@ static uint32_t fatFileWrite(void *object, const void *buffer, uint32_t length)
         return 0;
       }
 
-      memcpy(context->buffer + offset, (uint8_t *)buffer + written, chunk);
+      memcpy(context->buffer + offset, (const uint8_t *)buffer + written,
+          chunk);
       if (writeSector(context, handle, sector) != E_OK)
       {
         freeContext(handle, context);
@@ -2517,7 +2518,7 @@ static uint32_t fatFileWrite(void *object, const void *buffer, uint32_t length)
 
       /* Write data from the buffer directly without additional copying */
       if (writeBuffer(handle, getSector(handle, file->currentCluster) + current,
-          (uint8_t *)buffer + written, chunk >> SECTOR_EXP) != E_OK)
+          (const uint8_t *)buffer + written, chunk >> SECTOR_EXP) != E_OK)
       {
         freeContext(handle, context);
         return 0;

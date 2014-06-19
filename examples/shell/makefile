@@ -6,9 +6,9 @@ CONFIGFAT += -DCONFIG_FAT_THREADS
 CONFIGFAT += -DCONFIG_FAT_TIME
 CONFIGFAT += -DCONFIG_FAT_WRITE
 
-CFLAGS = -std=c11 -O0 -Wall -Wextra -Winline -pedantic
+CFLAGS = -std=c11 -O0 -Wall -Wextra -Winline -Wcast-qual -pedantic
 CC = gcc
-CXXFLAGS = -std=c++11 -O0 -Wall -Wextra -Winline -pedantic
+CXXFLAGS = -std=c++11 -O0 -Wall -Wextra -Winline -Wcast-qual -pedantic
 CXX = g++
 
 CFLAGS += $(CONFIGFAT)
