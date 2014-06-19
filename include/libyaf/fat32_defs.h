@@ -314,7 +314,7 @@ static enum result fetchNode(struct CommandContext *, struct FatNode *,
 static const char *followPath(struct CommandContext *, struct FatNode *,
     const char *, const struct FatNode *);
 static void freeBuffers(struct FatHandle *, enum cleanup);
-static void freeContext(struct FatHandle *, const struct CommandContext *);
+static void freeContext(struct FatHandle *, struct CommandContext *);
 static const char *getChunk(const char *, char *);
 static enum result getNextCluster(struct CommandContext *, struct FatHandle *,
     uint32_t *);

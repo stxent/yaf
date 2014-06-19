@@ -26,25 +26,27 @@ static inline bool clusterUsed(uint32_t cluster)
 }
 /*----------------------------------------------------------------------------*/
 /* Calculate first sector number of the cluster */
-static inline uint32_t getSector(struct FatHandle *handle, uint32_t cluster)
+static inline uint32_t getSector(const struct FatHandle *handle,
+    uint32_t cluster)
 {
   return handle->dataSector + (((cluster) - 2) << handle->clusterSize);
 }
 /*----------------------------------------------------------------------------*/
 /* File or directory entries per directory cluster */
-static inline uint16_t nodeCount(struct FatHandle *handle)
+static inline uint16_t nodeCount(const struct FatHandle *handle)
 {
   return 1 << ENTRY_EXP << handle->clusterSize;
 }
 /*----------------------------------------------------------------------------*/
 /* Calculate current sector in data cluster for read or write operations */
-static inline uint8_t sectorInCluster(struct FatHandle *handle, uint32_t offset)
+static inline uint8_t sectorInCluster(const struct FatHandle *handle,
+    uint32_t offset)
 {
   return (offset >> SECTOR_EXP) & ((1 << handle->clusterSize) - 1);
 }
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_UNICODE
-static inline bool hasLongName(struct FatNode *node)
+static inline bool hasLongName(const struct FatNode *node)
 {
   return node->cluster != node->nameCluster || node->index != node->nameIndex;
 }
