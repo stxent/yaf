@@ -2213,8 +2213,8 @@ static enum result fatFileInit(void *object, const void *configPtr)
   file->parentCluster = node->cluster;
   file->parentIndex = node->index;
 #endif
-  DEBUG_PRINT("File allocated, address %08lX\n", (unsigned long)object);
 
+  DEBUG_PRINT("File allocated, address %08lX\n", (unsigned long)object);
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
@@ -2564,8 +2564,8 @@ static uint32_t fatFileWrite(void *entry __attribute__((unused)),
 uint32_t countFree(void *object)
 {
   struct FatHandle * const handle = object;
-  struct CommandContext *context;
   uint32_t * const count = malloc(sizeof(uint32_t) * handle->tableNumber);
+  struct CommandContext *context;
   uint32_t empty = 0;
 
   if (!count)
@@ -2595,7 +2595,9 @@ uint32_t countFree(void *object)
     for (uint8_t j = 0; j < handle->tableNumber; ++j)
     {
       if (i != j && count[i] != count[j])
-        DEBUG_PRINT("FAT sizes differ: %u and %u\n", count[i], count[j]);
+      {
+        DEBUG_PRINT("Table sizes differ: %u and %u\n", count[i], count[j]);
+      }
     }
   }
   empty = count[0];
