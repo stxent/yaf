@@ -1563,7 +1563,7 @@ static enum result fatSync(void *object)
   if (!(context = allocateContext(handle)))
     return E_MEMORY;
 
-  void *current = listFirst(&handle->openedFiles);
+  const struct ListNode *current = listFirst(&handle->openedFiles);
 
   while (current)
   {
@@ -2228,7 +2228,7 @@ static void fatFileDeinit(void *object)
     struct FatHandle * const handle = (struct FatHandle *)file->handle;
     struct FatFile *descriptor;
 
-    void *current = listFirst(&handle->openedFiles);
+    struct ListNode *current = listFirst(&handle->openedFiles);
 
     while (current)
     {
