@@ -19,7 +19,7 @@ public:
 protected:
   enum : unsigned int
   {
-    bufferLength = 1024
+    BUFFER_LENGTH = 1024
   };
 
   virtual void compute(const uint8_t *, uint32_t) = 0;

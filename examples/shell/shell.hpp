@@ -37,20 +37,24 @@ class Shell
 public:
   enum
   {
-    argumentCount = 16,
-    argumentLength = 32,
-    width = 80
+    ARGUMENT_COUNT = 16,
+    ARGUMENT_LENGTH = 32
+  };
+
+  enum
+  {
+    LOG_LENGTH = 80
   };
 
   struct ShellContext
   {
     enum
     {
-      nameLength = 256
+      NAME_LENGTH = 256
     };
 
-    char currentDir[nameLength];
-    char pathBuffer[nameLength];
+    char currentDir[NAME_LENGTH];
+    char pathBuffer[NAME_LENGTH];
   };
 
   class ShellCommand
@@ -115,9 +119,10 @@ private:
   std::vector<ShellCommand *> registeredCommands;
 
   ShellContext context;
-  char *argumentPool[argumentCount];
-  char logBuffer[width * 2 + 1];
-  Mutex lock;
+  char *argumentPool[ARGUMENT_COUNT];
+
+  char logBuffer[LOG_LENGTH * 2 + 1];
+  Mutex logMutex;
 };
 //------------------------------------------------------------------------------
 #endif //SHELL_HPP_

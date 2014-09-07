@@ -62,7 +62,7 @@ result ComputationCommand::run(unsigned int count,
 {
   const char * const *path = arguments;
   const char *name;
-  uint8_t buffer[bufferLength];
+  uint8_t buffer[BUFFER_LENGTH];
   result res;
 
   if ((res = processArguments(count, arguments)) != E_OK)
@@ -110,7 +110,7 @@ result ComputationCommand::run(unsigned int count,
     reset();
     while (!fsEnd(entry))
     {
-      chunk = fsRead(entry, buffer, bufferLength);
+      chunk = fsRead(entry, buffer, BUFFER_LENGTH);
       if (!chunk)
       {
         owner.log("md5sum: read error at %u", read);

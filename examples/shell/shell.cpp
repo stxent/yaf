@@ -1,5 +1,5 @@
 /*
- * owner.cpp
+ * shell.cpp
  * Copyright (C) 2014 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
@@ -8,6 +8,7 @@
 #define _POSIX_C_SOURCE 200809L
 #define _BSD_SOURCE
 
+#include <cassert>
 #include <cstdio> //FIXME
 #include <cstring>
 #include <ctime>
@@ -68,14 +69,18 @@ void Shell::joinPaths(char *buffer, const char *directory, const char *path)
 Shell::Shell(Interface *console, FsHandle *root) :
     rootHandle(root), consoleInterface(console)
 {
+  result res;
+
   strcpy(context.currentDir, "/");
   strcpy(context.pathBuffer, "");
 
-  for (unsigned int pos = 0; pos < argumentCount; ++pos)
-    argumentPool[pos] = new char[argumentLength];
+  for (unsigned int pos = 0; pos < ARGUMENT_COUNT; ++pos)
+    argumentPool[pos] = new char[ARGUMENT_LENGTH];
 
-  mutexInit(&lock); //TODO Add error checking
+  res = mutexInit(&logMutex);
+  assert(res == E_OK);
 
+  //Log function should be called after mutex initialization
   log("Shell opened, size %u", (unsigned int)sizeof(Shell));
 }
 //------------------------------------------------------------------------------
@@ -84,12 +89,10 @@ Shell::~Shell()
   for(auto entry : registeredCommands)
     delete entry;
 
-  for (unsigned int pos = 0; pos < argumentCount; ++pos)
+  for (unsigned int pos = 0; pos < ARGUMENT_COUNT; ++pos)
     delete[] argumentPool[pos];
 
-  mutexDeinit(&lock);
-
-  log("Shell closed");
+  mutexDeinit(&logMutex);
 }
 //------------------------------------------------------------------------------
 result Shell::execute(const char *input)
@@ -112,13 +115,13 @@ result Shell::execute(const char *input)
       continue;
     }
 
-    if (!spaces && pos - start >= argumentLength)
+    if (!spaces && pos - start >= ARGUMENT_LENGTH)
     {
       log("Parser error: argument length is greater than allowed");
       return E_VALUE;
     }
 
-    if (line >= argumentCount)
+    if (line >= ARGUMENT_COUNT)
     {
       log("Parser error: too many arguments");
       return E_VALUE;
@@ -162,9 +165,7 @@ result Shell::execute(const char *input)
     {
       if (!strcmp(entry->name(), argumentPool[0]))
       {
-        mutexLock(&lock);
         result res = entry->run(line - 1, argumentPool + 1);
-        mutexUnlock(&lock);
         return res;
       }
     }
@@ -177,12 +178,14 @@ void Shell::log(const char *format, ...)
 {
   va_list arguments;
 
+  mutexLock(&logMutex);
   va_start(arguments, format);
-  vsprintf(logBuffer, format, arguments);
+  vsnprintf(logBuffer, LOG_LENGTH - 1, format, arguments);
   va_end(arguments);
 
   strcat(logBuffer, "\n");
   printf(logBuffer);
+  mutexUnlock(&logMutex);
 }
 //------------------------------------------------------------------------------
 uint64_t Shell::timestamp()

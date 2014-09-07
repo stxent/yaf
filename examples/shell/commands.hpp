@@ -29,7 +29,7 @@ public:
 private:
   enum : unsigned int
   {
-    bufferLength = 1024
+    BUFFER_LENGTH = 1024
   };
 
   result copyContent(FsNode *, FsNode *, unsigned int) const;

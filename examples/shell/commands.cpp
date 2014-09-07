@@ -75,7 +75,7 @@ result CopyEntry::copyContent(FsNode *sourceNode, FsNode *destinationNode,
     unsigned int chunkSize) const
 {
   FsEntry *sourceFile = nullptr, *destinationFile = nullptr;
-  char buffer[bufferLength];
+  char buffer[BUFFER_LENGTH];
 
   //Open file entries
   sourceFile = (FsEntry *)fsOpen(sourceNode, FS_ACCESS_READ);
@@ -160,15 +160,15 @@ result CopyEntry::processArguments(unsigned int count,
   if (help)
   {
     owner.log("Usage: cp SOURCE DESTINATION");
-    owner.log("  --chunk-size  set chunk size, up to %u bytes", bufferLength);
+    owner.log("  --chunk-size  set chunk size, up to %u bytes", BUFFER_LENGTH);
     owner.log("  --help        print help message");
     return E_BUSY;
   }
 
-  if (!*chunkSize || *chunkSize > bufferLength)
+  if (!*chunkSize || *chunkSize > BUFFER_LENGTH)
   {
     owner.log("cp: wrong chunk size, got %u, allowed up to %u", chunkSize,
-        bufferLength);
+        BUFFER_LENGTH);
     return E_VALUE;
   }
 
@@ -184,7 +184,7 @@ result CopyEntry::processArguments(unsigned int count,
 result CopyEntry::run(unsigned int count, const char * const *arguments)
 {
   const char *sourcePath = nullptr, *destinationPath = nullptr;
-  unsigned int chunkSize = bufferLength;
+  unsigned int chunkSize = BUFFER_LENGTH;
   result res;
 
   res = processArguments(count, arguments, &sourcePath, &destinationPath,
@@ -275,7 +275,7 @@ result ExitShell::run(unsigned int, const char * const *)
 //------------------------------------------------------------------------------
 result ListCommands::run(unsigned int, const char * const *)
 {
-  for(auto entry : owner.commands())
+  for (auto entry : owner.commands())
     owner.log("%s", entry->name());
 
   return E_OK;
@@ -502,7 +502,7 @@ result MeasureTime::run(unsigned int count, const char * const *arguments)
   uint64_t start, delta;
   result res = E_VALUE;
 
-  for(auto entry : owner.commands())
+  for (auto entry : owner.commands())
   {
     if (!strcmp(entry->name(), arguments[0]))
     {
