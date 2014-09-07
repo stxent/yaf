@@ -14,6 +14,7 @@
 #include "commands.hpp"
 #include "crypto.hpp"
 #include "shell.hpp"
+#include "threading.hpp"
 //------------------------------------------------------------------------------
 extern "C"
 {
@@ -77,6 +78,8 @@ int main(int argc, char *argv[])
   shell.append(CommandBuilder<RemoveEntry>());
 
   shell.append(CommandBuilder<ComputeHash>());
+
+  shell.append(CommandBuilder<ThreadSwarm>());
 
   bool terminate = false;
 
