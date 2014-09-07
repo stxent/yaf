@@ -1,25 +1,26 @@
 /*
- * mutex.h
- * Copyright (C) 2012 xent
+ * semaphore.h
+ * Copyright (C) 2014 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef MUTEX_H_
-#define MUTEX_H_
+#ifndef SEMAPHORE_H_
+#define SEMAPHORE_H_
 /*----------------------------------------------------------------------------*/
 #include <stdbool.h>
 #include <error.h>
 /*----------------------------------------------------------------------------*/
-struct Mutex
+struct Semaphore
 {
   void *handle;
 };
 /*----------------------------------------------------------------------------*/
-enum result mutexInit(struct Mutex *);
-void mutexDeinit(struct Mutex *);
+enum result semInit(struct Semaphore *, int);
+void semDeinit(struct Semaphore *);
 /*----------------------------------------------------------------------------*/
-void mutexLock(struct Mutex *);
-bool mutexTryLock(struct Mutex *, unsigned int);
-void mutexUnlock(struct Mutex *);
+void semPost(struct Semaphore *);
+bool semTryWait(struct Semaphore *, unsigned int);
+int semValue(struct Semaphore *);
+void semWait(struct Semaphore *);
 /*----------------------------------------------------------------------------*/
-#endif /* MUTEX_H_ */
+#endif /* SEMAPHORE_H_ */

@@ -1,40 +1,40 @@
 /*
- * mutex.c
- * Copyright (C) 2012 xent
+ * semaphore.c
+ * Copyright (C) 2014 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
 #define _POSIX_C_SOURCE 200809L
 #define _BSD_SOURCE
 
-#include <pthread.h>
+#include <semaphore.h>
 #include <stdlib.h>
 #include <time.h>
-#include <os/mutex.h>
+#include <os/semaphore.h>
 /*----------------------------------------------------------------------------*/
-enum result mutexInit(struct Mutex *mutex)
+enum result semInit(struct Semaphore *sem, int value)
 {
-  mutex->handle = malloc(sizeof(pthread_mutex_t));
-  if (!mutex->handle)
+  sem->handle = malloc(sizeof(sem_t));
+  if (!sem->handle)
     return E_MEMORY;
-  if (pthread_mutex_init(mutex->handle, 0))
+  if (sem_init(sem->handle, 0, value))
     return E_ERROR;
 
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-void mutexDeinit(struct Mutex *mutex)
+void semDeinit(struct Semaphore *sem)
 {
-  pthread_mutex_destroy(mutex->handle);
-  free(mutex->handle);
+  sem_destroy(sem->handle);
+  free(sem->handle);
 }
 /*----------------------------------------------------------------------------*/
-void mutexLock(struct Mutex *mutex)
+void semPost(struct Semaphore *sem)
 {
-  pthread_mutex_lock(mutex->handle);
+  sem_post(sem->handle);
 }
 /*----------------------------------------------------------------------------*/
-bool mutexTryLock(struct Mutex *mutex, unsigned int interval)
+bool semTryWait(struct Semaphore *sem, unsigned int interval)
 {
   int res;
 
@@ -52,15 +52,23 @@ bool mutexTryLock(struct Mutex *mutex, unsigned int interval)
       ++timestamp.tv_sec;
     }
 
-    res = pthread_mutex_timedlock(mutex->handle, &timestamp);
+    res = sem_timedwait(sem->handle, &timestamp);
   }
   else
-    res = pthread_mutex_trylock(mutex->handle);
+    res = sem_trywait(sem->handle);
 
   return res ? false : true;
 }
 /*----------------------------------------------------------------------------*/
-void mutexUnlock(struct Mutex *mutex)
+int semValue(struct Semaphore *sem)
 {
-  pthread_mutex_unlock(mutex->handle);
+  int value = 1;
+
+  sem_getvalue(sem->handle, &value);
+  return value;
+}
+/*----------------------------------------------------------------------------*/
+void semWait(struct Semaphore *sem)
+{
+  sem_wait(sem->handle);
 }

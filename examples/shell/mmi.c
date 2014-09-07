@@ -9,12 +9,12 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <mutex.h>
+#include <os/mutex.h>
 #include "mmi.h"
 /*----------------------------------------------------------------------------*/
 #ifdef DEBUG
 #include <stdio.h>
-/* #define DEBUG_RW */
+/* FIXME #define DEBUG_RW */
 #endif
 /*----------------------------------------------------------------------------*/
 #define MMI_SECTOR_POW 9
