@@ -13,7 +13,7 @@
 class ComputationCommand : public Shell::ShellCommand
 {
 public:
-  ComputationCommand(const char *, Shell &);
+  ComputationCommand(Shell &);
   virtual result run(unsigned int, const char * const *);
 
 protected:
@@ -34,7 +34,12 @@ private:
 class ComputeHash : public ComputationCommand
 {
 public:
-  ComputeHash(Shell &owner) : ComputationCommand("md5sum", owner) {}
+  ComputeHash(Shell &owner) : ComputationCommand(owner) {}
+
+  virtual const char *name() const
+  {
+    return "md5sum";
+  }
 
 protected:
   virtual void compute(const uint8_t *, uint32_t);

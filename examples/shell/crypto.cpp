@@ -7,8 +7,8 @@
 #include <cstring>
 #include "crypto.hpp"
 //------------------------------------------------------------------------------
-ComputationCommand::ComputationCommand(const char *alias, Shell &owner) :
-    ShellCommand(alias, owner)
+ComputationCommand::ComputationCommand(Shell &owner) :
+    ShellCommand(owner)
 {
 
 }

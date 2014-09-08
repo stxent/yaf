@@ -16,22 +16,16 @@
 //------------------------------------------------------------------------------
 using namespace std;
 //------------------------------------------------------------------------------
-Shell::ShellCommand::~ShellCommand()
+Shell::ShellCommand::ShellCommand(Shell &shell) :
+    owner(shell), context(nullptr)
 {
-  delete[] buffer;
-}
-//------------------------------------------------------------------------------
-Shell::ShellCommand::ShellCommand(const char *alias, Shell &shell) :
-    owner(shell), context(nullptr), buffer(new char[strlen(alias) + 1])
-{
-  strcpy(buffer, alias);
+
 }
 //------------------------------------------------------------------------------
 Shell::ShellCommand::ShellCommand(const ShellCommand &other) :
-    owner(other.owner), context(nullptr),
-    buffer(new char[strlen(other.buffer) + 1])
+    owner(other.owner), context(nullptr)
 {
-  strcpy(buffer, other.buffer);
+
 }
 //------------------------------------------------------------------------------
 const char *Shell::extractName(const char *path)

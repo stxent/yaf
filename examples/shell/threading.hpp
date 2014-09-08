@@ -27,6 +27,11 @@ public:
   ThreadSwarm(Shell &owner);
   ~ThreadSwarm();
 
+  virtual const char *name() const
+  {
+    return "swarm";
+  }
+
   virtual result run(unsigned int, const char * const *);
 
 private:

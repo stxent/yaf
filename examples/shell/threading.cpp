@@ -88,7 +88,7 @@ void WorkerThread::terminate()
 }
 //------------------------------------------------------------------------------
 ThreadSwarm::ThreadSwarm(Shell &owner) :
-     ShellCommand("swarm", owner)
+     ShellCommand(owner)
 {
   result res;
 

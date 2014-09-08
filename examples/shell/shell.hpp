@@ -26,7 +26,8 @@ public:
   CommandBuilder() {}
 
 private:
-  static A *create(Shell &shell) {
+  static A *create(Shell &shell)
+  {
     return new A(shell);
   }
 };
@@ -61,25 +62,21 @@ public:
   class ShellCommand
   {
   public:
-    virtual ~ShellCommand();
+    virtual ~ShellCommand() {}
+    virtual const char *name() const = 0;
     virtual result run(unsigned int count, const char * const *arguments) = 0;
 
-    void link(ShellContext *commandContext) {
+    void link(ShellContext *commandContext)
+    {
       context = commandContext;
     }
 
-    const char *name() const {
-      return buffer;
-    }
-
   protected:
-    ShellCommand(const char *, Shell &);
+    ShellCommand(Shell &);
     ShellCommand(const ShellCommand &other);
 
     Shell &owner;
-
     ShellContext *context;
-    char *buffer;
   };
 
   Shell(struct Interface *console, struct FsHandle *root);
@@ -100,11 +97,13 @@ public:
     registeredCommands.push_back(command);
   }
 
-  const std::vector<ShellCommand *> &commands() const {
+  const std::vector<ShellCommand *> &commands() const
+  {
     return registeredCommands;
   }
 
-  FsHandle *handle() const {
+  FsHandle *handle() const
+  {
     return rootHandle;
   }
 

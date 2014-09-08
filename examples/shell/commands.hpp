@@ -12,7 +12,13 @@
 class ChangeDirectory : public Shell::ShellCommand
 {
 public:
-  ChangeDirectory(Shell &owner) : ShellCommand("cd", owner) {}
+  ChangeDirectory(Shell &owner) : ShellCommand(owner) {}
+
+  virtual const char *name() const
+  {
+    return "cd";
+  }
+
   virtual result run(unsigned int, const char * const *);
 
 private:
@@ -23,7 +29,13 @@ private:
 class CopyEntry : public Shell::ShellCommand
 {
 public:
-  CopyEntry(Shell &owner) : ShellCommand("cp", owner) {}
+  CopyEntry(Shell &owner) : ShellCommand(owner) {}
+
+  virtual const char *name() const
+  {
+    return "cp";
+  }
+
   virtual result run(unsigned int, const char * const *);
 
 private:
@@ -40,49 +52,91 @@ private:
 class ExitShell : public Shell::ShellCommand
 {
 public:
-  ExitShell(Shell &owner) : ShellCommand("exit", owner) {}
+  ExitShell(Shell &owner) : ShellCommand(owner) {}
+
+  virtual const char *name() const
+  {
+    return "exit";
+  }
+
   virtual result run(unsigned int, const char * const *);
 };
 //------------------------------------------------------------------------------
 class ListCommands : public Shell::ShellCommand
 {
 public:
-  ListCommands(Shell &owner) : ShellCommand("help", owner) {}
+  ListCommands(Shell &owner) : ShellCommand(owner) {}
+
+  virtual const char *name() const
+  {
+    return "help";
+  }
+
   virtual result run(unsigned int, const char * const *);
 };
 //------------------------------------------------------------------------------
 class ListEntries : public Shell::ShellCommand
 {
 public:
-  ListEntries(Shell &owner) : ShellCommand("ls", owner) {}
+  ListEntries(Shell &owner) : ShellCommand(owner) {}
+
+  virtual const char *name() const
+  {
+    return "ls";
+  }
+
   virtual result run(unsigned int, const char * const *);
 };
 //------------------------------------------------------------------------------
 class MakeDirectory : public Shell::ShellCommand
 {
 public:
-  MakeDirectory(Shell &owner) : ShellCommand("mkdir", owner) {}
+  MakeDirectory(Shell &owner) : ShellCommand(owner) {}
+
+  virtual const char *name() const
+  {
+    return "mkdir";
+  }
+
   virtual result run(unsigned int, const char * const *);
 };
 //------------------------------------------------------------------------------
 class MeasureTime : public Shell::ShellCommand
 {
 public:
-  MeasureTime(Shell &owner) : ShellCommand("time", owner) {}
+  MeasureTime(Shell &owner) : ShellCommand(owner) {}
+
+  virtual const char *name() const
+  {
+    return "time";
+  }
+
   virtual result run(unsigned int, const char * const *);
 };
 //------------------------------------------------------------------------------
 class RemoveDirectory : public Shell::ShellCommand
 {
 public:
-  RemoveDirectory(Shell &owner) : ShellCommand("rmdir", owner) {}
+  RemoveDirectory(Shell &owner) : ShellCommand(owner) {}
+
+  virtual const char *name() const
+  {
+    return "rmdir";
+  }
+
   virtual result run(unsigned int, const char * const *);
 };
 //------------------------------------------------------------------------------
 class RemoveEntry : public Shell::ShellCommand
 {
 public:
-  RemoveEntry(Shell &owner) : ShellCommand("rm", owner) {}
+  RemoveEntry(Shell &owner) : ShellCommand(owner) {}
+
+  virtual const char *name() const
+  {
+    return "rm";
+  }
+
   virtual result run(unsigned int, const char * const *);
 };
 //------------------------------------------------------------------------------
