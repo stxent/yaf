@@ -77,6 +77,7 @@ private:
   Semaphore semaphore;
   Thread thread;
 
+  Shell::ShellContext context;
   unsigned int argumentCount;
   const char * const *firstArgument;
   bool finalize;

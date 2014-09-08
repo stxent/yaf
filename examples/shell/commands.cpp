@@ -183,6 +183,15 @@ result CopyEntry::processArguments(unsigned int count,
   return E_OK;
 }
 //------------------------------------------------------------------------------
+result CopyEntry::isolate(Shell::ShellContext *environment, unsigned int count,
+    const char * const *arguments)
+{
+  CopyEntry instance(owner);
+
+  instance.link(environment);
+  return instance.run(count, arguments);
+}
+//------------------------------------------------------------------------------
 result CopyEntry::run(unsigned int count, const char * const *arguments)
 {
   const char *sourcePath = nullptr, *destinationPath = nullptr;
@@ -283,6 +292,15 @@ result ListCommands::run(unsigned int, const char * const *)
     owner.log("%s", entry->name());
 
   return E_OK;
+}
+//------------------------------------------------------------------------------
+result ListEntries::isolate(Shell::ShellContext *environment,
+    unsigned int count, const char * const *arguments)
+{
+  ListEntries instance(owner);
+
+  instance.link(environment);
+  return instance.run(count, arguments);
 }
 //------------------------------------------------------------------------------
 result ListEntries::run(unsigned int count, const char * const *arguments)
@@ -411,6 +429,15 @@ result ListEntries::run(unsigned int count, const char * const *arguments)
   return E_OK;
 }
 //------------------------------------------------------------------------------
+result MakeDirectory::isolate(Shell::ShellContext *environment,
+    unsigned int count, const char * const *arguments)
+{
+  MakeDirectory instance(owner);
+
+  instance.link(environment);
+  return instance.run(count, arguments);
+}
+//------------------------------------------------------------------------------
 result MakeDirectory::run(unsigned int count, const char * const *arguments)
 {
   const char *target = nullptr;
@@ -521,6 +548,15 @@ result MeasureTime::run(unsigned int count, const char * const *arguments)
   return res;
 }
 //------------------------------------------------------------------------------
+result RemoveDirectory::isolate(Shell::ShellContext *environment,
+    unsigned int count, const char * const *arguments)
+{
+  RemoveDirectory instance(owner);
+
+  instance.link(environment);
+  return instance.run(count, arguments);
+}
+//------------------------------------------------------------------------------
 result RemoveDirectory::run(unsigned int count, const char * const *arguments)
 {
   const char *target = nullptr;
@@ -581,6 +617,15 @@ result RemoveDirectory::run(unsigned int count, const char * const *arguments)
 free_node:
   fsFree(destinationNode);
   return res;
+}
+//------------------------------------------------------------------------------
+result RemoveEntry::isolate(Shell::ShellContext *environment,
+    unsigned int count, const char * const *arguments)
+{
+  RemoveEntry instance(owner);
+
+  instance.link(environment);
+  return instance.run(count, arguments);
 }
 //------------------------------------------------------------------------------
 result RemoveEntry::run(unsigned int count, const char * const *arguments)

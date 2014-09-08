@@ -129,6 +129,15 @@ result ComputationCommand::run(unsigned int count,
   return E_OK;
 }
 //------------------------------------------------------------------------------
+result ComputeHash::isolate(Shell::ShellContext *environment,
+    unsigned int count, const char * const *arguments)
+{
+  ComputeHash instance(owner);
+
+  instance.link(environment);
+  return instance.run(count, arguments);
+}
+//------------------------------------------------------------------------------
 void ComputeHash::compute(const uint8_t *buffer, uint32_t length)
 {
   MD5_Update(&context, buffer, length);

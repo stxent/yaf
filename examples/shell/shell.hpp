@@ -63,17 +63,42 @@ public:
   {
   public:
     virtual ~ShellCommand() {}
+
+    /**
+     * Run command with a different context.
+     * @param environment Pointer to an independent context object.
+     * @param count Argument count.
+     * @param arguments Array of the arguments.
+     * @return @b E_OK on success, @b E_ERROR on unrecoverable error.
+     */
+    virtual result isolate(ShellContext *environment, unsigned int count,
+        const char * const *arguments);
+
+    /**
+     * Get name of the command.
+     * @return Pointer to a statically allocated string with a read-only access.
+     */
     virtual const char *name() const = 0;
+
+    /**
+     * Run command with specified arguments.
+     * @param count Argument count.
+     * @param arguments Array of the arguments.
+     * @return @b E_OK on success, @b E_ERROR on unrecoverable error.
+     */
     virtual result run(unsigned int count, const char * const *arguments) = 0;
 
-    void link(ShellContext *commandContext)
+    /**
+     * Connect an execution context with the command.
+     * @param environment Pointer to a context object.
+     */
+    void link(ShellContext *environment)
     {
-      context = commandContext;
+      context = environment;
     }
 
   protected:
     ShellCommand(Shell &);
-    ShellCommand(const ShellCommand &other);
 
     Shell &owner;
     ShellContext *context;

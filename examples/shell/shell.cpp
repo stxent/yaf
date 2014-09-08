@@ -22,10 +22,11 @@ Shell::ShellCommand::ShellCommand(Shell &shell) :
 
 }
 //------------------------------------------------------------------------------
-Shell::ShellCommand::ShellCommand(const ShellCommand &other) :
-    owner(other.owner), context(nullptr)
+result Shell::ShellCommand::isolate(ShellContext *, unsigned int,
+    const char * const *)
 {
-
+  //Isolation is unavailable by default
+  return E_VALUE;
 }
 //------------------------------------------------------------------------------
 const char *Shell::extractName(const char *path)

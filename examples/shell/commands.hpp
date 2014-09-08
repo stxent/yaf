@@ -36,6 +36,8 @@ public:
     return "cp";
   }
 
+  virtual result isolate(Shell::ShellContext *, unsigned int,
+      const char * const *);
   virtual result run(unsigned int, const char * const *);
 
 private:
@@ -85,6 +87,8 @@ public:
     return "ls";
   }
 
+  virtual result isolate(Shell::ShellContext *, unsigned int,
+      const char * const *);
   virtual result run(unsigned int, const char * const *);
 };
 //------------------------------------------------------------------------------
@@ -98,6 +102,8 @@ public:
     return "mkdir";
   }
 
+  virtual result isolate(Shell::ShellContext *, unsigned int,
+      const char * const *);
   virtual result run(unsigned int, const char * const *);
 };
 //------------------------------------------------------------------------------
@@ -124,6 +130,8 @@ public:
     return "rmdir";
   }
 
+  virtual result isolate(Shell::ShellContext *, unsigned int,
+      const char * const *);
   virtual result run(unsigned int, const char * const *);
 };
 //------------------------------------------------------------------------------
@@ -137,6 +145,8 @@ public:
     return "rm";
   }
 
+  virtual result isolate(Shell::ShellContext *, unsigned int,
+      const char * const *);
   virtual result run(unsigned int, const char * const *);
 };
 //------------------------------------------------------------------------------

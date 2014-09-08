@@ -52,15 +52,17 @@ void WorkerThread::handler()
     if (finalize)
       break;
 
-    if (argumentCount && firstArgument != nullptr)
+    if (!argumentCount || firstArgument == nullptr)
+      continue;
+
+    for (auto entry : owner.owner.commands())
     {
-      for (auto entry : owner.owner.commands())
+      if (!strcmp(entry->name(), *firstArgument))
       {
-        if (!strcmp(entry->name(), *firstArgument))
-        {
-          res = entry->run(argumentCount - 1, firstArgument + 1);
-          owner.onCommandCompleted(this, res);
-        }
+        memcpy(&context, owner.context, sizeof(Shell::ShellContext));
+        res = entry->isolate(&context, argumentCount - 1, firstArgument + 1);
+        owner.onCommandCompleted(this, res);
+        break;
       }
     }
   }

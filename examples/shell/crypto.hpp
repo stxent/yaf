@@ -41,6 +41,9 @@ public:
     return "md5sum";
   }
 
+  virtual result isolate(Shell::ShellContext *, unsigned int,
+      const char * const *);
+
 protected:
   virtual void compute(const uint8_t *, uint32_t);
   virtual void finalize(const char *);
