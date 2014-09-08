@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <os/mutex.h>
+#include <os/semaphore.h>
 #include "mmi.h"
 /*----------------------------------------------------------------------------*/
 #ifdef DEBUG
@@ -31,7 +31,7 @@ struct Mmi
 {
   struct Interface parent;
 
-  struct Mutex lock;
+  struct Semaphore semaphore;
   uint64_t position, offset, size;
 
   uint8_t *data;
@@ -100,7 +100,7 @@ static enum result mmiInit(void *object, const void *configPtr)
   if (!path)
     return E_ERROR;
 
-  if (mutexInit(&dev->lock) != E_OK)
+  if (semInit(&dev->semaphore, 1) != E_OK)
     return E_ERROR;
 
   dev->position = 0;
@@ -135,7 +135,7 @@ static void mmiDeinit(void *object)
 
   munmap(dev->data, dev->info.st_size);
   close(dev->file);
-  mutexDeinit(&dev->lock);
+  semDeinit(&dev->semaphore);
 }
 /*----------------------------------------------------------------------------*/
 static enum result mmiCallback(void *object __attribute__((unused)),
@@ -181,6 +181,14 @@ static enum result mmiSet(void *object, enum ifOption option,
       dev->position = newPos;
       return E_OK;
 
+    case IF_ACQUIRE:
+      semWait(&dev->semaphore);
+      return E_OK;
+
+    case IF_RELEASE:
+      semPost(&dev->semaphore);
+      return E_OK;
+
     default:
       return E_ERROR;
   }
@@ -190,10 +198,8 @@ static uint32_t mmiRead(void *object, uint8_t *buffer, uint32_t length)
 {
   struct Mmi * const dev = object;
 
-  mutexLock(&dev->lock);
   memcpy(buffer, dev->data + dev->position + dev->offset, length);
   dev->position += length;
-  mutexUnlock(&dev->lock);
 
 #ifdef DEBUG
   dev->readCount++;
@@ -211,10 +217,8 @@ static uint32_t mmiWrite(void *object, const uint8_t *buffer, uint32_t length)
 {
   struct Mmi * const dev = object;
 
-  mutexLock(&dev->lock);
   memcpy(dev->data + dev->position + dev->offset, buffer, length);
   dev->position += length;
-  mutexUnlock(&dev->lock);
 
 #ifdef DEBUG
   ++dev->writeCount;

@@ -702,12 +702,16 @@ static enum result readBuffer(struct FatHandle *handle, uint32_t sector,
   const uint32_t length = count << SECTOR_EXP;
   enum result res;
 
-  if ((res = ifSet(handle->interface, IF_ADDRESS, &address)) != E_OK)
-    return res;
-  if (ifRead(handle->interface, buffer, length) != length)
-    return E_INTERFACE;
+  ifSet(handle->interface, IF_ACQUIRE, 0);
+  res = ifSet(handle->interface, IF_ADDRESS, &address);
+  if (res == E_OK)
+  {
+    if (ifRead(handle->interface, buffer, length) != length)
+      res = E_INTERFACE;
+  }
+  ifSet(handle->interface, IF_RELEASE, 0);
 
-  return E_OK;
+  return res;
 }
 /*----------------------------------------------------------------------------*/
 static enum result readSector(struct CommandContext *context,
@@ -720,13 +724,18 @@ static enum result readSector(struct CommandContext *context,
   const uint32_t length = SECTOR_SIZE;
   enum result res;
 
-  if ((res = ifSet(handle->interface, IF_ADDRESS, &address)) != E_OK)
-    return res;
-  if (ifRead(handle->interface, context->buffer, length) != length)
-    return E_INTERFACE;
-  context->sector = sector;
+  ifSet(handle->interface, IF_ACQUIRE, 0);
+  res = ifSet(handle->interface, IF_ADDRESS, &address);
+  if (res == E_OK)
+  {
+    if (ifRead(handle->interface, context->buffer, length) == length)
+      context->sector = sector;
+    else
+      res = E_INTERFACE;
+  }
+  ifSet(handle->interface, IF_RELEASE, 0);
 
-  return E_OK;
+  return res;
 }
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_UNICODE
