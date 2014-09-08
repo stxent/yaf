@@ -29,17 +29,17 @@ int main(int argc, char *argv[])
   if (argc < 2)
     return 0;
 
-  struct Interface *mmaped;
-  struct FsHandle *handle;
+  Interface *mmaped;
+  FsHandle *handle;
 
-  mmaped = (struct Interface *)init(Mmi, argv[1]);
+  mmaped = reinterpret_cast<Interface *>(init(Mmi, argv[1]));
   if (!mmaped)
   {
     printf("Error opening file\n");
     return 0;
   }
 
-  struct MbrDescriptor mbrRecord;
+  MbrDescriptor mbrRecord;
   if (mmiReadTable(mmaped, 0, 0, &mbrRecord) == E_OK)
   {
     if (mmiSetPartition(mmaped, &mbrRecord) != E_OK)
@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
   else
     printf("No partitions found, selected raw partition at 0\n");
 
-  struct Fat32Config fsConf;
+  Fat32Config fsConf;
   fsConf.interface = mmaped;
 #ifdef CONFIG_FAT_POOLS
   fsConf.nodes = 4;
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
   fsConf.threads = 2;
 #endif
 
-  handle = (struct FsHandle *)init(FatHandle, &fsConf);
+  handle = reinterpret_cast<FsHandle *>(init(FatHandle, &fsConf));
   if (!handle)
   {
     printf("Error creating FAT32 handle\n");
@@ -112,5 +112,6 @@ int main(int argc, char *argv[])
   printf("Unloading\n");
   deinit(handle);
   deinit(mmaped);
+
   return 0;
 }

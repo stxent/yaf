@@ -49,14 +49,15 @@ result ChangeDirectory::run(unsigned int count, const char * const *arguments)
   FsEntry *dir;
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, path);
-  node = (FsNode *)fsFollow(owner.handle(), context->pathBuffer, nullptr);
+  node = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
+      context->pathBuffer, nullptr));
   if (node == nullptr)
   {
     owner.log("cd: %s: no such directory", context->pathBuffer);
     return E_ENTRY;
   }
 
-  dir = (FsEntry *)fsOpen(node, FS_ACCESS_READ);
+  dir = reinterpret_cast<FsEntry *>(fsOpen(node, FS_ACCESS_READ));
   fsFree(node);
 
   if (dir == nullptr)
@@ -78,14 +79,15 @@ result CopyEntry::copyContent(FsNode *sourceNode, FsNode *destinationNode,
   char buffer[BUFFER_LENGTH];
 
   //Open file entries
-  sourceFile = (FsEntry *)fsOpen(sourceNode, FS_ACCESS_READ);
+  sourceFile = reinterpret_cast<FsEntry *>(fsOpen(sourceNode, FS_ACCESS_READ));
   if (sourceFile == nullptr)
   {
     owner.log("cp: source file opening error");
     return E_ENTRY;
   }
 
-  destinationFile = (FsEntry *)fsOpen(destinationNode, FS_ACCESS_WRITE);
+  destinationFile = reinterpret_cast<FsEntry *>(fsOpen(destinationNode,
+      FS_ACCESS_WRITE));
   if (destinationFile == nullptr)
   {
     fsClose(sourceFile);
@@ -209,7 +211,8 @@ result CopyEntry::run(unsigned int count, const char * const *arguments)
   context->pathBuffer[namePosition - context->pathBuffer] = '\0';
 
   //Find destination directory where entry should be placed
-  location = (FsNode *)fsFollow(owner.handle(), context->pathBuffer, nullptr);
+  location = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
+      context->pathBuffer, nullptr));
   if (location == nullptr)
   {
     fsFree(source);
@@ -227,7 +230,8 @@ result CopyEntry::run(unsigned int count, const char * const *arguments)
 
   //Find source entry
   Shell::joinPaths(context->pathBuffer, context->currentDir, sourcePath);
-  source = (FsNode *)fsFollow(owner.handle(), context->pathBuffer, nullptr);
+  source = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
+      context->pathBuffer, nullptr));
   if (source == nullptr)
   {
     owner.log("cp: %s: no such file", context->pathBuffer);
@@ -244,7 +248,7 @@ result CopyEntry::run(unsigned int count, const char * const *arguments)
   }
 
   //Clone node descriptor
-  destination = (FsNode *)fsClone(location);
+  destination = reinterpret_cast<FsNode *>(fsClone(location));
   if (destination == nullptr)
   {
     fsFree(location);
@@ -324,15 +328,15 @@ result ListEntries::run(unsigned int count, const char * const *arguments)
   }
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, path);
-  FsNode *node = (FsNode *)fsFollow(owner.handle(), context->pathBuffer,
-      nullptr);
+  FsNode *node = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
+      context->pathBuffer, nullptr));
   if (node == nullptr)
   {
     owner.log("ls: %s: no such directory", context->pathBuffer);
     return E_ENTRY;
   }
 
-  FsEntry *dir = (FsEntry *)fsOpen(node, FS_ACCESS_READ);
+  FsEntry *dir = reinterpret_cast<FsEntry *>(fsOpen(node, FS_ACCESS_READ));
   if (dir == nullptr)
   {
     owner.log("ls: %s: open directory failed", context->pathBuffer);
@@ -377,7 +381,8 @@ result ListEntries::run(unsigned int count, const char * const *arguments)
         accessStr[3] = '\0';
 
         char timeStr[24];
-        strftime(timeStr, 24, "%Y-%m-%d %H:%M:%S", gmtime((time_t *)&atime));
+        strftime(timeStr, 24, "%Y-%m-%d %H:%M:%S",
+            gmtime(static_cast<time_t *>(&atime)));
 
         owner.log("%s %10lu %s %s", accessStr, size, timeStr, info.name);
       }
@@ -436,8 +441,8 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments)
 
   //Check for target entry existence
   Shell::joinPaths(context->pathBuffer, context->currentDir, target);
-  FsNode *destinationNode = (FsNode *)fsFollow(owner.handle(),
-      context->pathBuffer, nullptr);
+  FsNode *destinationNode = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
+      context->pathBuffer, nullptr));
   if (destinationNode == nullptr)
   {
     fsFree(destinationNode);
@@ -459,8 +464,8 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments)
   //Remove the directory name from the path
   context->pathBuffer[namePosition - context->pathBuffer] = '\0';
 
-  FsNode *location = (FsNode *)fsFollow(owner.handle(), context->pathBuffer,
-      nullptr);
+  FsNode *location = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
+      context->pathBuffer, nullptr));
   if (location == nullptr)
   {
     owner.log("mkdir: %s: target directory not found", context->pathBuffer);
@@ -479,7 +484,7 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments)
   }
 
   //Clone node to allocate node from the same handle
-  destinationNode = (FsNode *)fsClone(location);
+  destinationNode = reinterpret_cast<FsNode *>(fsClone(location));
   if (destinationNode == nullptr)
   {
     fsFree(location);
@@ -543,8 +548,8 @@ result RemoveDirectory::run(unsigned int count, const char * const *arguments)
     return E_ENTRY;
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, target);
-  FsNode *destinationNode = (FsNode *)fsFollow(owner.handle(),
-      context->pathBuffer, nullptr);
+  FsNode *destinationNode = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
+      context->pathBuffer, nullptr));
   if (destinationNode == nullptr)
   {
     owner.log("rmdir: %s: no such entry", context->pathBuffer);
@@ -612,8 +617,8 @@ result RemoveEntry::run(unsigned int count, const char * const *arguments)
     return E_ENTRY;
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, target);
-  FsNode *destinationNode = (FsNode *)fsFollow(owner.handle(),
-      context->pathBuffer, nullptr);
+  FsNode *destinationNode = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
+      context->pathBuffer, nullptr));
   if (destinationNode == nullptr)
   {
     owner.log("rm: %s: no such entry", context->pathBuffer);

@@ -75,7 +75,7 @@ Shell::Shell(Interface *console, FsHandle *root) :
   assert(res == E_OK);
 
   //Log function should be called after mutex initialization
-  log("Shell opened, size %u", (unsigned int)sizeof(Shell));
+  log("Shell opened, size %u", static_cast<unsigned int>(sizeof(Shell)));
 }
 //------------------------------------------------------------------------------
 Shell::~Shell()

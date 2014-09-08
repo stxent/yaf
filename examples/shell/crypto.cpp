@@ -73,15 +73,16 @@ result ComputationCommand::run(unsigned int count,
   fsNodeType type;
 
   //TODO Return from function on some error types
-  while ((path = getNextEntry(count - (unsigned int)(path - arguments),
-      path)) != nullptr)
+  while ((path = getNextEntry(count
+      - static_cast<unsigned int>(path - arguments), path)) != nullptr)
   {
     name = *path;
     ++path;
 
     //Find destination node
     Shell::joinPaths(context->pathBuffer, context->currentDir, name);
-    node = (FsNode *)fsFollow(owner.handle(), context->pathBuffer, nullptr);
+    node = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
+        context->pathBuffer, nullptr));
     if (node == nullptr)
     {
       owner.log("md5sum: %s: no such file", context->pathBuffer);
@@ -96,7 +97,7 @@ result ComputationCommand::run(unsigned int count,
       continue;
     }
 
-    entry = (FsEntry *)fsOpen(node, FS_ACCESS_READ);
+    entry = reinterpret_cast<FsEntry *>(fsOpen(node, FS_ACCESS_READ));
     fsFree(node);
     if (entry == nullptr)
     {
