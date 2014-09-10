@@ -9,6 +9,17 @@
 //------------------------------------------------------------------------------
 #include "shell.hpp"
 //------------------------------------------------------------------------------
+class DataProcessing : public Shell::ShellCommand
+{
+public:
+  DataProcessing(Shell &parent) : ShellCommand(parent) {}
+
+protected:
+  result copyContent(FsNode *, FsNode *, unsigned int, unsigned int,
+      unsigned int, unsigned int) const;
+  result prepareNodes(FsNode **, FsNode **, const char *, const char *);
+};
+//------------------------------------------------------------------------------
 class ChangeDirectory : public Shell::ShellCommand
 {
 public:
@@ -26,10 +37,10 @@ private:
       const char **) const;
 };
 //------------------------------------------------------------------------------
-class CopyEntry : public Shell::ShellCommand
+class CopyEntry : public DataProcessing
 {
 public:
-  CopyEntry(Shell &owner) : ShellCommand(owner) {}
+  CopyEntry(Shell &parent) : DataProcessing(parent) {}
 
   virtual const char *name() const
   {
@@ -41,14 +52,37 @@ public:
   virtual result run(unsigned int, const char * const *);
 
 private:
-  enum : unsigned int
+  result processArguments(unsigned int, const char * const *, const char **,
+      const char **) const;
+};
+//------------------------------------------------------------------------------
+class DirectData : public DataProcessing
+{
+public:
+  DirectData(Shell &parent) : DataProcessing(parent) {}
+
+  virtual const char *name() const
   {
-    BUFFER_LENGTH = 1024
+    return "dd";
+  }
+
+  virtual result isolate(Shell::ShellContext *, unsigned int,
+      const char * const *);
+  virtual result run(unsigned int, const char * const *);
+
+private:
+  struct Arguments
+  {
+    uint32_t block;
+    uint32_t count;
+    uint32_t seek;
+    uint32_t skip;
+    const char *in;
+    const char *out;
   };
 
-  result copyContent(FsNode *, FsNode *, unsigned int) const;
-  result processArguments(unsigned int, const char * const *, const char **,
-      const char **, unsigned int *) const;
+  result processArguments(unsigned int, const char * const *,
+      Arguments *) const;
 };
 //------------------------------------------------------------------------------
 class ExitShell : public Shell::ShellCommand
