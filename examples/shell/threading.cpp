@@ -89,8 +89,8 @@ void WorkerThread::terminate()
   semPost(&semaphore);
 }
 //------------------------------------------------------------------------------
-ThreadSwarm::ThreadSwarm(Shell &owner) :
-     ShellCommand(owner)
+ThreadSwarm::ThreadSwarm(Shell &parent) :
+     ShellCommand(parent)
 {
   result res;
 

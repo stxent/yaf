@@ -23,7 +23,7 @@ protected:
 class ChangeDirectory : public Shell::ShellCommand
 {
 public:
-  ChangeDirectory(Shell &owner) : ShellCommand(owner) {}
+  ChangeDirectory(Shell &parent) : ShellCommand(parent) {}
 
   virtual const char *name() const
   {
@@ -88,7 +88,7 @@ private:
 class ExitShell : public Shell::ShellCommand
 {
 public:
-  ExitShell(Shell &owner) : ShellCommand(owner) {}
+  ExitShell(Shell &parent) : ShellCommand(parent) {}
 
   virtual const char *name() const
   {
@@ -101,7 +101,7 @@ public:
 class ListCommands : public Shell::ShellCommand
 {
 public:
-  ListCommands(Shell &owner) : ShellCommand(owner) {}
+  ListCommands(Shell &parent) : ShellCommand(parent) {}
 
   virtual const char *name() const
   {
@@ -114,7 +114,7 @@ public:
 class ListEntries : public Shell::ShellCommand
 {
 public:
-  ListEntries(Shell &owner) : ShellCommand(owner) {}
+  ListEntries(Shell &parent) : ShellCommand(parent) {}
 
   virtual const char *name() const
   {
@@ -129,7 +129,7 @@ public:
 class MakeDirectory : public Shell::ShellCommand
 {
 public:
-  MakeDirectory(Shell &owner) : ShellCommand(owner) {}
+  MakeDirectory(Shell &parent) : ShellCommand(parent) {}
 
   virtual const char *name() const
   {
@@ -144,7 +144,7 @@ public:
 class MeasureTime : public Shell::ShellCommand
 {
 public:
-  MeasureTime(Shell &owner) : ShellCommand(owner) {}
+  MeasureTime(Shell &parent) : ShellCommand(parent) {}
 
   virtual const char *name() const
   {
@@ -157,7 +157,7 @@ public:
 class RemoveDirectory : public Shell::ShellCommand
 {
 public:
-  RemoveDirectory(Shell &owner) : ShellCommand(owner) {}
+  RemoveDirectory(Shell &parent) : ShellCommand(parent) {}
 
   virtual const char *name() const
   {
@@ -172,7 +172,7 @@ public:
 class RemoveEntry : public Shell::ShellCommand
 {
 public:
-  RemoveEntry(Shell &owner) : ShellCommand(owner) {}
+  RemoveEntry(Shell &parent) : ShellCommand(parent) {}
 
   virtual const char *name() const
   {

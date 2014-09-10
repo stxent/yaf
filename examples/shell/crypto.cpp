@@ -7,11 +7,6 @@
 #include <cstring>
 #include "crypto.hpp"
 //------------------------------------------------------------------------------
-ComputationCommand::ComputationCommand(Shell &owner) :
-    ShellCommand(owner)
-{
-
-}
 //------------------------------------------------------------------------------
 const char * const *ComputationCommand::getNextEntry(unsigned int count,
     const char * const *arguments) const
