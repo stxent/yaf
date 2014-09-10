@@ -1562,6 +1562,7 @@ static void *fatFollow(void *object, const char *path, const void *root)
     return node;
 }
 /*----------------------------------------------------------------------------*/
+#ifdef CONFIG_FAT_WRITE
 static enum result fatSync(void *object)
 {
   struct FatHandle * const handle = object;
@@ -1588,6 +1589,12 @@ static enum result fatSync(void *object)
   freeContext(handle, context);
   return E_OK;
 }
+#else
+static enum result fatSync(void *object __attribute__((unused)))
+{
+  return E_OK;
+}
+#endif
 /*------------------Node functions--------------------------------------------*/
 static enum result fatNodeInit(void *object, const void *configPtr)
 {
