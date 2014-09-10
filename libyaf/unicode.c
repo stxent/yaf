@@ -7,12 +7,11 @@
 #include <memory.h>
 #include <libyaf/unicode.h>
 /*----------------------------------------------------------------------------*/
-#undef DEBUG
-#ifdef DEBUG
+#ifdef CONFIG_UNICODE_DEBUG
 #include <stdio.h>
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef DEBUG
+#ifdef CONFIG_UNICODE_DEBUG
 static void dumpChar16String(char16_t *str)
 {
   while (*str)
@@ -21,7 +20,7 @@ static void dumpChar16String(char16_t *str)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef DEBUG
+#ifdef CONFIG_UNICODE_DEBUG
 static void dumpChar8String(char *str)
 {
   while (*str)
@@ -37,7 +36,7 @@ uint16_t uFromUtf16(char *dest, const char16_t *src, uint16_t maxLength)
   char16_t value;
   char *ptr = dest;
 
-#ifdef DEBUG
+#ifdef CONFIG_UNICODE_DEBUG
   printf("Src string: ");
   dumpChar16String(src);
 #endif
@@ -64,7 +63,7 @@ uint16_t uFromUtf16(char *dest, const char16_t *src, uint16_t maxLength)
   }
   *ptr = '\0';
 
-#ifdef DEBUG
+#ifdef CONFIG_UNICODE_DEBUG
   printf("Dest string: ");
   dumpChar8String(dest);
 #endif

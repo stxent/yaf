@@ -15,7 +15,7 @@
 #include "rtc.h" //FIXME Rewrite
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef DEBUG
+#ifdef CONFIG_FAT_DEBUG
 #include <stdio.h>
 #include <stdlib.h>
 #define DEBUG_PRINT(...) printf(__VA_ARGS__)
@@ -2569,8 +2569,8 @@ static uint32_t fatFileWrite(void *entry __attribute__((unused)),
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#if defined(CONFIG_FAT_WRITE) && defined(DEBUG)
-uint32_t countFree(void *object)
+#if defined(CONFIG_FAT_WRITE) && defined(CONFIG_FAT_DEBUG)
+uint32_t fat32CountFree(void *object)
 {
   struct FatHandle * const handle = object;
   uint32_t * const count = malloc(sizeof(uint32_t) * handle->tableNumber);

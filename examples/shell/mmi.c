@@ -12,12 +12,18 @@
 #include <os/semaphore.h>
 #include "mmi.h"
 /*----------------------------------------------------------------------------*/
-#ifdef DEBUG
+#ifdef CONFIG_MMI_DEBUG
 #include <stdio.h>
-/* FIXME #define DEBUG_RW */
+#define DEBUG_PRINT(...) printf(__VA_ARGS__)
+#else
+#define DEBUG_PRINT(...)
 #endif
 /*----------------------------------------------------------------------------*/
 #define MMI_SECTOR_POW 9
+/*----------------------------------------------------------------------------*/
+#ifdef CONFIG_MMI_DEBUG
+static void getSizeString(uint64_t, char *);
+#endif
 /*----------------------------------------------------------------------------*/
 static enum result mmiInit(void *, const void *);
 static void mmiDeinit(void *);
@@ -32,14 +38,19 @@ struct Mmi
   struct Interface parent;
 
   struct Semaphore semaphore;
-  uint64_t position, offset, size;
+  uint64_t position;
+  uint64_t offset;
+  uint64_t size;
 
   uint8_t *data;
   int file;
   struct stat info;
 
-#ifdef DEBUG
-  uint64_t readCount, writeCount, readSize, writeSize;
+#ifdef CONFIG_MMI_STATUS
+  uint64_t readCount;
+  uint64_t writeCount;
+  uint64_t bytesRead;
+  uint64_t bytesWritten;
 #endif
 };
 /*----------------------------------------------------------------------------*/
@@ -57,20 +68,20 @@ static const struct InterfaceClass mmiTable = {
 /*----------------------------------------------------------------------------*/
 const struct InterfaceClass * const Mmi = &mmiTable;
 /*----------------------------------------------------------------------------*/
-#ifdef DEBUG
-void mmiGetStat(void *object, uint64_t *results)
+#ifdef CONFIG_MMI_STATUS
+void mmiGetStatus(void *object, uint64_t *results)
 {
   struct Mmi *dev = object;
 
   results[0] = dev->readCount;
-  results[1] = dev->readSize;
+  results[1] = dev->bytesRead;
   results[2] = dev->writeCount;
-  results[3] = dev->writeSize;
+  results[3] = dev->bytesWritten;
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef DEBUG
-void getSizeStr(uint64_t size, char *str)
+#ifdef CONFIG_MMI_DEBUG
+static void getSizeString(uint64_t size, char *str)
 {
   const char *suffix[] = {"KiB", "MiB", "GiB", "TiB"};
   const unsigned short suffixCount = 4;
@@ -93,9 +104,6 @@ static enum result mmiInit(void *object, const void *configPtr)
 {
   const char * const path = configPtr;
   struct Mmi * const dev = object;
-#ifdef DEBUG
-  char size2str[16];
-#endif
 
   if (!path)
     return E_ERROR;
@@ -119,11 +127,15 @@ static enum result mmiInit(void *object, const void *configPtr)
 
   dev->size = dev->info.st_size;
 
-#ifdef DEBUG
+#ifdef CONFIG_MMI_STATUS
   dev->readCount = dev->writeCount = 0;
-  dev->readSize = dev->writeSize = 0;
-  getSizeStr(dev->size, size2str);
-  printf("mmaped_io: opened file: %s, size: %s\n", path, size2str);
+  dev->bytesRead = dev->bytesWritten = 0;
+#endif
+
+#ifdef CONFIG_MMI_DEBUG
+  char sizeString[16];
+  getSizeString(dev->size, sizeString);
+  DEBUG_PRINT("mmaped_io: opened file: %s, size: %s\n", path, sizeString);
 #endif
 
   return E_OK;
@@ -155,6 +167,7 @@ static enum result mmiGet(void *object, enum ifOption option, void *data)
     case IF_ADDRESS:
       *(uint64_t *)data = dev->position;
       return E_OK;
+
     default:
       return E_ERROR;
   }
@@ -172,10 +185,8 @@ static enum result mmiSet(void *object, enum ifOption option,
       newPos = *(const uint64_t *)data;
       if (newPos + dev->offset >= dev->size)
       {
-#ifdef DEBUG
-        printf("mmaped_io: out of bounds, position 0x%012lX, size 0x%012lX\n",
+        DEBUG_PRINT("mmaped_io: address 0x%012lX out of bounds\n",
             (unsigned long)(newPos + dev->offset), (unsigned long)dev->size);
-#endif
         return E_ERROR;
       }
       dev->position = newPos;
@@ -201,14 +212,13 @@ static uint32_t mmiRead(void *object, uint8_t *buffer, uint32_t length)
   memcpy(buffer, dev->data + dev->position + dev->offset, length);
   dev->position += length;
 
-#ifdef DEBUG
+#ifdef CONFIG_MMI_STATUS
   dev->readCount++;
-  dev->readSize += length;
+  dev->bytesRead += length;
 #endif
-#ifdef DEBUG_RW
-  printf("mmaped_io: read data at 0x%012lX, length %u\n",
+
+  DEBUG_PRINT("mmaped_io: read data at 0x%012lX, length %u\n",
       (unsigned long)dev->position, length);
-#endif
 
   return length;
 }
@@ -220,14 +230,13 @@ static uint32_t mmiWrite(void *object, const uint8_t *buffer, uint32_t length)
   memcpy(dev->data + dev->position + dev->offset, buffer, length);
   dev->position += length;
 
-#ifdef DEBUG
+#ifdef CONFIG_MMI_STATUS
   ++dev->writeCount;
-  dev->writeSize += length;
+  dev->bytesWritten += length;
 #endif
-#ifdef DEBUG_RW
-  printf("mmaped_io: write data at 0x%012lX, length %u\n",
+
+  DEBUG_PRINT("mmaped_io: write data at 0x%012lX, length %u\n",
       (unsigned long)dev->position, length);
-#endif
 
   return length;
 }
@@ -243,11 +252,9 @@ enum result mmiSetPartition(void *object, struct MbrDescriptor *desc)
   dev->size = desc->size << MMI_SECTOR_POW;
   dev->offset = desc->offset << MMI_SECTOR_POW;
 
-#ifdef DEBUG
-  printf("mmaped_io: partition type 0x%02X, size %u sectors, "
+  DEBUG_PRINT("mmaped_io: partition type 0x%02X, size %u sectors, "
       "offset %u sectors\n",
       desc->type, (unsigned int)desc->size, (unsigned int)desc->offset);
-#endif
 
   return E_OK;
 }
@@ -261,6 +268,8 @@ enum result mmiReadTable(void *object, uint32_t sector, uint8_t index,
   uint8_t buffer[1 << MMI_SECTOR_POW];
 
   dev->offset = 0;
+
+  /* TODO Lock interface during table read */
   if (ifSet(object, IF_ADDRESS, &position) != E_OK)
     return E_INTERFACE;
   if (ifRead(object, buffer, sizeof(buffer)) != sizeof(buffer))

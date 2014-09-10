@@ -34,8 +34,8 @@ struct Fat32Config
 #endif
 };
 /*----------------------------------------------------------------------------*/
-#ifdef DEBUG
-uint32_t countFree(void *);
+#if defined(CONFIG_FAT_WRITE) && defined(CONFIG_FAT_DEBUG)
+uint32_t fat32CountFree(void *);
 #endif
 /*----------------------------------------------------------------------------*/
 #endif /* FAT32_H_ */
