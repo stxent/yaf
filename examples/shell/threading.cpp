@@ -130,6 +130,24 @@ void ThreadSwarm::onCommandCompleted(WorkerThread *worker, result res)
 //------------------------------------------------------------------------------
 result ThreadSwarm::run(unsigned int count, const char * const *arguments)
 {
+  bool help = false;
+
+  for (unsigned int i = 0; i < count; ++i)
+  {
+    if (!strcmp(arguments[i], "--help"))
+    {
+      help = true;
+      continue;
+    }
+  }
+
+  if (help)
+  {
+    owner.log("Usage: swarm COMMAND ! COMMAND...");
+    owner.log("  --help  print help message");
+    return E_OK;
+  }
+
   WorkerThread *thread;
   unsigned int first;
   unsigned int index = 0;

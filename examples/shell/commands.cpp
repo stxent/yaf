@@ -495,8 +495,8 @@ result ListEntries::run(unsigned int count, const char * const *arguments)
     owner.log("Usage: ls [OPTION]... [DIRECTORY]...");
     owner.log("  -l                    show detailed information");
     owner.log("  --help                print help message");
-    owner.log("  --filter=NAME         filter entries by NAME substring");
-    owner.log("  --verify-count=COUNT  compare entry count with COUNT");
+    owner.log("  --filter NAME         filter entries by NAME substring");
+    owner.log("  --verify-count COUNT  compare entry count with COUNT");
     return E_OK;
   }
 
@@ -576,8 +576,8 @@ result ListEntries::run(unsigned int count, const char * const *arguments)
 
   if (verifyCount != -1 && entries != verifyCount)
   {
-    owner.log("ls: entry count mismatch: got %u, expected %u", entries,
-        verifyCount);
+    owner.log("ls: entry count mismatches: got %u, expected %u",
+        entries, verifyCount);
     return E_ERROR;
   }
 
@@ -809,7 +809,7 @@ result RemoveEntry::run(unsigned int count, const char * const *arguments)
   {
     owner.log("Usage: rm [OPTION]... ENTRY");
     owner.log("  --help  print help message");
-    owner.log("  -t      remove directories and their content");
+    owner.log("  -r      remove directories and their content");
     return E_OK;
   }
 
