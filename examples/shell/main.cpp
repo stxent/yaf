@@ -69,6 +69,7 @@ int main(int argc, char *argv[])
   Shell shell(0, handle);
   shell.append(CommandBuilder<ChangeDirectory>());
   shell.append(CommandBuilder<CopyEntry>());
+  shell.append(CommandBuilder<DirectData>());
   shell.append(CommandBuilder<ExitShell>());
   shell.append(CommandBuilder<ListCommands>());
   shell.append(CommandBuilder<ListEntries>());
@@ -77,9 +78,11 @@ int main(int argc, char *argv[])
   shell.append(CommandBuilder<RemoveDirectory>());
   shell.append(CommandBuilder<RemoveEntry>());
 
-  shell.append(CommandBuilder<ComputeHash>());
-
   shell.append(CommandBuilder<ThreadSwarm>());
+
+#ifdef CONFIG_CRYPTO
+  shell.append(CommandBuilder<ComputeHash>());
+#endif
 
   bool terminate = false;
 
