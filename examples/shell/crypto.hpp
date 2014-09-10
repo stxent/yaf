@@ -17,11 +17,6 @@ public:
   virtual result run(unsigned int, const char * const *);
 
 protected:
-  enum : unsigned int
-  {
-    BUFFER_LENGTH = 1024
-  };
-
   virtual void compute(const uint8_t *, uint32_t) = 0;
   virtual void finalize(const char *) = 0;
   virtual void reset() = 0;

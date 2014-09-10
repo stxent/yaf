@@ -7,6 +7,9 @@
 #include <cstring>
 #include "crypto.hpp"
 //------------------------------------------------------------------------------
+#ifndef CONFIG_SHELL_BUFFER
+#define CONFIG_SHELL_BUFFER 512
+#endif
 //------------------------------------------------------------------------------
 const char * const *ComputationCommand::getNextEntry(unsigned int count,
     const char * const *arguments) const
@@ -44,7 +47,7 @@ result ComputationCommand::processArguments(unsigned int count,
 
   if (help)
   {
-    owner.log("Usage: md5sum FILES");
+    owner.log("Usage: %s FILES", name());
     owner.log("  --help  print help message");
     return E_BUSY;
   }
@@ -56,8 +59,8 @@ result ComputationCommand::run(unsigned int count,
     const char * const *arguments)
 {
   const char * const *path = arguments;
-  const char *name;
-  uint8_t buffer[BUFFER_LENGTH];
+  const char *fileName;
+  uint8_t buffer[CONFIG_SHELL_BUFFER];
   result res;
 
   if ((res = processArguments(count, arguments)) != E_OK)
@@ -71,16 +74,16 @@ result ComputationCommand::run(unsigned int count,
   while ((path = getNextEntry(count
       - static_cast<unsigned int>(path - arguments), path)) != nullptr)
   {
-    name = *path;
+    fileName = *path;
     ++path;
 
     //Find destination node
-    Shell::joinPaths(context->pathBuffer, context->currentDir, name);
+    Shell::joinPaths(context->pathBuffer, context->currentDir, fileName);
     node = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
         context->pathBuffer, nullptr));
     if (node == nullptr)
     {
-      owner.log("md5sum: %s: no such file", context->pathBuffer);
+      owner.log("%s: %s: no such file", name(), context->pathBuffer);
       continue;
     }
     //Check node type
@@ -88,7 +91,7 @@ result ComputationCommand::run(unsigned int count,
     if (res != E_OK || type != FS_TYPE_FILE)
     {
       fsFree(node);
-      owner.log("md5sum: %s: wrong entry type", context->pathBuffer);
+      owner.log("%s: %s: wrong entry type", name(), context->pathBuffer);
       continue;
     }
 
@@ -96,20 +99,20 @@ result ComputationCommand::run(unsigned int count,
     fsFree(node);
     if (entry == nullptr)
     {
-      owner.log("md5sum: %s: opening failed", context->pathBuffer);
+      owner.log("%s: %s: opening failed", name(), context->pathBuffer);
       continue;
     }
 
     uint32_t chunk, read = 0;
-    result res = E_OK;
+    res = E_OK;
 
     reset();
     while (!fsEnd(entry))
     {
-      chunk = fsRead(entry, buffer, BUFFER_LENGTH);
+      chunk = fsRead(entry, buffer, CONFIG_SHELL_BUFFER);
       if (!chunk)
       {
-        owner.log("md5sum: read error at %u", read);
+        owner.log("%s: read error at %u", name(), read);
         res = E_ERROR;
         break;
       }
@@ -138,13 +141,13 @@ void ComputeHash::compute(const uint8_t *buffer, uint32_t length)
   MD5_Update(&context, buffer, length);
 }
 //------------------------------------------------------------------------------
-void ComputeHash::finalize(const char *name)
+void ComputeHash::finalize(const char *fileName)
 {
   unsigned char result[16];
 
   MD5_Final(result, &context);
 
-  if (name != nullptr)
+  if (fileName != nullptr)
   {
     char digest[33];
     auto hexify = [](unsigned char value) { return value < 10 ? '0' + value
@@ -157,7 +160,7 @@ void ComputeHash::finalize(const char *name)
     }
     digest[32] = '\0';
 
-    owner.log("%s\t%s", digest, name);
+    owner.log("%s\t%s", digest, fileName);
   }
 }
 //------------------------------------------------------------------------------
