@@ -13,7 +13,10 @@
 class ComputationCommand : public Shell::ShellCommand
 {
 public:
-  ComputationCommand(Shell &parent) : ShellCommand(parent) {}
+  ComputationCommand(Shell &parent) :
+      ShellCommand(parent)
+  {
+  }
   virtual result run(unsigned int, const char * const *);
 
 protected:
@@ -29,7 +32,10 @@ private:
 class ComputeHash : public ComputationCommand
 {
 public:
-  ComputeHash(Shell &parent) : ComputationCommand(parent) {}
+  ComputeHash(Shell &parent) :
+      ComputationCommand(parent)
+  {
+  }
 
   virtual const char *name() const
   {

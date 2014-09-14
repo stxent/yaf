@@ -90,7 +90,7 @@ void WorkerThread::terminate()
 }
 //------------------------------------------------------------------------------
 ThreadSwarm::ThreadSwarm(Shell &parent) :
-     ShellCommand(parent)
+    ShellCommand(parent)
 {
   result res;
 

@@ -81,7 +81,7 @@ Shell::Shell(Interface *console, FsHandle *root) :
 //------------------------------------------------------------------------------
 Shell::~Shell()
 {
-  for(auto entry : registeredCommands)
+  for (auto entry : registeredCommands)
     delete entry;
 
   for (unsigned int pos = 0; pos < ARGUMENT_COUNT; ++pos)

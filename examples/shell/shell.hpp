@@ -23,7 +23,9 @@ template<class A> class CommandBuilder
   friend class Shell;
 
 public:
-  CommandBuilder() {}
+  CommandBuilder()
+  {
+  }
 
 private:
   static A *create(Shell &shell)
@@ -62,7 +64,9 @@ public:
   class ShellCommand
   {
   public:
-    virtual ~ShellCommand() {}
+    virtual ~ShellCommand()
+    {
+    }
 
     /**
      * Run command with a different context.

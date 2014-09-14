@@ -12,7 +12,10 @@
 class DataProcessing : public Shell::ShellCommand
 {
 public:
-  DataProcessing(Shell &parent) : ShellCommand(parent) {}
+  DataProcessing(Shell &parent) :
+      ShellCommand(parent)
+  {
+  }
 
 protected:
   result copyContent(FsNode *, FsNode *, unsigned int, unsigned int,
@@ -23,7 +26,10 @@ protected:
 class ChangeDirectory : public Shell::ShellCommand
 {
 public:
-  ChangeDirectory(Shell &parent) : ShellCommand(parent) {}
+  ChangeDirectory(Shell &parent) :
+      ShellCommand(parent)
+  {
+  }
 
   virtual const char *name() const
   {
@@ -40,7 +46,10 @@ private:
 class CopyEntry : public DataProcessing
 {
 public:
-  CopyEntry(Shell &parent) : DataProcessing(parent) {}
+  CopyEntry(Shell &parent) :
+      DataProcessing(parent)
+  {
+  }
 
   virtual const char *name() const
   {
@@ -59,7 +68,10 @@ private:
 class DirectData : public DataProcessing
 {
 public:
-  DirectData(Shell &parent) : DataProcessing(parent) {}
+  DirectData(Shell &parent) :
+      DataProcessing(parent)
+  {
+  }
 
   virtual const char *name() const
   {
@@ -88,7 +100,10 @@ private:
 class ExitShell : public Shell::ShellCommand
 {
 public:
-  ExitShell(Shell &parent) : ShellCommand(parent) {}
+  ExitShell(Shell &parent) :
+      ShellCommand(parent)
+  {
+  }
 
   virtual const char *name() const
   {
@@ -101,7 +116,10 @@ public:
 class ListCommands : public Shell::ShellCommand
 {
 public:
-  ListCommands(Shell &parent) : ShellCommand(parent) {}
+  ListCommands(Shell &parent) :
+      ShellCommand(parent)
+  {
+  }
 
   virtual const char *name() const
   {
@@ -114,7 +132,10 @@ public:
 class ListEntries : public Shell::ShellCommand
 {
 public:
-  ListEntries(Shell &parent) : ShellCommand(parent) {}
+  ListEntries(Shell &parent) :
+      ShellCommand(parent)
+  {
+  }
 
   virtual const char *name() const
   {
@@ -129,7 +150,10 @@ public:
 class MakeDirectory : public Shell::ShellCommand
 {
 public:
-  MakeDirectory(Shell &parent) : ShellCommand(parent) {}
+  MakeDirectory(Shell &parent) :
+      ShellCommand(parent)
+  {
+  }
 
   virtual const char *name() const
   {
@@ -144,7 +168,10 @@ public:
 class MeasureTime : public Shell::ShellCommand
 {
 public:
-  MeasureTime(Shell &parent) : ShellCommand(parent) {}
+  MeasureTime(Shell &parent) :
+      ShellCommand(parent)
+  {
+  }
 
   virtual const char *name() const
   {
@@ -157,7 +184,10 @@ public:
 class RemoveDirectory : public Shell::ShellCommand
 {
 public:
-  RemoveDirectory(Shell &parent) : ShellCommand(parent) {}
+  RemoveDirectory(Shell &parent) :
+      ShellCommand(parent)
+  {
+  }
 
   virtual const char *name() const
   {
@@ -172,7 +202,10 @@ public:
 class RemoveEntry : public Shell::ShellCommand
 {
 public:
-  RemoveEntry(Shell &parent) : ShellCommand(parent) {}
+  RemoveEntry(Shell &parent) :
+      ShellCommand(parent)
+  {
+  }
 
   virtual const char *name() const
   {
