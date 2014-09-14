@@ -16,7 +16,7 @@ public:
 
 protected:
   result copyContent(FsNode *, FsNode *, unsigned int, unsigned int,
-      unsigned int, unsigned int) const;
+      unsigned int, unsigned int, bool) const;
   result prepareNodes(FsNode **, FsNode **, const char *, const char *);
 };
 //------------------------------------------------------------------------------

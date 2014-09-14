@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
   if (mmiReadTable(mmaped, 0, 0, &mbrRecord) == E_OK)
   {
     if (mmiSetPartition(mmaped, &mbrRecord) != E_OK)
-      printf("Error setup partition\n");
+      printf("Error during partition setup\n");
   }
   else
     printf("No partitions found, selected raw partition at 0\n");

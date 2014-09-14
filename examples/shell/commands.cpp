@@ -15,10 +15,11 @@
 //------------------------------------------------------------------------------
 result DataProcessing::copyContent(FsNode *sourceNode, FsNode *destinationNode,
     unsigned int blockSize, unsigned int blockCount,
-    unsigned int seek, unsigned int skip) const
+    unsigned int seek, unsigned int skip, bool overwrite) const
 {
   FsEntry *sourceFile = nullptr, *destinationFile = nullptr;
   char buffer[CONFIG_SHELL_BUFFER];
+  result res = E_OK;
 
   //Open file entries
   sourceFile = reinterpret_cast<FsEntry *>(fsOpen(sourceNode, FS_ACCESS_READ));
@@ -26,6 +27,13 @@ result DataProcessing::copyContent(FsNode *sourceNode, FsNode *destinationNode,
   {
     owner.log("%s: source file opening error", name());
     return E_ENTRY;
+  }
+
+  if (overwrite)
+  {
+    res = fsTruncate(destinationNode);
+    if (res != E_OK)
+      return res;
   }
 
   destinationFile = reinterpret_cast<FsEntry *>(fsOpen(destinationNode,
@@ -38,9 +46,8 @@ result DataProcessing::copyContent(FsNode *sourceNode, FsNode *destinationNode,
   }
 
   uint32_t read = 0, written = 0, blocks = 0;
-  result res = E_OK;
 
-  if (seek)
+  if (!overwrite)
   {
     res = fsSeek(destinationFile, static_cast<uint64_t>(blockSize)
         * static_cast<uint64_t>(seek), FS_SEEK_SET);
@@ -318,7 +325,7 @@ result CopyEntry::run(unsigned int count, const char * const *arguments)
   if (res != E_OK)
     return res;
 
-  res = copyContent(source, destination, CONFIG_SHELL_BUFFER, 0, 0, 0);
+  res = copyContent(source, destination, CONFIG_SHELL_BUFFER, 0, 0, 0, true);
 
   fsFree(destination);
   fsFree(source);
@@ -428,7 +435,7 @@ result DirectData::run(unsigned int count, const char * const *arguments)
     return res;
 
   res = copyContent(source, destination, parsed.block, parsed.count,
-      parsed.seek, parsed.skip);
+      parsed.seek, parsed.skip, false);
 
   fsFree(destination);
   fsFree(source);
