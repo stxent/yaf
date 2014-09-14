@@ -2408,22 +2408,25 @@ static enum result fatFileSeek(void *object, uint64_t offset,
   if (offset > file->size)
     return E_VALUE;
 
-  uint32_t clusterCount = offset;
+  uint32_t clusterCount;
   uint32_t current;
 
   if (offset > file->position)
   {
     current = file->currentCluster;
-    clusterCount -= file->position;
+    clusterCount = offset - file->position;
   }
   else
+  {
     current = file->payload;
+    clusterCount = offset;
+  }
   clusterCount >>= handle->clusterSize + SECTOR_EXP;
 
   if (!(context = allocateContext(handle)))
     return E_MEMORY;
 
-  while (--clusterCount)
+  while (clusterCount--)
   {
     if ((res = getNextCluster(context, handle, &current)) != E_OK)
     {
