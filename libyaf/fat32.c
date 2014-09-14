@@ -2565,8 +2565,9 @@ static uint32_t fatFileWrite(void *object, const void *buffer, uint32_t length)
   }
 
   freeContext(handle, context);
-  file->size += written;
-  file->position = file->size;
+  file->position += written;
+  if (file->position > file->size)
+    file->size = file->position;
 
   return written;
 }
