@@ -691,25 +691,6 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments)
   return res;
 }
 //------------------------------------------------------------------------------
-result MeasureTime::run(unsigned int count, const char * const *arguments)
-{
-  uint64_t start, delta;
-  result res = E_VALUE;
-
-  for (auto entry : owner.commands())
-  {
-    if (!strcmp(entry->name(), arguments[0]))
-    {
-      start = Shell::timestamp();
-      res = entry->run(count - 1, arguments + 1);
-      delta = Shell::timestamp() - start;
-
-      owner.log("Time passed: %lu ns", delta);
-    }
-  }
-  return res;
-}
-//------------------------------------------------------------------------------
 result RemoveDirectory::isolate(Shell::ShellContext *environment,
     unsigned int count, const char * const *arguments)
 {

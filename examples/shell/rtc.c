@@ -82,8 +82,8 @@ void rtcMakeTime(struct RtcTime *timestamp, time_t epochTime)
         / (365 * 100 + 25);
     const uint32_t leapCycles = estimatedYears / 4;
 
-    days -= (OFFSET_YEARS + leapCycles * 4) * 365 + leapCycles;
-    years = estimatedYears + OFFSET_YEARS;
+    years = leapCycles * 4 + OFFSET_YEARS;
+    days -= years * 365 + leapCycles;
 
     for (uint8_t number = 0; days >= yearLengths[number]; ++number)
     {

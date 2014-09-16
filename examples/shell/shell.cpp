@@ -182,14 +182,3 @@ void Shell::log(const char *format, ...)
   printf(logBuffer);
   mutexUnlock(&logMutex);
 }
-//------------------------------------------------------------------------------
-uint64_t Shell::timestamp()
-{
-  struct timespec rawtime;
-  uint64_t result;
-
-  clock_gettime(CLOCK_REALTIME, &rawtime);
-  result = rawtime.tv_sec * 1000000 + rawtime.tv_nsec / 1000;
-
-  return result;
-}

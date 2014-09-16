@@ -116,7 +116,6 @@ public:
 
   static const char *extractName(const char *);
   static void joinPaths(char *, const char *, const char *);
-  static uint64_t timestamp();
 
   template<class A> void append(CommandBuilder<A> builder)
   {

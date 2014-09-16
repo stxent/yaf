@@ -165,22 +165,6 @@ public:
   virtual result run(unsigned int, const char * const *);
 };
 //------------------------------------------------------------------------------
-class MeasureTime : public Shell::ShellCommand
-{
-public:
-  MeasureTime(Shell &parent) :
-      ShellCommand(parent)
-  {
-  }
-
-  virtual const char *name() const
-  {
-    return "time";
-  }
-
-  virtual result run(unsigned int, const char * const *);
-};
-//------------------------------------------------------------------------------
 class RemoveDirectory : public Shell::ShellCommand
 {
 public:
