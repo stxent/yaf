@@ -1,97 +1,124 @@
 /*
  * rtc.c
- * Copyright (C) 2012 xent
+ * Copyright (C) 2014 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
+#define _POSIX_C_SOURCE 200809L
+#define _BSD_SOURCE
+
 #include <stdio.h>
 #include <time.h>
-#include "rtc.h"
+#include <rtc.h>
 /*----------------------------------------------------------------------------*/
-static const int32_t startYear = 1970;
-static const uint8_t calendar[] =
-    {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+#define SECONDS_PER_DAY   86400
+#define SECONDS_PER_HOUR  3600
+#define START_YEAR        1970
+#define OFFSET_YEARS      2
+#define OFFSET_SECONDS    (OFFSET_YEARS * 365 * SECONDS_PER_DAY)
 /*----------------------------------------------------------------------------*/
-uint64_t unixTime(struct Time *tm)
+static const uint8_t monthLengths[] = {
+    31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+};
+static const uint16_t yearLengths[] = {
+    366, 365, 365, 365
+};
+/*----------------------------------------------------------------------------*/
+time_t rtcEpochTime()
 {
-  /* Stores how many seconds passed from 1.1.1970, 00:00:00 */
-  uint64_t s = 0;
+  return (time_t)time(0);
+}
+/*----------------------------------------------------------------------------*/
+enum result rtcMakeEpochTime(time_t *result, const struct RtcTime *timestamp)
+{
+  if (!timestamp->month || timestamp->month > 12)
+    return E_VALUE;
 
-  /* If the current year is a leap one than add one day (86400 sec) */
-  if (!(tm->year % 4) && (tm->mon > 2))
-    s += 86400;
+  /* Stores how many seconds have passed from 01.01.1970, 00:00:00 */
+  time_t seconds = 0;
 
-  /* Decrement current month */
-  tm->mon--;
+  /* If the current year is a leap one than add one day or 86400 seconds */
+  if (!(timestamp->year % 4) && (timestamp->month > 2))
+    seconds += SECONDS_PER_DAY;
+
+  uint8_t month = timestamp->month - 1;
+
   /* Sum the days from January to the current month */
-  while (tm->mon)
-  {
-    /* Add the number of days from a month * 86400 sec */
-    s += calendar[--tm->mon] * 86400;
-  }
-  /* Add:
-   * (the number of days from each year (even leap years)) * 86400 sec,
-   * the number of days from the current month,
-   * the each hour & minute & second from the current day
-   */
-  s += ((((tm->year - startYear) * 365) + ((tm->year - startYear) >> 2)) *
-      (uint64_t)86400) + (tm->day - 1) * (uint32_t)86400 +
-      (tm->hour * (uint32_t)3600) + (tm->min * (uint32_t)60) +
-      (uint32_t)tm->sec;
+  while (month)
+    seconds += monthLengths[--month] * SECONDS_PER_DAY;
 
-  return s;
+  /* Add the number of days from each year with leap years */
+  seconds += ((timestamp->year - START_YEAR) * 365
+      + ((timestamp->year - START_YEAR + 1) / 4)) * SECONDS_PER_DAY;
+
+  /*
+   * Add the number of days from the current month, each hour,
+   * minute and second from the current day.
+   */
+  seconds += (timestamp->day - 1) * SECONDS_PER_DAY + timestamp->second
+      + timestamp->minute * 60 + timestamp->hour * SECONDS_PER_HOUR;
+
+  *result = seconds;
+  return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-//Output string is 9 characters long and contains HH:MM:SS
-void timeToStr(char *str, uint16_t value)
+void rtcMakeTime(struct RtcTime *timestamp, time_t epochTime)
 {
-  sprintf(str, "%02u", ((value >> 11) & 0x1F));
-  str[2] = ':';
-  sprintf(str + 3, "%02u", ((value >> 5) & 0x3F));
-  str[5] = ':';
-  sprintf(str + 6, "%02u", (value & 0x1F));
+  /* TODO Add handling of negative times and years after 2100 */
+  const uint64_t seconds = epochTime > 0 ? epochTime : -epochTime;
+  const uint32_t dayclock = seconds % SECONDS_PER_DAY;
+
+  timestamp->second = dayclock % 60;
+  timestamp->minute = (dayclock % 3600) / 60;
+  timestamp->hour = dayclock / 3600;
+
+  uint32_t days = seconds / SECONDS_PER_DAY;
+  uint32_t years;
+
+  if (seconds > OFFSET_SECONDS)
+  {
+    const uint64_t offset = seconds - OFFSET_SECONDS;
+    const uint32_t estimatedYears = (offset / (SECONDS_PER_DAY / 100))
+        / (365 * 100 + 25);
+    const uint32_t leapCycles = estimatedYears / 4;
+
+    days -= (OFFSET_YEARS + leapCycles * 4) * 365 + leapCycles;
+    years = estimatedYears + OFFSET_YEARS;
+
+    for (uint8_t number = 0; days >= yearLengths[number]; ++number)
+    {
+      days -= yearLengths[number];
+      ++years;
+    }
+  }
+  else
+  {
+    years = days / 365;
+    days -= years * 365;
+  }
+
+  timestamp->year = START_YEAR + years;
+
+  const uint8_t offset = !(timestamp->year % 4) && days >= 60 ? 1 : 0;
+  uint8_t month = 0;
+
+  days -= offset;
+  while (days >= monthLengths[month])
+    days -= monthLengths[month++];
+
+  if (month == 1)
+    days += offset;
+
+  timestamp->day = days + 1;
+  timestamp->month = month + 1;
 }
 /*----------------------------------------------------------------------------*/
-//Output string is 11 characters long and contains DD.MM.YYYY
-void dateToStr(char *str, uint16_t value)
+uint64_t rtcMicrotime()
 {
-  sprintf(str, "%02u", (value & 0x1F));
-  str[2] = '.';
-  sprintf(str + 3, "%02u", ((value >> 5) & 0x0F));
-  str[5] = '.';
-  sprintf(str + 6, "%04u", (((value >> 9) & 0x7F) + 1980));
-}
-/*----------------------------------------------------------------------------*/
-/*15-11 Hours (0-23)
-  10-5  Minutes (0-59)
-  4-0   Seconds/2 (0-29)*/
-/*----------------------------------------------------------------------------*/
-uint16_t rtcGetTime()
-{
-  uint16_t result = 0;
-  time_t rawtime;
-  struct tm *timeinfo;
-  time(&rawtime);
-  timeinfo = localtime(&rawtime);
-  result |= timeinfo->tm_sec >> 1; //Set seconds
-  result |= timeinfo->tm_min << 5; //Set minutes
-  result |= timeinfo->tm_hour << 11; //Set hours
-  return result;
-}
-/*----------------------------------------------------------------------------*/
-/*15-9  Year (0 = 1980, 127 = 2107)
-  8-5   Month (1 = January, 12 = December)
-  4-0   Day (1 - 31)*/
-/*----------------------------------------------------------------------------*/
-uint16_t rtcGetDate()
-{
-  uint16_t result = 0;
-  time_t rawtime;
-  struct tm *timeinfo;
-  time(&rawtime);
-  timeinfo = localtime(&rawtime);
-  result |= timeinfo->tm_mday; //Set day
-  result |= (timeinfo->tm_mon + 1) << 5; //Set month
-  result |= (timeinfo->tm_year - 80) << 9; //Set year
-  return result;
+  struct timespec currentTime;
+
+  if (!clock_gettime(CLOCK_REALTIME, &currentTime))
+    return currentTime.tv_sec * 1000000 + currentTime.tv_nsec / 1000;
+  else
+    return 0;
 }

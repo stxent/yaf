@@ -1,31 +1,30 @@
 /*
  * rtc.h
- * Copyright (C) 2012 xent
+ * Copyright (C) 2014 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef _RTC_H_
-#define _RTC_H_
+#ifndef RTC_H_
+#define RTC_H_
 /*----------------------------------------------------------------------------*/
 #include <stdint.h>
+#include <error.h>
 /*----------------------------------------------------------------------------*/
-struct Time
+typedef int64_t time_t;
+/*----------------------------------------------------------------------------*/
+struct RtcTime
 {
-  uint8_t sec;
-  uint8_t min;
+  uint8_t second;
+  uint8_t minute;
   uint8_t hour;
   uint8_t day;
-  uint8_t mon;
+  uint8_t month;
   int32_t year;
 };
 /*----------------------------------------------------------------------------*/
-// typedef uint64_t UnixTime;
+time_t rtcEpochTime();
+enum result rtcMakeEpochTime(time_t *, const struct RtcTime *);
+void rtcMakeTime(struct RtcTime *, time_t);
+uint64_t rtcMicrotime();
 /*----------------------------------------------------------------------------*/
-uint64_t unixTime(struct Time *);
-uint16_t rtcGetTime();
-uint16_t rtcGetDate();
-/*----------------------------------------------------------------------------*/
-void timeToStr(char *, uint16_t);
-void dateToStr(char *, uint16_t);
-/*----------------------------------------------------------------------------*/
-#endif
+#endif /* RTC_H_ */

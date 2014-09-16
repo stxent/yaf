@@ -19,6 +19,10 @@
 #include <os/mutex.h>
 #endif
 /*----------------------------------------------------------------------------*/
+#ifdef CONFIG_FAT_TIME
+#include <rtc.h>
+#endif
+/*----------------------------------------------------------------------------*/
 /*
  * Sector size may be 512, 1024, 2048 or 4096 bytes, default is 512.
  * Size is configured as an exponent of the value.
@@ -323,6 +327,12 @@ static enum result readBuffer(struct FatHandle *, uint32_t, uint8_t *,
     uint32_t);
 static enum result readSector(struct CommandContext *, struct FatHandle *,
     uint32_t);
+/*----------------------------------------------------------------------------*/
+#ifdef CONFIG_FAT_TIME
+enum result rawTimestampToTime(time_t *, uint16_t, uint16_t);
+uint16_t timeToRawDate(const struct RtcTime *);
+uint16_t timeToRawTime(const struct RtcTime *);
+#endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_UNICODE
 static void extractLongName(const struct DirEntryImage *, char16_t *);

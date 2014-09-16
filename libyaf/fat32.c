@@ -11,10 +11,6 @@
 #include <libyaf/fat32_aux.h>
 #include <libyaf/fat32_defs.h>
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_TIME
-#include "rtc.h" //FIXME Rewrite
-#endif
-/*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_DEBUG
 #include <stdio.h>
 #include <stdlib.h>
@@ -738,6 +734,36 @@ static enum result readSector(struct CommandContext *context,
   return res;
 }
 /*----------------------------------------------------------------------------*/
+#ifdef CONFIG_FAT_TIME
+enum result rawTimestampToTime(time_t *converted, uint16_t date, uint16_t time)
+{
+  struct RtcTime timestamp = {
+      .second = time & 0x1F,
+      .minute = (time >> 5) & 0x3F,
+      .hour = (time >> 11) & 0x1F,
+      .day = date & 0x1F,
+      .month = (date >> 5) & 0x0F,
+      .year = ((date >> 9) & 0x7F) + 1980
+  };
+
+  return rtcMakeEpochTime(converted, &timestamp);
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef CONFIG_FAT_TIME
+uint16_t timeToRawDate(const struct RtcTime *value)
+{
+  return value->day | (value->month << 5) | ((value->year - 1980) << 9);
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef CONFIG_FAT_TIME
+uint16_t timeToRawTime(const struct RtcTime *value)
+{
+  return (value->second >> 1) | (value->minute << 5) | (value->hour << 11);
+}
+#endif
+/*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_UNICODE
 /* Extract 13 Unicode characters from long file name entry */
 static void extractLongName(const struct DirEntryImage *entry, char16_t *str)
@@ -1050,10 +1076,12 @@ static void fillDirEntry(struct DirEntryImage *entry,
   entry->size = 0;
 
 #ifdef CONFIG_FAT_TIME
-  //FIXME Rewrite
-  /* Time and date of last modification */
-  entry->date = rtcGetDate();
-  entry->time = rtcGetTime();
+  struct RtcTime currentTime;
+
+  rtcMakeTime(&currentTime, rtcEpochTime());
+  /* Set time and date of the last modification */
+  entry->date = toLittleEndian16(timeToRawDate(&currentTime));
+  entry->time = toLittleEndian16(timeToRawTime(&currentTime));
 #else
   entry->date = 0;
   entry->time = 0;
@@ -1415,10 +1443,12 @@ static enum result syncFile(struct CommandContext *context,
   entry->size = toLittleEndian32(file->size);
 
 #ifdef CONFIG_FAT_TIME
-  /* Update last modified date */
-  //FIXME rewrite
-  entry->time = rtcGetTime();
-  entry->date = rtcGetDate();
+  struct RtcTime currentTime;
+
+  rtcMakeTime(&currentTime, rtcEpochTime());
+  /* Set time and date of the last modification */
+  entry->date = toLittleEndian16(timeToRawDate(&currentTime));
+  entry->time = toLittleEndian16(timeToRawTime(&currentTime));
 #endif
 
   res = writeSector(context, handle, sector);
@@ -1730,15 +1760,10 @@ static enum result fatGet(void *object, enum fsNodeData type, void *data)
 #ifdef CONFIG_FAT_TIME
     case FS_NODE_TIME:
     {
-      struct Time time;
+      const uint16_t rawDate = fromLittleEndian16(entry->date);
+      const uint16_t rawTime = fromLittleEndian16(entry->time);
 
-      time.sec = entry->time & 0x1F;
-      time.min = (entry->time >> 5) & 0x3F;
-      time.hour = (entry->time >> 11) & 0x1F;
-      time.day = entry->date & 0x1F;
-      time.mon = (entry->date >> 5) & 0x0F;
-      time.year = ((entry->date >> 9) & 0x7F) + 1980;
-      *(int64_t *)data = unixTime(&time); //FIXME Rewrite
+      res = rawTimestampToTime((time_t *)data, rawDate, rawTime);
       break;
     }
 #endif
