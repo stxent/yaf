@@ -1,27 +1,33 @@
 PROJECT = shell
+PROJECTDIR = ../..
 
-CONFIGFAT += -DCONFIG_FAT_POOLS
-CONFIGFAT += -DCONFIG_FAT_UNICODE
-CONFIGFAT += -DCONFIG_FAT_THREADS
-CONFIGFAT += -DCONFIG_FAT_TIME
-CONFIGFAT += -DCONFIG_FAT_WRITE
-
-CFLAGS = -std=c11 -O0 -Wall -Wextra -Winline -Wcast-qual -pedantic
-CC = gcc
-CXXFLAGS = -std=c++11 -O0 -Wall -Wextra -Winline -Wcast-qual -pedantic
-CXX = g++
-
-CFLAGS += $(CONFIGFAT)
-CXXFLAGS += $(CONFIGFAT)
+PROJECTFLAGS += -DCONFIG_CRYPTO
+PROJECTFLAGS += -DCONFIG_FILENAME_LENGTH=128
+PROJECTFLAGS += -DCONFIG_SHELL_BUFFER=4096
+PROJECTFLAGS += -DCONFIG_FAT_POOLS
+PROJECTFLAGS += -DCONFIG_FAT_UNICODE
+PROJECTFLAGS += -DCONFIG_FAT_THREADS
+PROJECTFLAGS += -DCONFIG_FAT_TIME
+PROJECTFLAGS += -DCONFIG_FAT_WRITE
 
 ifneq ($(DEBUG), 0)
-	CFLAGS += -DDEBUG
-	CXXFLAGS += -DDEBUG
+#	PROJECTFLAGS += -DCONFIG_MMI_DEBUG
+	PROJECTFLAGS += -DCONFIG_MMI_STATUS
+	PROJECTFLAGS += -DCONFIG_FAT_DEBUG
 endif
 
-PROJECTDIR = ../..
-SOURCEDIRS = $(addprefix $(PROJECTDIR)/, common libyaf os examples/$(PROJECT))
-INCLUDEPATH = -I./ -I$(PROJECTDIR)/include -I$(PROJECTDIR)/include/common -I$(PROJECTDIR)/include/os
+CC = gcc
+CFLAGS += -std=c11 -O0 -Wall -Wextra
+CFLAGS += -Winline -Wcast-qual -pedantic -Wshadow
+CFLAGS += $(PROJECTFLAGS)
+CXX = g++
+CXXFLAGS += -std=c++11 -O0 -Wall -Wextra
+CXXFLAGS += -Winline -Wcast-qual -pedantic -Wshadow -Wold-style-cast
+CXXFLAGS += $(PROJECTFLAGS)
+
+SOURCEDIRS += $(addprefix $(PROJECTDIR)/, common libyaf os examples/$(PROJECT))
+INCLUDEPATH += -I./
+INCLUDEPATH += $(addprefix -I$(PROJECTDIR)/, include include/common)
 
 DEPENDENCIES := $(shell find -name ".depend")
 CSOURCES := $(shell find $(SOURCEDIRS) -name "*.c")
