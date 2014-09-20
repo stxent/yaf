@@ -84,6 +84,7 @@ int main(int argc, char *argv[])
   shell.append(CommandBuilder<MakeDirectory>());
   shell.append(CommandBuilder<RemoveDirectory>());
   shell.append(CommandBuilder<RemoveEntry>());
+  shell.append(CommandBuilder<Synchronize>());
 
 #ifdef CONFIG_FAT_THREADS
   shell.append(CommandBuilder<ThreadSwarm>());

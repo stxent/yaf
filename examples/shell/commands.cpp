@@ -585,7 +585,7 @@ result ListEntries::run(unsigned int count, const char * const *arguments)
   {
     owner.log("ls: entry count mismatches: got %u, expected %u",
         entries, verifyCount);
-    return E_ERROR;
+    return E_ENTRY;
   }
 
   return E_OK;
@@ -837,5 +837,12 @@ result RemoveEntry::run(unsigned int count, const char * const *arguments)
 
 free_node:
   fsFree(destinationNode);
+  return res;
+}
+//------------------------------------------------------------------------------
+result Synchronize::run(unsigned int, const char * const *)
+{
+  result res = fsSync(owner.handle());
+
   return res;
 }

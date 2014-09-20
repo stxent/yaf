@@ -201,4 +201,20 @@ public:
   virtual result run(unsigned int, const char * const *);
 };
 //------------------------------------------------------------------------------
+class Synchronize : public Shell::ShellCommand
+{
+public:
+  Synchronize(Shell &parent) :
+      ShellCommand(parent)
+  {
+  }
+
+  virtual const char *name() const
+  {
+    return "sync";
+  }
+
+  virtual result run(unsigned int, const char * const *);
+};
+//------------------------------------------------------------------------------
 #endif //COMMANDS_HPP_
