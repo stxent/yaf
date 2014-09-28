@@ -153,9 +153,9 @@ static enum result allocateBuffers(struct FatHandle *handle,
   }
 
   /* Custom initialization of default sector values */
-  struct CommandContext *contextPtr = handle->contextPool.data;
-  for (unsigned int index = 0; index < config->threads; ++index, ++contextPtr)
-    contextPtr->sector = RESERVED_SECTOR;
+  struct CommandContext *contextBase = handle->contextPool.data;
+  for (unsigned int index = 0; index < config->threads; ++index, ++contextBase)
+    contextBase->sector = RESERVED_SECTOR;
 
   DEBUG_PRINT("Context pool:   %u\n", (unsigned int)(config->threads
       * (sizeof(struct CommandContext *) + sizeof(struct CommandContext))));
@@ -1540,9 +1540,9 @@ static void fillLongNameEntry(struct DirEntryImage *entry, uint8_t current,
 }
 #endif
 /*------------------Filesystem handle functions-------------------------------*/
-static enum result fatHandleInit(void *object, const void *configPtr)
+static enum result fatHandleInit(void *object, const void *configBase)
 {
-  const struct Fat32Config * const config = configPtr;
+  const struct Fat32Config * const config = configBase;
   struct FatHandle * const handle = object;
   enum result res;
 
@@ -1626,9 +1626,9 @@ static enum result fatSync(void *object __attribute__((unused)))
 }
 #endif
 /*------------------Node functions--------------------------------------------*/
-static enum result fatNodeInit(void *object, const void *configPtr)
+static enum result fatNodeInit(void *object, const void *configBase)
 {
-  const struct FatNodeConfig * const config = configPtr;
+  const struct FatNodeConfig * const config = configBase;
   struct FatNode * const node = object;
 
   node->handle = config->handle;
@@ -1779,9 +1779,9 @@ static enum result fatGet(void *object, enum fsNodeData type, void *data)
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_WRITE
 static enum result fatLink(void *object, const struct FsMetadata *metadata,
-    const void *targetPtr, void *result)
+    const void *targetBase, void *result)
 {
-  const struct FatNode * const target = targetPtr;
+  const struct FatNode * const target = targetBase;
   struct FatNode * const node = object;
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
   struct FatNode *allocatedNode;
@@ -2103,9 +2103,9 @@ static enum result fatUnlink(void *object __attribute__((unused)))
 }
 #endif
 /*------------------Directory functions---------------------------------------*/
-static enum result fatDirInit(void *object, const void *configPtr)
+static enum result fatDirInit(void *object, const void *configBase)
 {
-  const struct FatDirConfig * const config = configPtr;
+  const struct FatDirConfig * const config = configBase;
   const struct FatNode * const node = (struct FatNode *)config->node;
   struct FatDir * const dir = object;
 
@@ -2150,9 +2150,9 @@ static bool fatDirEnd(void *object)
   return dir->currentCluster == RESERVED_CLUSTER;
 }
 /*----------------------------------------------------------------------------*/
-static enum result fatDirFetch(void *object, void *nodePtr)
+static enum result fatDirFetch(void *object, void *nodeBase)
 {
-  struct FatNode * const node = nodePtr;
+  struct FatNode * const node = nodeBase;
   struct FatDir * const dir = object;
   struct FatHandle * const handle = (struct FatHandle *)dir->handle;
   struct CommandContext *context;
@@ -2221,9 +2221,9 @@ static uint64_t fatDirTell(void *object)
   return (uint64_t)dir->currentIndex | ((uint64_t)dir->currentCluster << 16);
 }
 /*------------------File functions--------------------------------------------*/
-static enum result fatFileInit(void *object, const void *configPtr)
+static enum result fatFileInit(void *object, const void *configBase)
 {
-  const struct FatFileConfig * const config = configPtr;
+  const struct FatFileConfig * const config = configBase;
   const struct FatNode * const node = (struct FatNode *)config->node;
   struct FatFile * const file = object;
 
@@ -2682,7 +2682,7 @@ static uint32_t fatDirWrite(void *object __attribute__((unused)),
 }
 /*----------------------------------------------------------------------------*/
 static enum result fatFileFetch(void *object __attribute__((unused)),
-    void *nodePtr __attribute__((unused)))
+    void *nodeBase __attribute__((unused)))
 {
   return E_ERROR;
 }

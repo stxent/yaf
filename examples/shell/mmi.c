@@ -100,9 +100,9 @@ static void getSizeString(uint64_t size, char *str)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-static enum result mmiInit(void *object, const void *configPtr)
+static enum result mmiInit(void *object, const void *configBase)
 {
-  const char * const path = configPtr;
+  const char * const path = configBase;
   struct Mmi * const dev = object;
 
   if (!path)
