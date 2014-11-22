@@ -606,7 +606,7 @@ static enum result getNextCluster(struct CommandContext *context,
     return E_OK;
   }
 
-  return E_FAULT;
+  return E_EMPTY;
 }
 /*----------------------------------------------------------------------------*/
 static enum result mount(struct FatHandle *handle)
@@ -1178,23 +1178,24 @@ static enum result findGap(struct CommandContext *context, struct FatNode *node,
 
     switch ((res = fetchEntry(context, node)))
     {
+      case E_EMPTY:
+        index = 0;
+        allocateParent = true;
+        break;
+
       case E_ENTRY:
         index = node->index;
         parent = node->cluster;
         allocateParent = false;
         break;
 
-      case E_FAULT:
-        index = 0;
-        allocateParent = true;
-        break;
-
       default:
         if (res != E_OK)
           return res;
+        break;
     }
 
-    if (res == E_FAULT || res == E_ENTRY)
+    if (res == E_EMPTY || res == E_ENTRY)
     {
       int16_t chunksLeft = (int16_t)(chainLength - chunks)
           - (int16_t)(nodeCount(handle) - node->index);
@@ -2045,7 +2046,7 @@ static enum result fatTruncate(void *object)
     res = fetchNode(context, node, 0);
     if (res == E_OK)
       res = E_VALUE;
-    if (res != E_ENTRY && res != E_FAULT)
+    if (res != E_EMPTY && res != E_ENTRY)
     {
       freeContext(handle, context);
       return res;
@@ -2172,7 +2173,7 @@ static enum result fatDirFetch(void *object, void *nodeBase)
 
   if (res != E_OK)
   {
-    if (res == E_ENTRY || res == E_FAULT)
+    if (res == E_EMPTY || res == E_ENTRY)
     {
       /* Reached the end of the directory */
       dir->currentCluster = RESERVED_CLUSTER;
@@ -2526,7 +2527,7 @@ static uint32_t fatFileWrite(void *object, const void *buffer, uint32_t length)
       /* Allocate new cluster when next cluster does not exist */
       res = getNextCluster(context, handle, &file->currentCluster);
 
-      if (res == E_FAULT)
+      if (res == E_EMPTY)
       {
         /* Prevent table modifications from other threads */
         lockHandle(handle);
