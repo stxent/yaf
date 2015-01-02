@@ -11,8 +11,8 @@
 #include <stdint.h>
 #include <bits.h>
 #include <fs.h>
-#include <list.h>
-#include <queue.h>
+#include <containers/list.h>
+#include <containers/queue.h>
 #include <libyaf/unicode.h>
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_THREADS
