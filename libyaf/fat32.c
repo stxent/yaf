@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <bits.h>
 #include <memory.h>
 #include <libyaf/fat32.h>
 #include <libyaf/fat32_aux.h>
@@ -16,12 +17,11 @@
 #include <stdlib.h>
 #define DEBUG_PRINT(...) printf(__VA_ARGS__)
 #else
-#define DEBUG_PRINT(...)
+#define DEBUG_PRINT(...) do {} while (0)
 #endif
 /*----------------------------------------------------------------------------*/
-/* Get size of an array placed in structure */
-#define ARRAY_SIZE(parent, array) \
-    (sizeof(((struct parent *)0)->array) / sizeof(*((struct parent *)0)->array))
+/* Return size of an array placed in structure */
+#define FIELD_SIZE(parent, array) ARRAY_SIZE(((struct parent *)0)->array)
 /*------------------Class descriptors-----------------------------------------*/
 static const struct FsHandleClass fatHandleTable = {
     .size = sizeof(struct FatHandle),
@@ -553,7 +553,7 @@ static void freeContext(struct FatHandle *handle,
 }
 #else
 static void freeContext(struct FatHandle *handle __attribute__((unused)),
-    const struct CommandContext *context __attribute__((unused)))
+    struct CommandContext *context __attribute__((unused)))
 {
 
 }
@@ -1093,8 +1093,8 @@ static void fillDirEntry(struct DirEntryImage *entry,
 /* Returns success when node is a valid short name */
 static enum result fillShortName(char *shortName, const char *name)
 {
-  const uint8_t extLength = ARRAY_SIZE(DirEntryImage, extension);
-  const uint8_t nameLength = ARRAY_SIZE(DirEntryImage, name);
+  const uint8_t extLength = FIELD_SIZE(DirEntryImage, extension);
+  const uint8_t nameLength = FIELD_SIZE(DirEntryImage, name);
   const char *dot;
   enum result res = E_OK;
 
