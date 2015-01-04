@@ -16,10 +16,14 @@
 #include <stdio.h>
 #define DEBUG_PRINT(...) printf(__VA_ARGS__)
 #else
-#define DEBUG_PRINT(...)
+#define DEBUG_PRINT(...) do {} while (0)
 #endif
 /*----------------------------------------------------------------------------*/
-#define MMI_SECTOR_POW 9
+#ifdef CONFIG_FAT_SECTOR
+#define MMI_SECTOR_EXP CONFIG_FAT_SECTOR
+#else
+#define MMI_SECTOR_EXP 9
+#endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_MMI_DEBUG
 static void getSizeString(uint64_t, char *);
@@ -249,8 +253,8 @@ enum result mmiSetPartition(void *object, struct MbrDescriptor *desc)
   if (!strchr(validTypes, desc->type))
     return E_ERROR;
 
-  dev->size = desc->size << MMI_SECTOR_POW;
-  dev->offset = desc->offset << MMI_SECTOR_POW;
+  dev->size = desc->size << MMI_SECTOR_EXP;
+  dev->offset = desc->offset << MMI_SECTOR_EXP;
 
   DEBUG_PRINT("mmaped_io: partition type 0x%02X, size %u sectors, "
       "offset %u sectors\n",
@@ -264,8 +268,8 @@ enum result mmiReadTable(void *object, uint32_t sector, uint8_t index,
 {
   struct Mmi * const dev = object;
   uint8_t *ptr;
-  uint64_t position = sector << MMI_SECTOR_POW;
-  uint8_t buffer[1 << MMI_SECTOR_POW];
+  uint64_t position = sector << MMI_SECTOR_EXP;
+  uint8_t buffer[1 << MMI_SECTOR_EXP];
 
   dev->offset = 0;
 

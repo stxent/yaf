@@ -1,11 +1,11 @@
 /*
- * fat32_aux.h
+ * libyaf/fat32_inlines.h
  * Copyright (C) 2014 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef FAT32_AUX_H_
-#define FAT32_AUX_H_
+#ifndef LIBYAF_FAT32_INLINES_H_
+#define LIBYAF_FAT32_INLINES_H_
 /*----------------------------------------------------------------------------*/
 #include <libyaf/fat32_defs.h>
 /*----------------------------------------------------------------------------*/
@@ -103,4 +103,4 @@ static inline void unlockPools(struct FatHandle *handle __attribute__((unused)))
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#endif /* FAT32_AUX_H_ */
+#endif /* LIBYAF_FAT32_INLINES_H_ */

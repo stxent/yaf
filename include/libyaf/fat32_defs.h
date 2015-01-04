@@ -1,11 +1,11 @@
 /*
- * fat32_defs.h
+ * libyaf/fat32_defs.h
  * Copyright (C) 2012 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef FAT32_DEFS_H_
-#define FAT32_DEFS_H_
+#ifndef LIBYAF_FAT32_DEFS_H_
+#define LIBYAF_FAT32_DEFS_H_
 /*----------------------------------------------------------------------------*/
 #include <stdbool.h>
 #include <stdint.h>
@@ -35,9 +35,11 @@
 /* Sector size in bytes */
 #define SECTOR_SIZE             (1 << SECTOR_EXP)
 /*----------------------------------------------------------------------------*/
-#define NODE_POOL_SIZE          4 /* Default size of node pool */
-#define DIR_POOL_SIZE           2 /* Default size of directory entry pool */
-#define FILE_POOL_SIZE          2 /* Default size of file entry pool */
+/* Default pool sizes */
+#define DEFAULT_NODE_COUNT      4
+#define DEFAULT_DIR_COUNT       2
+#define DEFAULT_FILE_COUNT      2
+#define DEFAULT_THREAD_COUNT    1
 /*----------------------------------------------------------------------------*/
 #define FLAG_RO                 BIT(0) /* Read only */
 #define FLAG_HIDDEN             BIT(1)
@@ -419,4 +421,4 @@ static uint32_t fatDirRead(void *, void *, uint32_t);
 static uint32_t fatDirWrite(void *, const void *, uint32_t);
 static enum result fatFileFetch(void *, void *);
 /*----------------------------------------------------------------------------*/
-#endif /* FAT32_DEFS_H_ */
+#endif /* LIBYAF_FAT32_DEFS_H_ */

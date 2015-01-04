@@ -9,8 +9,8 @@
 #include <bits.h>
 #include <memory.h>
 #include <libyaf/fat32.h>
-#include <libyaf/fat32_aux.h>
 #include <libyaf/fat32_defs.h>
+#include <libyaf/fat32_inlines.h>
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_DEBUG
 #include <stdio.h>
@@ -127,11 +127,16 @@ static void freePool(struct Pool *pool)
 static enum result allocateBuffers(struct FatHandle *handle,
     const struct Fat32Config * const config)
 {
+  uint16_t count;
   enum result res;
 
+#if !defined(CONFIG_FAT_THREADS) && !defined(CONFIG_FAT_POOLS)
+  /* Suppress warning */
+  (void)config;
+#endif
+
 #ifdef CONFIG_FAT_THREADS
-  if (!config->threads)
-    return E_VALUE;
+  count = config->threads ? config->threads : DEFAULT_THREAD_COUNT;
 
   /* Create consistency and memory locks */
   if ((res = mutexInit(&handle->consistencyMutex)) != E_OK)
@@ -144,7 +149,7 @@ static enum result allocateBuffers(struct FatHandle *handle,
   }
 
   /* Allocate context pool */
-  res = allocatePool(&handle->contextPool, config->threads,
+  res = allocatePool(&handle->contextPool, count,
       sizeof(struct CommandContext), 0);
   if (res != E_OK)
   {
@@ -154,24 +159,15 @@ static enum result allocateBuffers(struct FatHandle *handle,
 
   /* Custom initialization of default sector values */
   struct CommandContext *contextBase = handle->contextPool.data;
-  for (unsigned int index = 0; index < config->threads; ++index, ++contextBase)
+
+  for (unsigned int index = 0; index < count; ++index, ++contextBase)
     contextBase->sector = RESERVED_SECTOR;
 
-  DEBUG_PRINT("Context pool:   %u\n", (unsigned int)(config->threads
+  DEBUG_PRINT("Context pool:   %u\n", (unsigned int)(count
       * (sizeof(struct CommandContext *) + sizeof(struct CommandContext))));
-
-  /* Allocate metadata pool */
-  res = allocatePool(&handle->metadataPool, 2 * config->threads,
-      sizeof(struct FsMetadata), 0);
-  if (res != E_OK)
-  {
-    freeBuffers(handle, FREE_CONTEXT_POOL);
-    return res;
-  }
-
-  DEBUG_PRINT("Metadata pool:  %u\n", (unsigned int)(2 * config->threads
-      * (sizeof(struct FsMetadata *) + sizeof(struct FsMetadata))));
 #else
+  count = DEFAULT_THREAD_COUNT;
+
   /* Allocate single context buffer */
   handle->context = malloc(sizeof(struct CommandContext));
   if (!handle->context)
@@ -180,18 +176,19 @@ static enum result allocateBuffers(struct FatHandle *handle,
 
   DEBUG_PRINT("Context pool:   %u\n",
       (unsigned int)sizeof(struct CommandContext));
+#endif
 
   /* Allocate metadata pool */
-  res = allocatePool(&handle->metadataPool, 2, sizeof(struct FsMetadata), 0);
+  res = allocatePool(&handle->metadataPool, count * 2,
+      sizeof(struct FsMetadata), 0);
   if (res != E_OK)
   {
     freeBuffers(handle, FREE_CONTEXT_POOL);
     return res;
   }
 
-  DEBUG_PRINT("Metadata pool:  %u\n", (unsigned int)(2
+  DEBUG_PRINT("Metadata pool:  %u\n", (unsigned int)(count * 2
       * (sizeof(struct FsMetadata *) + sizeof(struct FsMetadata))));
-#endif /* CONFIG_FAT_THREADS */
 
 #ifdef CONFIG_FAT_WRITE
   res = listInit(&handle->openedFiles, sizeof(struct FatFile *));
@@ -203,11 +200,9 @@ static enum result allocateBuffers(struct FatHandle *handle,
 #endif
 
 #ifdef CONFIG_FAT_POOLS
-  uint16_t number;
-
   /* Allocate and fill node pool */
-  number = config->nodes ? config->nodes : NODE_POOL_SIZE;
-  res = allocatePool(&handle->nodePool, number, sizeof(struct FatNode),
+  count = config->nodes ? config->nodes : DEFAULT_NODE_COUNT;
+  res = allocatePool(&handle->nodePool, count, sizeof(struct FatNode),
       FatNode);
   if (res != E_OK)
   {
@@ -215,24 +210,24 @@ static enum result allocateBuffers(struct FatHandle *handle,
     return res;
   }
 
-  DEBUG_PRINT("Node pool:      %u\n", (unsigned int)(number
+  DEBUG_PRINT("Node pool:      %u\n", (unsigned int)(count
       * (sizeof(struct FatNode *) + sizeof(struct FatNode))));
 
   /* Allocate and fill directory entry pool */
-  number = config->directories ? config->directories : DIR_POOL_SIZE;
-  res = allocatePool(&handle->dirPool, number, sizeof(struct FatDir), FatDir);
+  count = config->directories ? config->directories : DEFAULT_DIR_COUNT;
+  res = allocatePool(&handle->dirPool, count, sizeof(struct FatDir), FatDir);
   if (res != E_OK)
   {
     freeBuffers(handle, FREE_NODE_POOL);
     return res;
   }
 
-  DEBUG_PRINT("Directory pool: %u\n", (unsigned int)(number
+  DEBUG_PRINT("Directory pool: %u\n", (unsigned int)(count
       * (sizeof(struct FatDir *) + sizeof(struct FatDir))));
 
   /* Allocate and fill file entry pool */
-  number = config->files ? config->files : FILE_POOL_SIZE;
-  res = allocatePool(&handle->filePool, number, sizeof(struct FatFile),
+  count = config->files ? config->files : DEFAULT_FILE_COUNT;
+  res = allocatePool(&handle->filePool, count, sizeof(struct FatFile),
       FatFile);
   if (res != E_OK)
   {
@@ -240,7 +235,7 @@ static enum result allocateBuffers(struct FatHandle *handle,
     return res;
   }
 
-  DEBUG_PRINT("File pool:      %u\n", (unsigned int)(number
+  DEBUG_PRINT("File pool:      %u\n", (unsigned int)(count
       * (sizeof(struct FatFile *) + sizeof(struct FatFile))));
 #endif /* CONFIG_FAT_POOLS */
 
@@ -522,9 +517,7 @@ static void freeBuffers(struct FatHandle *handle, enum cleanup step)
       listDeinit(&handle->openedFiles);
 #endif
     case FREE_METADATA_POOL:
-#ifdef CONFIG_FAT_UNICODE
       freePool(&handle->metadataPool);
-#endif
     case FREE_CONTEXT_POOL:
 #ifdef CONFIG_FAT_THREADS
       freePool(&handle->contextPool);

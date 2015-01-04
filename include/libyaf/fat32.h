@@ -1,11 +1,11 @@
 /*
- * fat32.h
+ * libyaf/fat32.h
  * Copyright (C) 2012 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef FAT32_H_
-#define FAT32_H_
+#ifndef LIBYAF_FAT32_H_
+#define LIBYAF_FAT32_H_
 /*----------------------------------------------------------------------------*/
 #include <stdbool.h>
 #include <stdint.h>
@@ -16,26 +16,31 @@ extern const struct FsHandleClass * const FatHandle;
 /*----------------------------------------------------------------------------*/
 struct Fat32Config
 {
-  /** Pointer to previously opened interface. */
+  /** Mandatory: pointer to an initialized interface. */
   struct Interface *interface;
-
-#ifdef CONFIG_FAT_POOLS
-  /** Number of descriptors in file pools. */
+  /**
+   * Optional: number of file descriptors in file pool. This option is used
+   * only when support for object pools is enabled.
+   */
   uint16_t files;
-  /** Number of node descriptors in node pool. */
+  /**
+   * Optional: number of node descriptors in node pool. This option is used
+   * only when support for object pools is enabled.
+   */
   uint16_t nodes;
-  /** Number of directory descriptors in directory entry pool. */
+  /**
+   * Optional: number of directory descriptors in directory pool.
+   * This option is used only when support for object pools is enabled.
+   */
   uint16_t directories;
-#endif
-
-#ifdef CONFIG_FAT_THREADS
-  /** Number of threads that can use the same handle simultaneously. */
+  /**
+   * Optional: number of threads that can use the same handle simultaneously.
+   * This option is used only when support for multiple threads is enabled. */
   uint16_t threads;
-#endif
 };
 /*----------------------------------------------------------------------------*/
 #if defined(CONFIG_FAT_WRITE) && defined(CONFIG_FAT_DEBUG)
 uint32_t fat32CountFree(void *);
 #endif
 /*----------------------------------------------------------------------------*/
-#endif /* FAT32_H_ */
+#endif /* LIBYAF_FAT32_H_ */

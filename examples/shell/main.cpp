@@ -58,14 +58,12 @@ int main(int argc, char *argv[])
 
   Fat32Config fsConf;
   fsConf.interface = mmaped;
-#ifdef CONFIG_FAT_POOLS
+  //Unused when pools are disabled
   fsConf.nodes = 4;
   fsConf.directories = 2;
   fsConf.files = 2;
-#endif
-#ifdef CONFIG_FAT_THREADS
+  //Unused when multithreading is disabled
   fsConf.threads = 2;
-#endif
 
   handle = reinterpret_cast<FsHandle *>(init(FatHandle, &fsConf));
   if (!handle)
