@@ -784,38 +784,45 @@ static uint8_t getChecksum(const char *str, uint8_t length)
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_UNICODE
 static enum result readLongName(struct CommandContext *context,
-    struct FatNode *node, char *name)
+    const struct FatNode *node, char *name)
 {
-  const uint32_t cluster = node->cluster; /* Preserve node parameters */
-  const uint16_t index = node->index;
-  const enum fsNodeType type = node->type;
+  const struct DirEntryImage *entry;
+  struct FatNode allocatedNode;
   uint8_t chunks = 0;
   enum result res;
 
-  node->cluster = node->nameCluster;
-  node->index = node->nameIndex;
+  /* Initialize temporary node */
+  res = allocateStaticNode((struct FatHandle *)node->handle, &allocatedNode);
+  if (res != E_OK)
+    return res;
 
-  while ((res = fetchEntry(context, node)) == E_OK)
+  allocatedNode.cluster = node->nameCluster;
+  allocatedNode.index = node->nameIndex;
+
+  while ((res = fetchEntry(context, &allocatedNode)) == E_OK)
   {
     /* Sector is already loaded during entry fetching */
-    const struct DirEntryImage *entry = (struct DirEntryImage *)(context->buffer
-        + ENTRY_OFFSET(node->index));
+    entry = (const struct DirEntryImage *)(context->buffer
+        + ENTRY_OFFSET(allocatedNode.index));
 
     if ((entry->flags & MASK_LFN) != MASK_LFN)
       break;
 
-    uint16_t offset = ((entry->ordinal & ~LFN_LAST) - 1);
+    const uint16_t offset = ((entry->ordinal & ~LFN_LAST) - 1);
 
     /* Compare resulting file name length and name buffer capacity */
     if (offset > ((CONFIG_FILENAME_LENGTH - 1) / 2 / LFN_ENTRY_LENGTH) - 1)
-      return E_MEMORY;
+    {
+      res = E_MEMORY;
+      break;
+    }
 
     if (entry->ordinal & LFN_LAST)
       *((char16_t *)name + (offset + 1) * LFN_ENTRY_LENGTH) = 0;
 
     extractLongName(entry, (char16_t *)name + offset * LFN_ENTRY_LENGTH);
     ++chunks;
-    ++node->index;
+    ++allocatedNode.index;
   }
 
   /*
@@ -825,16 +832,12 @@ static enum result readLongName(struct CommandContext *context,
   if (res == E_OK)
   {
     if (chunks)
-      uFromUtf16(name, (char16_t *)name, CONFIG_FILENAME_LENGTH);
+      uFromUtf16(name, (const char16_t *)name, CONFIG_FILENAME_LENGTH);
     else
       res = E_ENTRY;
   }
 
-  /* Restore values changed during directory processing */
-  node->cluster = cluster;
-  node->index = index;
-  node->type = type;
-
+  freeStaticNode(&allocatedNode);
   return res;
 }
 #endif
@@ -1294,49 +1297,55 @@ static enum result freeChain(struct CommandContext *context,
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_WRITE
 static enum result markFree(struct CommandContext *context,
-    struct FatNode *node)
+    const struct FatNode *node)
 {
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
-  const uint32_t cluster = node->cluster;
-  const uint16_t index = node->index;
-  const enum fsNodeType type = node->type;
+  struct DirEntryImage *entry;
+  struct FatNode allocatedNode;
   uint32_t lastSector;
-  bool lastEntry = false;
   enum result res;
 
-  lastSector = getSector(handle, node->cluster) + ENTRY_SECTOR(node->index);
+  /* Initialize temporary node */
+  if ((res = allocateStaticNode(handle, &allocatedNode)) != E_OK)
+    return res;
+
 #ifdef CONFIG_FAT_UNICODE
-  node->index = node->nameIndex;
-  node->cluster = node->nameCluster;
+  allocatedNode.cluster = node->nameCluster;
+  allocatedNode.index = node->nameIndex;
 #endif
 
-  while (!lastEntry && (res = fetchEntry(context, node)) == E_OK)
+  /* Calculate first sector */
+  lastSector = getSector(handle, allocatedNode.cluster)
+      + ENTRY_SECTOR(allocatedNode.index);
+
+  while ((res = fetchEntry(context, &allocatedNode)) == E_OK)
   {
-    uint32_t sector = getSector(handle, node->cluster)
-        + ENTRY_SECTOR(node->index);
-    lastEntry = sector == lastSector && node->index == index;
+    const uint32_t sector = getSector(handle, allocatedNode.cluster)
+        + ENTRY_SECTOR(allocatedNode.index);
+    const bool lastEntry = sector == lastSector
+        && allocatedNode.index == node->index;
+
     /* Sector is already loaded */
-    struct DirEntryImage *entry = (struct DirEntryImage *)(context->buffer
-        + ENTRY_OFFSET(node->index));
+    entry = (struct DirEntryImage *)(context->buffer
+        + ENTRY_OFFSET(allocatedNode.index));
 
     /* Mark entry as empty by changing first byte of the name */
     entry->name[0] = E_FLAG_EMPTY;
 
-    if (lastEntry || !(node->index & (ENTRY_EXP - 1)))
+    if (lastEntry || !(allocatedNode.index & (ENTRY_EXP - 1)))
     {
       /* Write back updated sector when switching sectors or last entry freed */
       if ((res = writeSector(context, handle, sector)) != E_OK)
         break;
     }
 
-    ++node->index;
+    ++allocatedNode.index;
+
+    if (lastEntry)
+      break;
   }
 
-  /* Restore node state changed during entry fetching */
-  node->index = index;
-  node->cluster = cluster;
-  node->type = type;
-
+  freeStaticNode(&allocatedNode);
   return res;
 }
 #endif
@@ -1507,6 +1516,26 @@ static enum result writeSector(struct CommandContext *context,
 #endif
 /*----------------------------------------------------------------------------*/
 #if defined(CONFIG_FAT_UNICODE) && defined(CONFIG_FAT_WRITE)
+static enum result allocateStaticNode(struct FatHandle *handle,
+    struct FatNode *node)
+{
+  const struct FatNodeConfig config = {
+      .handle = (struct FsHandle *)handle
+  };
+  enum result res;
+
+  /* Initialize class descriptor manually */
+  ((struct Entity *)node)->descriptor = FatNode;
+
+  /* Call constructor for the statically allocated object */
+  if ((res = FatNode->init(node, &config)))
+    return res;
+
+  return E_OK;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#if defined(CONFIG_FAT_UNICODE) && defined(CONFIG_FAT_WRITE)
 /* Save Unicode characters to long file name entry */
 static void fillLongName(struct DirEntryImage *entry, char16_t *name)
 {
@@ -1531,6 +1560,13 @@ static void fillLongNameEntry(struct DirEntryImage *entry, uint8_t current,
   entry->ordinal = current;
   if (current == total)
     entry->ordinal |= LFN_LAST;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#if defined(CONFIG_FAT_UNICODE) && defined(CONFIG_FAT_WRITE)
+static void freeStaticNode(struct FatNode *node)
+{
+  FatNode->deinit(node);
 }
 #endif
 /*------------------Filesystem handle functions-------------------------------*/

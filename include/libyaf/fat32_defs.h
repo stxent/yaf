@@ -339,7 +339,7 @@ uint16_t timeToRawTime(const struct RtcTime *);
 #ifdef CONFIG_FAT_UNICODE
 static void extractLongName(const struct DirEntryImage *, char16_t *);
 static uint8_t getChecksum(const char *, uint8_t);
-static enum result readLongName(struct CommandContext *, struct FatNode *,
+static enum result readLongName(struct CommandContext *, const struct FatNode *,
     char *);
 #endif
 /*----------------------------------------------------------------------------*/
@@ -356,7 +356,7 @@ static enum result findGap(struct CommandContext *, struct FatNode *,
     const struct FatNode *, uint8_t);
 static enum result freeChain(struct CommandContext *, struct FatHandle *,
     uint32_t);
-static enum result markFree(struct CommandContext *, struct FatNode *);
+static enum result markFree(struct CommandContext *, const struct FatNode *);
 static char processCharacter(char);
 static enum result setupDirCluster(struct CommandContext *,
     const struct FatNode *);
@@ -370,9 +370,11 @@ static enum result writeSector(struct CommandContext *, struct FatHandle *,
 #endif
 /*----------------------------------------------------------------------------*/
 #if defined(CONFIG_FAT_UNICODE) && defined(CONFIG_FAT_WRITE)
+static enum result allocateStaticNode(struct FatHandle *, struct FatNode *);
 static void fillLongName(struct DirEntryImage *, char16_t *);
 static void fillLongNameEntry(struct DirEntryImage *, uint8_t, uint8_t,
     uint8_t);
+static void freeStaticNode(struct FatNode *);
 #endif
 /*----------------------------------------------------------------------------*/
 /* Filesystem handle functions */
