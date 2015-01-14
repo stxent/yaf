@@ -92,13 +92,14 @@ const struct FsEntryClass * const FatFile = &fatFileTable;
 static enum result allocatePool(struct Pool *pool, unsigned int capacity,
     unsigned int width, const void *initializer)
 {
-  uint8_t *data;
-  enum result res;
+  uint8_t *data = malloc(width * capacity);
 
-  if (!(data = malloc(width * capacity)))
+  if (!data)
     return E_MEMORY;
 
-  res = queueInit(&pool->queue, sizeof(struct Entity *), capacity);
+  const enum result res = queueInit(&pool->queue, sizeof(struct Entity *),
+      capacity);
+
   if (res != E_OK)
   {
     free(data);
@@ -334,6 +335,7 @@ static enum result fetchEntry(struct CommandContext *context,
 
     uint32_t sector = getSector(handle, node->cluster)
         + ENTRY_SECTOR(node->index);
+
     if ((res = readSector(context, handle, sector)) != E_OK)
       return res;
     entry = (struct DirEntryImage *)(context->buffer
@@ -402,7 +404,7 @@ static enum result fetchNode(struct CommandContext *context,
   node->access = FS_ACCESS_READ;
   if (!(entry->flags & FLAG_RO))
     node->access |= FS_ACCESS_WRITE;
-  node->payload = (uint32_t)fromLittleEndian16(entry->clusterHigh) << 16
+  node->payload = ((uint32_t)fromLittleEndian16(entry->clusterHigh) << 16)
       | (uint32_t)fromLittleEndian16(entry->clusterLow);
 
 #ifdef CONFIG_FAT_UNICODE
@@ -464,7 +466,7 @@ static const char *followPath(struct CommandContext *context,
       /* Resulting node is the root node */
       node->access = FS_ACCESS_READ | FS_ACCESS_WRITE;
       node->cluster = RESERVED_CLUSTER;
-      node->payload = ((struct FatHandle *)node->handle)->rootCluster;
+      node->payload = handle->rootCluster;
       node->type = FS_TYPE_DIR;
     }
     else
@@ -584,10 +586,9 @@ static const char *getChunk(const char *src, char *dest)
 static enum result getNextCluster(struct CommandContext *context,
     struct FatHandle *handle, uint32_t *cluster)
 {
-  enum result res;
-
-  res = readSector(context, handle, handle->tableSector
+  const enum result res = readSector(context, handle, handle->tableSector
       + (*cluster >> CELL_COUNT));
+
   if (res != E_OK)
     return res;
 
@@ -633,6 +634,7 @@ static enum result mount(struct FatHandle *handle)
 
   /* Calculate sectors per cluster count */
   uint16_t sizePow = boot->sectorsPerCluster;
+
   handle->clusterSize = 0;
   while (sizePow >>= 1)
     ++handle->clusterSize;
@@ -861,10 +863,12 @@ static enum result allocateCluster(struct CommandContext *context,
 
     /* Check whether the cluster is free */
     const uint16_t offset = (current & ((1 << CELL_COUNT) - 1)) << 2;
-    if (clusterFree(*(uint32_t *)(context->buffer + offset)))
+    uint32_t * const address = (uint32_t *)(context->buffer + offset);
+
+    if (clusterFree(*address))
     {
       /* Mark cluster as busy */
-      *(uint32_t *)(context->buffer + offset) = CLUSTER_EOC_VAL;
+      *address = CLUSTER_EOC_VAL;
 
       /*
        * Save changes to allocation table when reference is not available
@@ -913,7 +917,7 @@ static enum result allocateCluster(struct CommandContext *context,
   }
 
   DEBUG_PRINT("Allocation error, partition may be full\n");
-  return E_MEMORY;
+  return E_FULL;
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -945,12 +949,12 @@ static enum result createNode(struct CommandContext *context,
   struct DirEntryImage *entry;
   uint32_t sector;
   char shortName[sizeof(entry->filename)];
-  uint8_t chunks = 0;
   enum result res;
 
 #ifdef CONFIG_FAT_UNICODE
   /* Allocate temporary metadata buffer */
   struct FsMetadata *nameBuffer = 0;
+  uint8_t chunks = 0;
 
   lockPools(handle);
   if (!queueEmpty(&handle->metadataPool.queue))
@@ -1247,7 +1251,8 @@ static enum result findGap(struct CommandContext *context, struct FatNode *node,
 static enum result freeChain(struct CommandContext *context,
     struct FatHandle *handle, uint32_t cluster)
 {
-  uint32_t current = cluster, next, released = 0;
+  uint32_t current = cluster;
+  uint32_t released = 0;
   enum result res;
 
   if (current == RESERVED_CLUSTER)
@@ -1261,8 +1266,11 @@ static enum result freeChain(struct CommandContext *context,
     if (res != E_OK)
       break;
 
-    next = *(uint32_t *)(context->buffer + CELL_OFFSET(current));
-    *(uint32_t *)(context->buffer + CELL_OFFSET(current)) = 0;
+    uint32_t * const address = (uint32_t *)(context->buffer
+        + CELL_OFFSET(current));
+    const uint32_t next = *address;
+
+    *address = 0;
 
     /* Update table when switching table sectors */
     if (current >> CELL_COUNT != next >> CELL_COUNT)
@@ -1387,9 +1395,9 @@ static enum result setupDirCluster(struct CommandContext *context,
   if ((res = clearCluster(context, handle, node->payload)) != E_OK)
     return res;
 
-  struct DirEntryImage *entry;
+  struct DirEntryImage *entry = (struct DirEntryImage *)context->buffer;
+
   /* Current directory entry . */
-  entry = (struct DirEntryImage *)context->buffer;
   memset(entry->filename, ' ', sizeof(entry->filename));
   entry->name[0] = '.';
   fillDirEntry(entry, node);
@@ -1439,6 +1447,7 @@ static enum result syncFile(struct CommandContext *context,
   /* Pointer to entry position in sector */
   struct DirEntryImage *entry = (struct DirEntryImage *)(context->buffer
       + ENTRY_OFFSET(file->parentIndex));
+
   /* Update first cluster when writing to empty file or truncating file */
   entry->clusterHigh = toLittleEndian16((uint16_t)(file->payload >> 16));
   entry->clusterLow = toLittleEndian16((uint16_t)file->payload);
@@ -1466,12 +1475,11 @@ static enum result syncFile(struct CommandContext *context,
 static enum result updateTable(struct CommandContext *context,
     struct FatHandle *handle, uint32_t offset)
 {
-  enum result res;
-
   for (uint8_t fat = 0; fat < handle->tableNumber; ++fat)
   {
-    res = writeSector(context, handle, offset + handle->tableSector
-        + handle->tableSize * fat);
+    const enum result res = writeSector(context, handle, offset
+        + handle->tableSector + handle->tableSize * fat);
+
     if (res != E_OK)
       return res;
   }
@@ -1756,6 +1764,7 @@ static enum result fatGet(void *object, enum fsNodeData type, void *data)
 
   const uint32_t sector = getSector(handle, node->cluster)
       + ENTRY_SECTOR(node->index);
+
   if ((res = readSector(context, handle, sector)) != E_OK)
   {
     freeContext(handle, context);
@@ -1823,7 +1832,7 @@ static enum result fatLink(void *object, const struct FsMetadata *metadata,
 
   if (!result)
   {
-    if (!(allocatedNode = allocateNode((struct FatHandle *)node->handle)))
+    if (!(allocatedNode = allocateNode(handle)))
       return E_MEMORY;
   }
   else
@@ -2013,6 +2022,7 @@ static enum result fatSet(void *object, enum fsNodeData type, const void *data)
 
   const uint32_t sector = getSector(handle, node->cluster)
       + ENTRY_SECTOR(node->index);
+
   if ((res = readSector(context, handle, sector)) != E_OK)
     return res;
   struct DirEntryImage *entry = (struct DirEntryImage *)(context->buffer
@@ -2029,6 +2039,7 @@ static enum result fatSet(void *object, enum fsNodeData type, const void *data)
         entry->flags |= FLAG_RO;
       break;
     }
+
     default:
       return E_VALUE;
   }
@@ -2063,17 +2074,16 @@ static enum result fatTruncate(void *object)
 
   if (node->type == FS_TYPE_DIR && node->payload != RESERVED_CLUSTER)
   {
-    /* Preserve values */
+    /* Preserve information */
     const uint32_t cluster = node->cluster;
     const uint16_t index = node->index;
     const enum fsNodeType type = node->type;
 
-    /* Check if directory not empty */
+    /* Check whether the directory is not empty */
     node->cluster = node->payload;
     node->index = 2; /* Exclude . and .. */
 
-    res = fetchNode(context, node, 0);
-    if (res == E_OK)
+    if ((res = fetchNode(context, node, 0)) == E_OK)
       res = E_VALUE;
     if (res != E_EMPTY && res != E_ENTRY)
     {
@@ -2297,9 +2307,8 @@ static void fatFileDeinit(void *object)
   {
 #ifdef CONFIG_FAT_WRITE
     struct FatHandle * const handle = (struct FatHandle *)file->handle;
-    struct FatFile *descriptor;
-
     struct ListNode *current = listFirst(&handle->openedFiles);
+    struct FatFile *descriptor;
 
     while (current)
     {
@@ -2330,7 +2339,7 @@ static enum result fatFileClose(void *object)
 
     if (!(context = allocateContext(handle)))
       return E_MEMORY;
-    res = syncFile(context, object);
+    res = syncFile(context, file);
     freeContext(handle, context);
 
     if (res != E_OK)
@@ -2396,6 +2405,7 @@ static uint32_t fatFileRead(void *object, void *buffer, uint32_t length)
 
     /* Offset from the beginning of the sector */
     const uint16_t offset = (file->position + read) & (SECTOR_SIZE - 1);
+
     if (offset || length < SECTOR_SIZE) /* Position within the sector */
     {
       /* Length of remaining sector space */
@@ -2575,6 +2585,7 @@ static uint32_t fatFileWrite(void *object, const void *buffer, uint32_t length)
 
     /* Offset from the beginning of the sector */
     const uint16_t offset = (file->position + written) & (SECTOR_SIZE - 1);
+
     if (offset || length < SECTOR_SIZE) /* Position within the sector */
     {
       /* Length of remaining sector space */
@@ -2582,6 +2593,7 @@ static uint32_t fatFileWrite(void *object, const void *buffer, uint32_t length)
       chunk = (length < chunk) ? length : chunk;
 
       const uint32_t sector = getSector(handle, file->currentCluster) + current;
+
       if (readSector(context, handle, sector) != E_OK)
       {
         freeContext(handle, context);
@@ -2660,7 +2672,9 @@ uint32_t fat32CountFree(void *object)
         freeContext(handle, context);
         return empty;
       }
+
       uint16_t offset = (current & ((1 << CELL_COUNT) - 1)) << 2;
+
       if (clusterFree(*(uint32_t *)(context->buffer + offset)))
         ++count[fat];
     }
