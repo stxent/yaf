@@ -320,7 +320,7 @@ static enum result fetchNode(struct CommandContext *, struct FatNode *,
 static const char *followPath(struct CommandContext *, struct FatNode *,
     const char *, const struct FatNode *);
 static void freeBuffers(struct FatHandle *, enum cleanup);
-static void freeContext(struct FatHandle *, struct CommandContext *);
+static void freeContext(struct FatHandle *, const struct CommandContext *);
 static const char *getChunk(const char *, char *);
 static enum result getNextCluster(struct CommandContext *, struct FatHandle *,
     uint32_t *);
@@ -386,9 +386,9 @@ static enum result fatSync(void *);
 /* Node functions */
 static enum result fatNodeInit(void *, const void *);
 static void fatNodeDeinit(void *);
-static void *fatClone(void *);
+static void *fatClone(const void *);
 static void fatFree(void *);
-static enum result fatGet(void *, enum fsNodeData, void *);
+static enum result fatGet(const void *, enum fsNodeData, void *);
 static enum result fatLink(void *, const struct FsMetadata *, const void *,
     void *);
 static enum result fatMake(void *, const struct FsMetadata *, void *);
@@ -401,19 +401,19 @@ static enum result fatUnlink(void *);
 static enum result fatDirInit(void *, const void *);
 static void fatDirDeinit(void *);
 static enum result fatDirClose(void *);
-static bool fatDirEnd(void *);
+static bool fatDirEnd(const void *);
 static enum result fatDirFetch(void *, void *);
 static enum result fatDirSeek(void *, uint64_t, enum fsSeekOrigin);
-static uint64_t fatDirTell(void *);
+static uint64_t fatDirTell(const void *);
 
 /* File functions */
 static enum result fatFileInit(void *, const void *);
 static void fatFileDeinit(void *);
 static enum result fatFileClose(void *);
-static bool fatFileEnd(void *);
+static bool fatFileEnd(const void *);
 static uint32_t fatFileRead(void *, void *, uint32_t);
 static enum result fatFileSeek(void *, uint64_t, enum fsSeekOrigin);
-static uint64_t fatFileTell(void *);
+static uint64_t fatFileTell(const void *);
 static uint32_t fatFileWrite(void *, const void *, uint32_t);
 
 /* Stubs */
