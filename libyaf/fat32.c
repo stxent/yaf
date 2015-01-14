@@ -1362,26 +1362,30 @@ static enum result markFree(struct CommandContext *context,
 /* Returns zero when character is not allowed or character code otherwise */
 static char processCharacter(char value)
 {
-  /* All slashes are already removed while file path being calculated */
-  /* Drop all multibyte UTF-8 code points */
-  if (value & 0x80)
-    return 0;
-  /* Replace spaces with underscores */
+  /* All slashes are already removed while file path being processed */
+
   if (value == ' ')
+  {
+    /* Replace spaces with underscores */
     return '_';
-  /* Convert lower case characters to upper case */
-  if (value >= 'a' && value <= 'z')
+  }
+  else if (value >= 'a' && value <= 'z')
+  {
+    /* Convert lower case characters to upper case */
     return value - 32;
-  /* Check specific FAT32 ranges */
-  if (value > 0x20 && value != 0x22 && value != 0x7C
+  }
+  else if (value > 0x20 && value != 0x22 && value != 0x7C && !(value & 0x80)
       && !(value >= 0x2A && value <= 0x2F)
       && !(value >= 0x3A && value <= 0x3F)
       && !(value >= 0x5B && value <= 0x5D))
   {
     return value;
   }
-
-  return 0;
+  else
+  {
+    /* Drop all multibyte UTF-8 code points and non-printing characters */
+    return 0;
+  }
 }
 #endif
 /*----------------------------------------------------------------------------*/
