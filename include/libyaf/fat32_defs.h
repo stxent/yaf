@@ -11,14 +11,14 @@
 #include <stdint.h>
 #include <bits.h>
 #include <fs.h>
+#include <unicode.h>
 #include <containers/list.h>
 #include <containers/queue.h>
-#include <libyaf/unicode.h>
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_THREADS
 #include <os/mutex.h>
 #endif
-/*----------------------------------------------------------------------------*/
+
 #ifdef CONFIG_FAT_TIME
 #include <rtc.h>
 #endif
@@ -209,7 +209,7 @@ struct FatFile
   access_t access;
 };
 /*----------------------------------------------------------------------------*/
-/* Directory entry or long file name entry*/
+/* Directory entry or long file name entry */
 struct DirEntryImage
 {
   union
