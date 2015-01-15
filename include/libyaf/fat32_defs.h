@@ -370,12 +370,15 @@ static enum result writeSector(struct CommandContext *, struct FatHandle *,
     uint32_t);
 #endif
 /*----------------------------------------------------------------------------*/
-#if defined(CONFIG_FAT_UNICODE) && defined(CONFIG_FAT_WRITE)
+#if defined(CONFIG_FAT_UNICODE) || defined(CONFIG_FAT_WRITE)
 static enum result allocateStaticNode(struct FatHandle *, struct FatNode *);
-static void fillLongName(struct DirEntryImage *, char16_t *);
+static void freeStaticNode(struct FatNode *);
+#endif
+/*----------------------------------------------------------------------------*/
+#if defined(CONFIG_FAT_UNICODE) && defined(CONFIG_FAT_WRITE)
+static void fillLongName(struct DirEntryImage *, const char16_t *);
 static void fillLongNameEntry(struct DirEntryImage *, uint8_t, uint8_t,
     uint8_t);
-static void freeStaticNode(struct FatNode *);
 #endif
 /*----------------------------------------------------------------------------*/
 /* Filesystem handle functions */

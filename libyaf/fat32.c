@@ -548,7 +548,7 @@ static void freeContext(struct FatHandle *handle,
 }
 #else
 static void freeContext(struct FatHandle *handle __attribute__((unused)),
-    struct CommandContext *context __attribute__((unused)))
+    const struct CommandContext *context __attribute__((unused)))
 {
 
 }
@@ -953,12 +953,12 @@ static enum result createNode(struct CommandContext *context,
   struct DirEntryImage *entry;
   uint32_t sector;
   char shortName[sizeof(entry->filename)];
+  uint8_t chunks = 0;
   enum result res;
 
 #ifdef CONFIG_FAT_UNICODE
   /* Allocate temporary metadata buffer */
   struct FsMetadata *nameBuffer = 0;
-  uint8_t chunks = 0;
 
   lockPools(handle);
   if (!queueEmpty(&handle->metadataPool.queue))
@@ -1536,7 +1536,7 @@ static enum result writeSector(struct CommandContext *context,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#if defined(CONFIG_FAT_UNICODE) && defined(CONFIG_FAT_WRITE)
+#if defined(CONFIG_FAT_UNICODE) || defined(CONFIG_FAT_WRITE)
 static enum result allocateStaticNode(struct FatHandle *handle,
     struct FatNode *node)
 {
@@ -1553,6 +1553,13 @@ static enum result allocateStaticNode(struct FatHandle *handle,
     return res;
 
   return E_OK;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#if defined(CONFIG_FAT_UNICODE) || defined(CONFIG_FAT_WRITE)
+static void freeStaticNode(struct FatNode *node)
+{
+  FatNode->deinit(node);
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -1581,13 +1588,6 @@ static void fillLongNameEntry(struct DirEntryImage *entry, uint8_t current,
   entry->ordinal = current;
   if (current == total)
     entry->ordinal |= LFN_LAST;
-}
-#endif
-/*----------------------------------------------------------------------------*/
-#if defined(CONFIG_FAT_UNICODE) && defined(CONFIG_FAT_WRITE)
-static void freeStaticNode(struct FatNode *node)
-{
-  FatNode->deinit(node);
 }
 #endif
 /*------------------Filesystem handle functions-------------------------------*/
