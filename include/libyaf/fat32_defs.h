@@ -236,6 +236,7 @@ struct DirEntryImage
   {
     /* Directory entry field */
     uint8_t unused1;
+
     /* Long file name entry field */
     uint8_t checksum;
   };
@@ -313,7 +314,7 @@ static enum result allocateBuffers(struct FatHandle *,
     const struct Fat32Config * const);
 static struct CommandContext *allocateContext(struct FatHandle *);
 static void *allocateNode(struct FatHandle *);
-static void extractShortName(const struct DirEntryImage *, char *);
+static void extractShortName(char *, const struct DirEntryImage *);
 static enum result fetchEntry(struct CommandContext *, struct FatNode *);
 static enum result fetchNode(struct CommandContext *, struct FatNode *,
     struct FsMetadata *);
@@ -337,10 +338,10 @@ uint16_t timeToRawTime(const struct RtcTime *);
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_UNICODE
-static void extractLongName(const struct DirEntryImage *, char16_t *);
+static void extractLongName(char16_t *, const struct DirEntryImage *);
 static uint8_t getChecksum(const char *, uint8_t);
-static enum result readLongName(struct CommandContext *, const struct FatNode *,
-    char *);
+static enum result readLongName(struct CommandContext *, char *,
+    const struct FatNode *);
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_WRITE

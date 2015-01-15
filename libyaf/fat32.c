@@ -281,33 +281,33 @@ static void *allocateNode(struct FatHandle *handle)
   return node;
 }
 /*----------------------------------------------------------------------------*/
-static void extractShortName(const struct DirEntryImage *entry, char *str)
+static void extractShortName(char *name, const struct DirEntryImage *entry)
 {
-  const char *src = entry->name;
-  char *dest = str;
+  const char *source = entry->name;
+  char *destination = name;
   uint8_t counter = 0;
 
   while (counter++ < sizeof(entry->name))
   {
-    if (*src != ' ')
-      *dest++ = *src;
-    src++;
+    if (*source != ' ')
+      *destination++ = *source;
+    source++;
   }
   /* Add dot when entry is not directory or extension exists */
   if (!(entry->flags & FLAG_DIR) && entry->extension[0] != ' ')
   {
-    *dest++ = '.';
+    *destination++ = '.';
     /* Copy entry extension */
     counter = 0;
-    src = entry->extension;
+    source = entry->extension;
     while (counter++ < sizeof(entry->extension))
     {
-      if (*src != ' ')
-        *dest++ = *src;
-      ++src;
+      if (*source != ' ')
+        *destination++ = *source;
+      ++source;
     }
   }
-  *dest = '\0';
+  *destination = '\0';
 }
 /*----------------------------------------------------------------------------*/
 /* Fields node->index and node->cluster have to be initialized */
@@ -423,13 +423,13 @@ static enum result fetchNode(struct CommandContext *context,
 #ifdef CONFIG_FAT_UNICODE
     if (hasLongName(node))
     {
-      if ((res = readLongName(context, node, metadata->name)) != E_OK)
+      if ((res = readLongName(context, metadata->name, node)) != E_OK)
         return res;
     }
     else
-      extractShortName(entry, metadata->name);
+      extractShortName(metadata->name, entry);
 #else
-    extractShortName(entry, metadata->name);
+    extractShortName(metadata->name, entry);
 #endif
   }
 
@@ -763,32 +763,32 @@ uint16_t timeToRawTime(const struct RtcTime *value)
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_UNICODE
 /* Extract 13 Unicode characters from long file name entry */
-static void extractLongName(const struct DirEntryImage *entry, char16_t *str)
+static void extractLongName(char16_t *name, const struct DirEntryImage *entry)
 {
-  memcpy(str, entry->longName0, sizeof(entry->longName0));
-  str += sizeof(entry->longName0) / sizeof(char16_t);
-  memcpy(str, entry->longName1, sizeof(entry->longName1));
-  str += sizeof(entry->longName1) / sizeof(char16_t);
-  memcpy(str, entry->longName2, sizeof(entry->longName2));
+  memcpy(name, entry->longName0, sizeof(entry->longName0));
+  name += sizeof(entry->longName0) / sizeof(char16_t);
+  memcpy(name, entry->longName1, sizeof(entry->longName1));
+  name += sizeof(entry->longName1) / sizeof(char16_t);
+  memcpy(name, entry->longName2, sizeof(entry->longName2));
 }
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_UNICODE
 /* Calculate entry name checksum for long file name entries support */
-static uint8_t getChecksum(const char *str, uint8_t length)
+static uint8_t getChecksum(const char *name, uint8_t length)
 {
   uint8_t sum = 0;
 
   for (uint8_t index = 0; index < length; ++index)
-    sum = ((sum >> 1) | (sum << 7)) + *str++;
+    sum = ((sum >> 1) | (sum << 7)) + *name++;
 
   return sum;
 }
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_UNICODE
-static enum result readLongName(struct CommandContext *context,
-    const struct FatNode *node, char *name)
+static enum result readLongName(struct CommandContext *context, char *name,
+    const struct FatNode *node)
 {
   const struct DirEntryImage *entry;
   struct FatNode allocatedNode;
@@ -824,7 +824,7 @@ static enum result readLongName(struct CommandContext *context,
     if (entry->ordinal & LFN_LAST)
       *((char16_t *)name + (offset + 1) * LFN_ENTRY_LENGTH) = 0;
 
-    extractLongName(entry, (char16_t *)name + offset * LFN_ENTRY_LENGTH);
+    extractLongName((char16_t *)name + offset * LFN_ENTRY_LENGTH, entry);
     ++chunks;
     ++allocatedNode.index;
   }
@@ -1558,7 +1558,7 @@ static enum result allocateStaticNode(struct FatHandle *handle,
 /*----------------------------------------------------------------------------*/
 #if defined(CONFIG_FAT_UNICODE) && defined(CONFIG_FAT_WRITE)
 /* Save Unicode characters to long file name entry */
-static void fillLongName(struct DirEntryImage *entry, char16_t *name)
+static void fillLongName(struct DirEntryImage *entry, const char16_t *name)
 {
   memcpy(entry->longName0, name, sizeof(entry->longName0));
   name += sizeof(entry->longName0) / sizeof(char16_t);
@@ -1737,7 +1737,7 @@ static enum result fatGet(const void *object, enum fsNodeData type, void *data)
       struct FsMetadata *metadata = data;
 
       metadata->type = node->type;
-      res = readLongName(context, node, metadata->name);
+      res = readLongName(context, metadata->name, node);
       freeContext(handle, context);
 
       return res;
@@ -1750,7 +1750,7 @@ static enum result fatGet(const void *object, enum fsNodeData type, void *data)
       if (!(context = allocateContext(handle)))
         return E_MEMORY;
 
-      res = readLongName(context, node, (char *)data);
+      res = readLongName(context, (char *)data, node);
       freeContext(handle, context);
       return res;
     }
@@ -1794,13 +1794,13 @@ static enum result fatGet(const void *object, enum fsNodeData type, void *data)
       struct FsMetadata * const metadata = data;
 
       metadata->type = node->type;
-      extractShortName(entry, metadata->name);
+      extractShortName(metadata->name, entry);
       break;
     }
 
     case FS_NODE_NAME:
     {
-      extractShortName(entry, (char *)data);
+      extractShortName((char *)data, entry);
       break;
     }
 
