@@ -945,6 +945,13 @@ static enum result clearCluster(struct CommandContext *context,
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_WRITE
+static void copyNode(struct FatNode *destination, const struct FatNode *source)
+{
+  memcpy(destination, source, sizeof(struct FatNode));
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef CONFIG_FAT_WRITE
 static enum result createNode(struct CommandContext *context,
     struct FatNode *node, const struct FatNode *root,
     const struct FsMetadata *metadata)
@@ -1837,34 +1844,33 @@ static enum result fatLink(void *object, const struct FsMetadata *metadata,
   const struct FatNode * const target = targetBase;
   const struct FatNode * const node = object;
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
-  struct FatNode *allocatedNode;
+  struct FatNode allocatedNode;
   struct CommandContext *context;
   enum result res;
 
   if (!(node->access & FS_ACCESS_WRITE))
     return E_ACCESS;
 
-  if (!result)
+  /* Initialize temporary node */
+  if ((res = allocateStaticNode(handle, &allocatedNode)) != E_OK)
+    return res;
+
+  if ((context = allocateContext(handle)))
   {
-    if (!(allocatedNode = allocateNode(handle)))
-      return E_MEMORY;
+    allocatedNode.payload = target->payload;
+    lockHandle(handle);
+    res = createNode(context, &allocatedNode, node, metadata);
+    unlockHandle(handle);
+
+    freeContext(handle, context);
   }
   else
-    allocatedNode = result; /* Use a node provided by user */
+    res = E_MEMORY;
 
-  if (!(context = allocateContext(handle)))
-    return E_MEMORY;
+  if (res == E_OK && result)
+    copyNode(result, &allocatedNode);
 
-  allocatedNode->payload = target->payload;
-  lockHandle(handle);
-  res = createNode(context, allocatedNode, node, metadata);
-  unlockHandle(handle);
-
-  freeContext(handle, context);
-
-  if (res != E_OK || !result)
-    fatFree(allocatedNode);
-
+  freeStaticNode(&allocatedNode);
   return res;
 }
 #else
@@ -1883,7 +1889,7 @@ static enum result fatMake(void *object, const struct FsMetadata *metadata,
 {
   const struct FatNode * const node = object;
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
-  struct FatNode *allocatedNode;
+  struct FatNode allocatedNode;
   struct CommandContext *context;
   enum result res;
 
@@ -1893,17 +1899,13 @@ static enum result fatMake(void *object, const struct FsMetadata *metadata,
   if (!(node->access & FS_ACCESS_WRITE))
     return E_ACCESS;
 
-  if (!result)
-  {
-    if (!(allocatedNode = allocateNode(handle)))
-      return E_MEMORY;
-  }
-  else
-    allocatedNode = result; /* Use a node provided by user */
+  /* Initialize temporary node */
+  if ((res = allocateStaticNode(handle, &allocatedNode)) != E_OK)
+    return res;
 
   if ((context = allocateContext(handle)))
   {
-    allocatedNode->payload = RESERVED_CLUSTER;
+    allocatedNode.payload = RESERVED_CLUSTER;
 
     /* Prevent unexpected modifications from other threads */
     lockHandle(handle);
@@ -1911,28 +1913,28 @@ static enum result fatMake(void *object, const struct FsMetadata *metadata,
     res = E_OK;
     if (metadata->type == FS_TYPE_DIR)
     {
-      res = allocateCluster(context, handle, &allocatedNode->payload);
+      res = allocateCluster(context, handle, &allocatedNode.payload);
 
       if (res == E_OK)
       {
         /* Coherence checking is not needed for directory setup */
         unlockHandle(handle);
-        res = setupDirCluster(context, allocatedNode);
+        res = setupDirCluster(context, &allocatedNode);
         lockHandle(handle);
       }
       else
       {
         /* Return value is ignored */
-        freeChain(context, handle, allocatedNode->payload);
+        freeChain(context, handle, allocatedNode.payload);
       }
     }
 
     if (res == E_OK)
     {
-      res = createNode(context, allocatedNode, node, metadata);
+      res = createNode(context, &allocatedNode, node, metadata);
 
       if (res != E_OK && metadata->type == FS_TYPE_DIR)
-        freeChain(context, handle, allocatedNode->payload);
+        freeChain(context, handle, allocatedNode.payload);
     }
 
     unlockHandle(handle);
@@ -1941,9 +1943,10 @@ static enum result fatMake(void *object, const struct FsMetadata *metadata,
   else
     res = E_MEMORY;
 
-  if (!result)
-    fatFree(allocatedNode);
+  if (res == E_OK && result)
+    copyNode(result, &allocatedNode);
 
+  freeStaticNode(&allocatedNode);
   return res;
 }
 #else

@@ -349,6 +349,7 @@ static enum result allocateCluster(struct CommandContext *, struct FatHandle *,
     uint32_t *);
 static enum result clearCluster(struct CommandContext *, struct FatHandle *,
     uint32_t);
+static void copyNode(struct FatNode *, const struct FatNode *);
 static enum result createNode(struct CommandContext *, struct FatNode *,
     const struct FatNode *, const struct FsMetadata *);
 static void fillDirEntry(struct DirEntryImage *, const struct FatNode *);
