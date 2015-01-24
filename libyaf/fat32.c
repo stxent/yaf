@@ -366,7 +366,7 @@ static enum result fetchNode(struct CommandContext *context,
   const struct DirEntryImage *entry;
   enum result res;
 #ifdef CONFIG_FAT_UNICODE
-  uint8_t checksum;
+  uint8_t checksum = 0;
   uint8_t chunks = 0; /* LFN chunks required */
   uint8_t found = 0; /* LFN chunks found */
 #endif
@@ -586,14 +586,17 @@ static const char *getChunk(const char *src, char *dest)
 static enum result getNextCluster(struct CommandContext *context,
     struct FatHandle *handle, uint32_t *cluster)
 {
-  const enum result res = readSector(context, handle, handle->tableSector
-      + (*cluster >> CELL_COUNT));
+  uint32_t nextCluster;
+  enum result res;
 
+  res = readSector(context, handle, handle->tableSector
+      + (*cluster >> CELL_COUNT));
   if (res != E_OK)
     return res;
 
-  const uint32_t nextCluster = *(const uint32_t *)(context->buffer
-      + CELL_OFFSET(*cluster));
+  memcpy(&nextCluster, context->buffer + CELL_OFFSET(*cluster),
+      sizeof(nextCluster));
+  nextCluster = fromLittleEndian32(nextCluster);
 
   if (clusterUsed(nextCluster))
   {
@@ -858,45 +861,48 @@ static enum result allocateCluster(struct CommandContext *context,
     if (current >= handle->clusterCount)
       current = 2;
 
-    res = readSector(context, handle, handle->tableSector
-        + (current >> CELL_COUNT));
+    uint32_t * const address = (uint32_t *)(context->buffer
+        + CELL_OFFSET(current));
+    const uint16_t currentOffset = current >> CELL_COUNT;
+
+    res = readSector(context, handle, handle->tableSector + currentOffset);
     if (res != E_OK)
       return res;
 
     /* Check whether the cluster is free */
-    const uint16_t offset = (current & ((1 << CELL_COUNT) - 1)) << 2;
-    uint32_t * const address = (uint32_t *)(context->buffer + offset);
-
-    if (clusterFree(*address))
+    if (clusterFree(fromLittleEndian32(*address)))
     {
+      const uint32_t allocatedCluster = toLittleEndian32(current);
+      const uint16_t parentOffset = *cluster >> CELL_COUNT;
+
       /* Mark cluster as busy */
-      *address = CLUSTER_EOC_VAL;
+      *address = toLittleEndian32(CLUSTER_EOC_VAL);
 
       /*
-       * Save changes to allocation table when reference is not available
-       * or cluster reference located in another sector.
+       * Save changes to the allocation table when previous cluster
+       * is not available or parent cluster entry is located in other sector.
        */
-      if (!*cluster || (*cluster >> CELL_COUNT != current >> CELL_COUNT))
+      if (!*cluster || parentOffset != currentOffset)
       {
-        if ((res = updateTable(context, handle, current >> CELL_COUNT)) != E_OK)
+        if ((res = updateTable(context, handle, currentOffset)) != E_OK)
           return res;
       }
 
-      /* Update reference cluster when reference is available */
+      /* Update reference cluster when previous cluster is available */
       if (*cluster)
       {
-        res = readSector(context, handle, handle->tableSector
-            + (*cluster >> CELL_COUNT));
+        res = readSector(context, handle, handle->tableSector + parentOffset);
         if (res != E_OK)
           return res;
 
-        *(uint32_t *)(context->buffer + CELL_OFFSET(*cluster)) = current;
-        res = updateTable(context, handle, *cluster >> CELL_COUNT);
-        if (res != E_OK)
+        memcpy(context->buffer + CELL_OFFSET(*cluster), &allocatedCluster,
+            sizeof(allocatedCluster));
+
+        if ((res = updateTable(context, handle, parentOffset)) != E_OK)
           return res;
       }
 
-      DEBUG_PRINT("Allocated cluster: %u, reference %u\n", current, *cluster);
+      DEBUG_PRINT("Allocated cluster: %u, parent %u\n", current, *cluster);
       handle->lastAllocated = current;
       *cluster = current;
 
@@ -1021,7 +1027,7 @@ static enum result createNode(struct CommandContext *context,
       entry = (struct DirEntryImage *)(context->buffer
           + ENTRY_OFFSET(node->index));
 
-      fillLongName(entry, (char16_t *)nameBuffer->name + (current - 1)
+      fillLongName(entry, (const char16_t *)nameBuffer->name + (current - 1)
           * LFN_ENTRY_LENGTH);
       fillLongNameEntry(entry, current, chunks, checksum);
 
@@ -1282,7 +1288,7 @@ static enum result freeChain(struct CommandContext *context,
 
     uint32_t * const address = (uint32_t *)(context->buffer
         + CELL_OFFSET(current));
-    const uint32_t next = *address;
+    const uint32_t next = fromLittleEndian32(*address);
 
     *address = 0;
 

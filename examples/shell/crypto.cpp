@@ -59,7 +59,6 @@ result ComputationCommand::run(unsigned int count,
     const char * const *arguments)
 {
   const char * const *path = arguments;
-  const char *fileName;
   uint8_t buffer[CONFIG_SHELL_BUFFER];
   result res;
 
@@ -70,12 +69,11 @@ result ComputationCommand::run(unsigned int count,
   FsEntry *entry;
   fsNodeType type;
 
-  //TODO Return from function on some error types
+  //TODO Return from function on some error types, rewrite
   while ((path = getNextEntry(count
       - static_cast<unsigned int>(path - arguments), path)) != nullptr)
   {
-    fileName = *path;
-    ++path;
+    const char *fileName = *path++;
 
     //Find destination node
     Shell::joinPaths(context->pathBuffer, context->currentDir, fileName);
