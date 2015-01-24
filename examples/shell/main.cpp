@@ -12,6 +12,7 @@
 #include <iostream>
 #include <vector>
 #include "commands.hpp"
+#include "crypto.hpp"
 #include "shell.hpp"
 //------------------------------------------------------------------------------
 #ifdef CONFIG_FAT_THREADS
@@ -19,9 +20,6 @@
 #endif
 #ifdef CONFIG_FAT_TIME
 #include "timestamps.hpp"
-#endif
-#ifdef CONFIG_CRYPTO
-#include "crypto.hpp"
 #endif
 //------------------------------------------------------------------------------
 extern "C"
@@ -73,6 +71,7 @@ int main(int argc, char *argv[])
   }
 
   Shell shell(0, handle);
+
   shell.append(CommandBuilder<ChangeDirectory>());
   shell.append(CommandBuilder<CopyEntry>());
   shell.append(CommandBuilder<DirectData>());
@@ -84,15 +83,14 @@ int main(int argc, char *argv[])
   shell.append(CommandBuilder<RemoveEntry>());
   shell.append(CommandBuilder<Synchronize>());
 
+  shell.append(CommandBuilder<ComputeHash>());
+
 #ifdef CONFIG_FAT_THREADS
   shell.append(CommandBuilder<ThreadSwarm>());
 #endif
 #ifdef CONFIG_FAT_TIME
   shell.append(CommandBuilder<CurrentDate>());
   shell.append(CommandBuilder<MeasureTime>());
-#endif
-#ifdef CONFIG_CRYPTO
-  shell.append(CommandBuilder<ComputeHash>());
 #endif
 
   bool terminate = false;

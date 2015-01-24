@@ -13,47 +13,24 @@ XCORE_PATH ?= $(PROJECTDIR)/../xcore
 -include $(CONFIG_FILE)
 
 #Select build type
-ifeq ($(CONFIG_TARGET),"X86")
+ifneq ($(findstring X86,$(CONFIG_TARGET)),)
   AR = ar
   CC = gcc
   CXX = g++
-  LDLIBS += -lpthread -lrt
-  PLATFORM := x86
-  CPU_FLAGS := -m32
-  ifeq ($(CONFIG_CRYPTO),y)
-    LDLIBS += -lcrypto
+  LDLIBS += -lcrypto -lpthread -lrt
+  ifeq ($(CONFIG_TARGET),"X86")
+    PLATFORM := x86
+    CPU_FLAGS := -m32
+  else
+    PLATFORM := x86-64
+    CPU_FLAGS := -m64
   endif
-else ifeq ($(CONFIG_TARGET),"X86-64")
-  AR = ar
-  CC = gcc
-  CXX = g++
-  LDLIBS += -lpthread -lrt
-  PLATFORM := x86-64
-  CPU_FLAGS := -m64
-  ifeq ($(CONFIG_CRYPTO),y)
-    LDLIBS += -lcrypto
-  endif
-else ifeq ($(CONFIG_TARGET),"CORTEX-M0")
+else ifneq ($(findstring CORTEX-M,$(CONFIG_TARGET)),)
   AR = $(CROSS_COMPILE)ar
   CC = $(CROSS_COMPILE)gcc
   CXX = $(CROSS_COMPILE)g++
-  PLATFORM := cortex-m0
-  CPU_FLAGS := -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=cortex-m0 -mthumb
-  PLATFORM_FLAGS := -specs=redlib.specs -D__REDLIB__
-else ifeq ($(CONFIG_TARGET),"CORTEX-M3")
-  AR = $(CROSS_COMPILE)ar
-  CC = $(CROSS_COMPILE)gcc
-  CXX = $(CROSS_COMPILE)g++
-  PLATFORM := cortex-m3
-  CPU_FLAGS := -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=cortex-m3 -mthumb
-  PLATFORM_FLAGS := -specs=redlib.specs -D__REDLIB__
-else ifeq ($(CONFIG_TARGET),"CORTEX-M4")
-  AR = $(CROSS_COMPILE)ar
-  CC = $(CROSS_COMPILE)gcc
-  CXX = $(CROSS_COMPILE)g++
-  PLATFORM := cortex-m4
-  CPU_FLAGS := -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mcpu=cortex-m4 -mthumb
-  PLATFORM_FLAGS := -specs=redlib.specs -D__REDLIB__
+  PLATFORM := cortex-m$(CONFIG_TARGET:"CORTEX-M%"=%)
+  CPU_FLAGS += -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections -mthumb -mcpu=$(PLATFORM)
 else
   ifneq ($(MAKECMDGOALS),menuconfig)
     $(error Target architecture is undefined)
@@ -61,9 +38,9 @@ else
 endif
 
 ifeq ($(CONFIG_OPT_LEVEL),"full")
-  OPT_FLAGS := -O3
+  OPT_FLAGS := -O3 -flto -DNDEBUG
 else ifeq ($(CONFIG_OPT_LEVEL),"size")
-  OPT_FLAGS := -Os
+  OPT_FLAGS := -Os -flto -DNDEBUG
 else ifeq ($(CONFIG_OPT_LEVEL),"none")
   OPT_FLAGS := -O0 -g3
 else
@@ -95,9 +72,9 @@ LDLIBS += -l$(PROJECT) -lxcore
 
 #Configure compiler options
 CFLAGS += -std=c11 -Wall -Wcast-qual -Wextra -Winline -pedantic -Wshadow
-CFLAGS += $(OPT_FLAGS) $(CPU_FLAGS) $(PLATFORM_FLAGS) $(CONFIG_FLAGS)
+CFLAGS += $(OPT_FLAGS) $(CPU_FLAGS) $(CONFIG_FLAGS)
 CXXFLAGS += -std=c++11 -Wall -Wcast-qual -Wextra -Winline -pedantic -Wshadow -Wold-style-cast
-CXXFLAGS += $(OPT_FLAGS) $(CPU_FLAGS) $(PLATFORM_FLAGS) $(CONFIG_FLAGS)
+CXXFLAGS += $(OPT_FLAGS) $(CPU_FLAGS) $(CONFIG_FLAGS)
 
 #Search for project modules
 LIBRARY_FILE = $(OUTPUTDIR)/lib$(PROJECT).a

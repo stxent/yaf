@@ -58,10 +58,6 @@ menu "Debug options"
 config FAT_DEBUG
 	bool "Filesystem debug messages"
 
-config CRYPTO
-	bool "Crypto examples"
-	depends on EXAMPLES
-
 config MMI_DEBUG
 	bool "Interface debug messages"
 	depends on EXAMPLES
