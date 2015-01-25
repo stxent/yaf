@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <interface.h>
 #include <fs.h>
+#include <rtc.h>
 /*----------------------------------------------------------------------------*/
 extern const struct FsHandleClass * const FatHandle;
 /*----------------------------------------------------------------------------*/
@@ -18,6 +19,11 @@ struct Fat32Config
 {
   /** Mandatory: pointer to an initialized interface. */
   struct Interface *interface;
+  /**
+   * Optional: pointer to a real-time clock. This option is used
+   * only when time support is enabled.
+   */
+  struct Rtc *timer;
   /**
    * Optional: number of file descriptors in file pool. This option is used
    * only when support for object pools is enabled.

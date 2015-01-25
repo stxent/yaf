@@ -89,6 +89,10 @@ struct FatHandle
   struct FsHandle *head;
   struct Interface *interface;
 
+#ifdef CONFIG_FAT_TIME
+  struct Rtc *timer;
+#endif
+
   struct Pool metadataPool;
 
 #ifdef CONFIG_FAT_POOLS

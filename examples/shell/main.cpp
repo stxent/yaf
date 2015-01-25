@@ -26,6 +26,7 @@ extern "C"
 {
 #include <libyaf/fat32.h>
 #include "mmi.h"
+#include "unix_time.h"
 }
 //------------------------------------------------------------------------------
 using namespace std;
@@ -35,10 +36,8 @@ int main(int argc, char *argv[])
   if (argc < 2)
     return 0;
 
-  Interface *mmaped;
-  FsHandle *handle;
+  Interface * const mmaped = reinterpret_cast<Interface *>(init(Mmi, argv[1]));
 
-  mmaped = reinterpret_cast<Interface *>(init(Mmi, argv[1]));
   if (!mmaped)
   {
     printf("Error opening file\n");
@@ -46,6 +45,7 @@ int main(int argc, char *argv[])
   }
 
   MbrDescriptor mbrRecord;
+
   if (mmiReadTable(mmaped, 0, 0, &mbrRecord) == E_OK)
   {
     if (mmiSetPartition(mmaped, &mbrRecord) != E_OK)
@@ -54,7 +54,18 @@ int main(int argc, char *argv[])
   else
     printf("No partitions found, selected raw partition at 0\n");
 
+#ifdef CONFIG_FAT_TIME
+  Rtc * const timer = reinterpret_cast<Rtc *>(init(UnixTime, 0));
+
+  if (!timer)
+  {
+    printf("Error creating real-time clock\n");
+    return 0;
+  }
+#endif
+
   Fat32Config fsConf;
+
   fsConf.interface = mmaped;
   //Unused when pools are disabled
   fsConf.nodes = 4;
@@ -62,8 +73,13 @@ int main(int argc, char *argv[])
   fsConf.files = 2;
   //Unused when multithreading is disabled
   fsConf.threads = 2;
+#ifdef CONFIG_FAT_TIME
+  fsConf.timer = timer;
+#endif
 
-  handle = reinterpret_cast<FsHandle *>(init(FatHandle, &fsConf));
+  FsHandle * const handle =
+      reinterpret_cast<FsHandle *>(init(FatHandle, &fsConf));
+
   if (!handle)
   {
     printf("Error creating FAT32 handle\n");

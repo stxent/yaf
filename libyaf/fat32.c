@@ -1094,12 +1094,21 @@ static void fillDirEntry(struct DirEntryImage *entry,
   entry->size = 0;
 
 #ifdef CONFIG_FAT_TIME
-  struct RtcTime currentTime;
+  struct FatHandle * const handle = (struct FatHandle *)node->handle;
 
-  rtcMakeTime(&currentTime, rtcEpochTime());
-  /* Set time and date of the last modification */
-  entry->date = toLittleEndian16(timeToRawDate(&currentTime));
-  entry->time = toLittleEndian16(timeToRawTime(&currentTime));
+  if (handle->timer)
+  {
+    struct RtcTime currentTime;
+
+    rtcMakeTime(&currentTime, rtcTime(handle->timer));
+    entry->date = toLittleEndian16(timeToRawDate(&currentTime));
+    entry->time = toLittleEndian16(timeToRawTime(&currentTime));
+  }
+  else
+  {
+    entry->date = 0;
+    entry->time = 0;
+  }
 #else
   entry->date = 0;
   entry->time = 0;
@@ -1481,12 +1490,14 @@ static enum result syncFile(struct CommandContext *context,
   entry->size = toLittleEndian32(file->size);
 
 #ifdef CONFIG_FAT_TIME
-  struct RtcTime currentTime;
+  if (handle->timer)
+  {
+    struct RtcTime currentTime;
 
-  rtcMakeTime(&currentTime, rtcEpochTime());
-  /* Set time and date of the last modification */
-  entry->date = toLittleEndian16(timeToRawDate(&currentTime));
-  entry->time = toLittleEndian16(timeToRawTime(&currentTime));
+    rtcMakeTime(&currentTime, rtcTime(handle->timer));
+    entry->date = toLittleEndian16(timeToRawDate(&currentTime));
+    entry->time = toLittleEndian16(timeToRawTime(&currentTime));
+  }
 #endif
 
   res = writeSector(context, handle, sector);
@@ -1614,6 +1625,12 @@ static enum result fatHandleInit(void *object, const void *configBase)
     return res;
 
   handle->interface = config->interface;
+
+#ifdef CONFIG_FAT_TIME
+  handle->timer = config->timer;
+  if (!handle->timer)
+    DEBUG_PRINT("Real-time clock is not initialized");
+#endif
 
   if ((res = mount(handle)) != E_OK)
     return res;
