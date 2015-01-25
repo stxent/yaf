@@ -18,7 +18,7 @@ extern "C"
 //------------------------------------------------------------------------------
 class Shell;
 //------------------------------------------------------------------------------
-template<class A> class CommandBuilder
+template<class T> class CommandBuilder
 {
   friend class Shell;
 
@@ -28,9 +28,9 @@ public:
   }
 
 private:
-  static A *create(Shell &shell)
+  static T *create(Shell &shell)
   {
-    return new A(shell);
+    return new T(shell);
   }
 };
 //------------------------------------------------------------------------------
@@ -117,9 +117,9 @@ public:
   static const char *extractName(const char *);
   static void joinPaths(char *, const char *, const char *);
 
-  template<class A> void append(CommandBuilder<A> builder)
+  template<class T> void append(CommandBuilder<T> builder)
   {
-    A *command = builder.create(*this);
+    T *command = builder.create(*this);
 
     command->link(&context);
     registeredCommands.push_back(command);
