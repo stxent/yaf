@@ -11,7 +11,7 @@
 #define CONFIG_SHELL_BUFFER 512
 #endif
 //------------------------------------------------------------------------------
-const char * const *ComputationCommand::getNextEntry(unsigned int count,
+const char * const *AbstractComputationCommand::getNextEntry(unsigned int count,
     const char * const *arguments) const
 {
   for (unsigned int i = 0; i < count; ++i)
@@ -31,7 +31,7 @@ const char * const *ComputationCommand::getNextEntry(unsigned int count,
   return nullptr;
 }
 //------------------------------------------------------------------------------
-result ComputationCommand::processArguments(unsigned int count,
+result AbstractComputationCommand::processArguments(unsigned int count,
     const char * const *arguments) const
 {
   bool help = false;
@@ -55,10 +55,12 @@ result ComputationCommand::processArguments(unsigned int count,
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result ComputationCommand::run(unsigned int count,
-    const char * const *arguments)
+result AbstractComputationCommand::compute(unsigned int count,
+    const char * const *arguments, Shell::ShellContext *context,
+    ComputationAlgorithm *algorithm) const
 {
   const char * const *path = arguments;
+  unsigned int position;
   uint8_t buffer[CONFIG_SHELL_BUFFER];
   result res;
 
@@ -69,10 +71,12 @@ result ComputationCommand::run(unsigned int count,
   FsEntry *entry;
   fsNodeType type;
 
-  //TODO Return from function on some error types, rewrite
-  while ((path = getNextEntry(count
-      - static_cast<unsigned int>(path - arguments), path)) != nullptr)
+  while (1)
   {
+    position = count - static_cast<unsigned int>(path - arguments);
+    if ((path = getNextEntry(position, path)) == nullptr)
+      break;
+
     const char *fileName = *path++;
 
     //Find destination node
@@ -104,7 +108,7 @@ result ComputationCommand::run(unsigned int count,
     uint32_t chunk, read = 0;
     res = E_OK;
 
-    reset();
+    algorithm->reset();
     while (!fsEnd(entry))
     {
       chunk = fsRead(entry, buffer, CONFIG_SHELL_BUFFER);
@@ -115,54 +119,14 @@ result ComputationCommand::run(unsigned int count,
         break;
       }
       read += chunk;
-      compute(buffer, chunk);
+      algorithm->update(buffer, chunk);
     }
-    finalize(res == E_OK ? context->pathBuffer : nullptr);
+    algorithm->finalize(reinterpret_cast<char *>(buffer), CONFIG_SHELL_BUFFER);
+    if (res == E_OK)
+      owner.log("%s\t%s", buffer, context->pathBuffer);
 
     fsClose(entry);
   }
 
   return E_OK;
-}
-//------------------------------------------------------------------------------
-result ComputeHash::isolate(Shell::ShellContext *environment,
-    unsigned int count, const char * const *arguments)
-{
-  ComputeHash instance(owner);
-
-  instance.link(environment);
-  return instance.run(count, arguments);
-}
-//------------------------------------------------------------------------------
-void ComputeHash::compute(const uint8_t *buffer, uint32_t length)
-{
-  MD5_Update(&context, buffer, length);
-}
-//------------------------------------------------------------------------------
-void ComputeHash::finalize(const char *fileName)
-{
-  unsigned char result[16];
-
-  MD5_Final(result, &context);
-
-  if (fileName != nullptr)
-  {
-    char digest[33];
-    auto hexify = [](unsigned char value) { return value < 10 ? '0' + value
-        : 'a' + (value - 10); };
-
-    for (unsigned int pos = 0; pos < 16; pos++)
-    {
-      digest[pos * 2 + 0] = hexify(result[pos] >> 4);
-      digest[pos * 2 + 1] = hexify(result[pos] & 0x0F);
-    }
-    digest[32] = '\0';
-
-    owner.log("%s\t%s", digest, fileName);
-  }
-}
-//------------------------------------------------------------------------------
-void ComputeHash::reset()
-{
-  MD5_Init(&context);
 }

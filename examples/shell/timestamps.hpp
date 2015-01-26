@@ -38,7 +38,7 @@ public:
     return "date";
   }
 
-  virtual result run(unsigned int /*count*/, const char * const */*arguments*/)
+  virtual result run(unsigned int, const char * const *, Shell::ShellContext *)
   {
     RtcTime currentTime;
 
@@ -63,7 +63,8 @@ public:
     return "time";
   }
 
-  virtual result run(unsigned int count, const char * const *arguments)
+  virtual result run(unsigned int count, const char * const *arguments,
+      Shell::ShellContext *context)
   {
     uint64_t start, delta;
     result res = E_VALUE;
@@ -73,7 +74,7 @@ public:
       if (!strcmp(entry->name(), arguments[0]))
       {
         start = T::instance()->microtime();
-        res = entry->run(count - 1, arguments + 1);
+        res = entry->run(count - 1, arguments + 1, context);
         delta = T::instance()->microtime() - start;
 
         owner.log("Time passed: %llu us",

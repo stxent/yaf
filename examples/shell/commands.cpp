@@ -14,8 +14,8 @@
 #endif
 //------------------------------------------------------------------------------
 result DataProcessing::copyContent(FsNode *sourceNode, FsNode *destinationNode,
-    unsigned int blockSize, unsigned int blockCount,
-    unsigned int seek, unsigned int skip, bool overwrite) const
+    unsigned int blockSize, unsigned int blockCount, unsigned int seek,
+    unsigned int skip, bool overwrite) const
 {
   FsEntry *sourceFile = nullptr, *destinationFile = nullptr;
   char buffer[CONFIG_SHELL_BUFFER];
@@ -95,8 +95,9 @@ result DataProcessing::copyContent(FsNode *sourceNode, FsNode *destinationNode,
   return res;
 }
 //------------------------------------------------------------------------------
-result DataProcessing::prepareNodes(FsNode **destination, FsNode **source,
-    const char *destinationPath, const char *sourcePath)
+result DataProcessing::prepareNodes(Shell::ShellContext *context,
+    FsNode **destination, FsNode **source, const char *destinationPath,
+    const char *sourcePath)
 {
   FsMetadata info;
   fsNodeType type;
@@ -225,7 +226,8 @@ result ChangeDirectory::processArguments(unsigned int count,
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result ChangeDirectory::run(unsigned int count, const char * const *arguments)
+result ChangeDirectory::run(unsigned int count, const char * const *arguments,
+    Shell::ShellContext *context)
 {
   const char *path = nullptr;
   result res;
@@ -301,16 +303,8 @@ result CopyEntry::processArguments(unsigned int count,
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result CopyEntry::isolate(Shell::ShellContext *environment, unsigned int count,
-    const char * const *arguments)
-{
-  CopyEntry instance(owner);
-
-  instance.link(environment);
-  return instance.run(count, arguments);
-}
-//------------------------------------------------------------------------------
-result CopyEntry::run(unsigned int count, const char * const *arguments)
+result CopyEntry::run(unsigned int count, const char * const *arguments,
+    Shell::ShellContext *context)
 {
   const char *destinationPath = nullptr, *sourcePath = nullptr;
   result res;
@@ -321,7 +315,8 @@ result CopyEntry::run(unsigned int count, const char * const *arguments)
 
   FsNode *destination = nullptr, *source = nullptr;
 
-  res = prepareNodes(&destination, &source, destinationPath, sourcePath);
+  res = prepareNodes(context, &destination, &source, destinationPath,
+      sourcePath);
   if (res != E_OK)
     return res;
 
@@ -410,16 +405,8 @@ result DirectData::processArguments(unsigned int count,
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result DirectData::isolate(Shell::ShellContext *environment, unsigned int count,
-    const char * const *arguments)
-{
-  DirectData instance(owner);
-
-  instance.link(environment);
-  return instance.run(count, arguments);
-}
-//------------------------------------------------------------------------------
-result DirectData::run(unsigned int count, const char * const *arguments)
+result DirectData::run(unsigned int count, const char * const *arguments,
+    Shell::ShellContext *context)
 {
   Arguments parsed;
   result res;
@@ -430,7 +417,7 @@ result DirectData::run(unsigned int count, const char * const *arguments)
 
   FsNode *destination = nullptr, *source = nullptr;
 
-  res = prepareNodes(&destination, &source, parsed.out, parsed.in);
+  res = prepareNodes(context, &destination, &source, parsed.out, parsed.in);
   if (res != E_OK)
     return res;
 
@@ -443,12 +430,13 @@ result DirectData::run(unsigned int count, const char * const *arguments)
   return res;
 }
 //------------------------------------------------------------------------------
-result ExitShell::run(unsigned int, const char * const *)
+result ExitShell::run(unsigned int, const char * const *, Shell::ShellContext *)
 {
   return E_ERROR;
 }
 //------------------------------------------------------------------------------
-result ListCommands::run(unsigned int, const char * const *)
+result ListCommands::run(unsigned int, const char * const *,
+    Shell::ShellContext *)
 {
   for (auto entry : owner.commands())
     owner.log("%s", entry->name());
@@ -456,16 +444,8 @@ result ListCommands::run(unsigned int, const char * const *)
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result ListEntries::isolate(Shell::ShellContext *environment,
-    unsigned int count, const char * const *arguments)
-{
-  ListEntries instance(owner);
-
-  instance.link(environment);
-  return instance.run(count, arguments);
-}
-//------------------------------------------------------------------------------
-result ListEntries::run(unsigned int count, const char * const *arguments)
+result ListEntries::run(unsigned int count, const char * const *arguments,
+    Shell::ShellContext *context)
 {
   const char *filter = nullptr, *path = nullptr;
   int verifyCount = -1;
@@ -591,16 +571,8 @@ result ListEntries::run(unsigned int count, const char * const *arguments)
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result MakeDirectory::isolate(Shell::ShellContext *environment,
-    unsigned int count, const char * const *arguments)
-{
-  MakeDirectory instance(owner);
-
-  instance.link(environment);
-  return instance.run(count, arguments);
-}
-//------------------------------------------------------------------------------
-result MakeDirectory::run(unsigned int count, const char * const *arguments)
+result MakeDirectory::run(unsigned int count, const char * const *arguments,
+    Shell::ShellContext *context)
 {
   const char *target = nullptr;
   bool help = false;
@@ -691,16 +663,8 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments)
   return res;
 }
 //------------------------------------------------------------------------------
-result RemoveDirectory::isolate(Shell::ShellContext *environment,
-    unsigned int count, const char * const *arguments)
-{
-  RemoveDirectory instance(owner);
-
-  instance.link(environment);
-  return instance.run(count, arguments);
-}
-//------------------------------------------------------------------------------
-result RemoveDirectory::run(unsigned int count, const char * const *arguments)
+result RemoveDirectory::run(unsigned int count, const char * const *arguments,
+    Shell::ShellContext *context)
 {
   const char *target = nullptr;
   bool help = false;
@@ -762,16 +726,8 @@ free_node:
   return res;
 }
 //------------------------------------------------------------------------------
-result RemoveEntry::isolate(Shell::ShellContext *environment,
-    unsigned int count, const char * const *arguments)
-{
-  RemoveEntry instance(owner);
-
-  instance.link(environment);
-  return instance.run(count, arguments);
-}
-//------------------------------------------------------------------------------
-result RemoveEntry::run(unsigned int count, const char * const *arguments)
+result RemoveEntry::run(unsigned int count, const char * const *arguments,
+    Shell::ShellContext *context)
 {
   const char *target = nullptr;
   bool help = false, recursive = false;
@@ -840,7 +796,8 @@ free_node:
   return res;
 }
 //------------------------------------------------------------------------------
-result Synchronize::run(unsigned int, const char * const *)
+result Synchronize::run(unsigned int, const char * const *,
+    Shell::ShellContext *)
 {
   result res = fsSync(owner.handle());
 

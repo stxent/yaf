@@ -7,51 +7,57 @@
 #ifndef CRYPTO_HPP_
 #define CRYPTO_HPP_
 //------------------------------------------------------------------------------
-#include <openssl/md5.h>
 #include "shell.hpp"
 //------------------------------------------------------------------------------
-class ComputationCommand : public Shell::ShellCommand
+class ComputationAlgorithm
 {
 public:
-  ComputationCommand(Shell &parent) :
+  virtual ~ComputationAlgorithm()
+  {
+  }
+
+  virtual void finalize(char *, uint32_t) = 0;
+  virtual void reset() = 0;
+  virtual void update(const uint8_t *, uint32_t) = 0;
+};
+//------------------------------------------------------------------------------
+class AbstractComputationCommand : public Shell::ShellCommand
+{
+public:
+  AbstractComputationCommand(Shell &parent) :
       ShellCommand(parent)
   {
   }
-  virtual result run(unsigned int, const char * const *);
 
 protected:
-  virtual void compute(const uint8_t *, uint32_t) = 0;
-  virtual void finalize(const char *) = 0;
-  virtual void reset() = 0;
+  virtual result compute(unsigned int, const char * const *,
+      Shell::ShellContext *, ComputationAlgorithm *) const;
 
 private:
   const char * const *getNextEntry(unsigned int, const char * const *) const;
   result processArguments(unsigned int, const char * const *) const;
 };
 //------------------------------------------------------------------------------
-class ComputeHash : public ComputationCommand
+template<class T> class ComputationCommand : public AbstractComputationCommand
 {
 public:
-  ComputeHash(Shell &parent) :
-      ComputationCommand(parent)
+  ComputationCommand(Shell &parent) :
+      AbstractComputationCommand(parent)
   {
   }
 
   virtual const char *name() const
   {
-    return "md5sum";
+    return T::name();
   }
 
-  virtual result isolate(Shell::ShellContext *, unsigned int,
-      const char * const *);
+  virtual result run(unsigned int count, const char * const *arguments,
+      Shell::ShellContext *context)
+  {
+    T algorithm;
 
-protected:
-  virtual void compute(const uint8_t *, uint32_t);
-  virtual void finalize(const char *);
-  virtual void reset();
-
-private:
-  MD5_CTX context;
+    return compute(count, arguments, context, &algorithm);
+  }
 };
 //------------------------------------------------------------------------------
 #endif //CRYPTO_HPP_

@@ -19,7 +19,9 @@ void workerTerminateWrapper(void *argument)
 }
 //------------------------------------------------------------------------------
 WorkerThread::WorkerThread(ThreadSwarm &parent) :
-    owner(parent), argumentCount(0), firstArgument(nullptr), finalize(false)
+    owner(parent),
+    finalize(false),
+    baseContext(nullptr), argumentCount(0), firstArgument(nullptr)
 {
   result res;
 
@@ -52,15 +54,15 @@ void WorkerThread::handler()
     if (finalize)
       break;
 
-    if (!argumentCount || firstArgument == nullptr)
+    if (!argumentCount || firstArgument == nullptr || baseContext == nullptr)
       continue;
 
     for (auto entry : owner.owner.commands())
     {
       if (!strcmp(entry->name(), *firstArgument))
       {
-        memcpy(&context, owner.context, sizeof(Shell::ShellContext));
-        res = entry->isolate(&context, argumentCount - 1, firstArgument + 1);
+        memcpy(&environment, baseContext, sizeof(Shell::ShellContext));
+        res = entry->run(argumentCount - 1, firstArgument + 1, &environment);
         owner.onCommandCompleted(this, res);
         break;
       }
@@ -68,10 +70,12 @@ void WorkerThread::handler()
   }
 }
 //------------------------------------------------------------------------------
-void WorkerThread::process(unsigned int count, const char * const *arguments)
+void WorkerThread::process(unsigned int count, const char * const *arguments,
+    Shell::ShellContext *context)
 {
-  firstArgument = arguments;
+  baseContext = context;
   argumentCount = count;
+  firstArgument = arguments;
   semPost(&semaphore);
 }
 //------------------------------------------------------------------------------
@@ -128,7 +132,8 @@ void ThreadSwarm::onCommandCompleted(WorkerThread *worker, result res)
   semPost(&queueSynchronizer);
 }
 //------------------------------------------------------------------------------
-result ThreadSwarm::run(unsigned int count, const char * const *arguments)
+result ThreadSwarm::run(unsigned int count, const char * const *arguments,
+    Shell::ShellContext *context)
 {
   bool help = false;
 
@@ -167,7 +172,7 @@ result ThreadSwarm::run(unsigned int count, const char * const *arguments)
       pool.pop();
       mutexUnlock(&queueLock);
 
-      thread->process(index - first, arguments + first);
+      thread->process(index - first, arguments + first, context);
     }
 
     ++index;

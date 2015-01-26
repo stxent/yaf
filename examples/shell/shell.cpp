@@ -17,16 +17,9 @@
 using namespace std;
 //------------------------------------------------------------------------------
 Shell::ShellCommand::ShellCommand(Shell &shell) :
-    owner(shell), context(nullptr)
+    owner(shell)
 {
 
-}
-//------------------------------------------------------------------------------
-result Shell::ShellCommand::isolate(ShellContext *, unsigned int,
-    const char * const *)
-{
-  //Isolation is unavailable by default
-  return E_VALUE;
 }
 //------------------------------------------------------------------------------
 const char *Shell::extractName(const char *path)
@@ -160,7 +153,7 @@ result Shell::execute(const char *input)
     {
       if (!strcmp(entry->name(), argumentPool[0]))
       {
-        result res = entry->run(line - 1, argumentPool + 1);
+        result res = entry->run(line - 1, argumentPool + 1, &context);
         return res;
       }
     }

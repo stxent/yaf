@@ -20,7 +20,8 @@ public:
 protected:
   result copyContent(FsNode *, FsNode *, unsigned int, unsigned int,
       unsigned int, unsigned int, bool) const;
-  result prepareNodes(FsNode **, FsNode **, const char *, const char *);
+  result prepareNodes(Shell::ShellContext *, FsNode **, FsNode **, const char *,
+      const char *);
 };
 //------------------------------------------------------------------------------
 class ChangeDirectory : public Shell::ShellCommand
@@ -36,7 +37,7 @@ public:
     return "cd";
   }
 
-  virtual result run(unsigned int, const char * const *);
+  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
 
 private:
   result processArguments(unsigned int, const char * const *,
@@ -56,9 +57,7 @@ public:
     return "cp";
   }
 
-  virtual result isolate(Shell::ShellContext *, unsigned int,
-      const char * const *);
-  virtual result run(unsigned int, const char * const *);
+  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
 
 private:
   result processArguments(unsigned int, const char * const *, const char **,
@@ -78,9 +77,7 @@ public:
     return "dd";
   }
 
-  virtual result isolate(Shell::ShellContext *, unsigned int,
-      const char * const *);
-  virtual result run(unsigned int, const char * const *);
+  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
 
 private:
   struct Arguments
@@ -110,7 +107,7 @@ public:
     return "exit";
   }
 
-  virtual result run(unsigned int, const char * const *);
+  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
 };
 //------------------------------------------------------------------------------
 class ListCommands : public Shell::ShellCommand
@@ -126,7 +123,7 @@ public:
     return "help";
   }
 
-  virtual result run(unsigned int, const char * const *);
+  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
 };
 //------------------------------------------------------------------------------
 class ListEntries : public Shell::ShellCommand
@@ -142,9 +139,7 @@ public:
     return "ls";
   }
 
-  virtual result isolate(Shell::ShellContext *, unsigned int,
-      const char * const *);
-  virtual result run(unsigned int, const char * const *);
+  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
 };
 //------------------------------------------------------------------------------
 class MakeDirectory : public Shell::ShellCommand
@@ -160,9 +155,7 @@ public:
     return "mkdir";
   }
 
-  virtual result isolate(Shell::ShellContext *, unsigned int,
-      const char * const *);
-  virtual result run(unsigned int, const char * const *);
+  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
 };
 //------------------------------------------------------------------------------
 class RemoveDirectory : public Shell::ShellCommand
@@ -178,9 +171,7 @@ public:
     return "rmdir";
   }
 
-  virtual result isolate(Shell::ShellContext *, unsigned int,
-      const char * const *);
-  virtual result run(unsigned int, const char * const *);
+  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
 };
 //------------------------------------------------------------------------------
 class RemoveEntry : public Shell::ShellCommand
@@ -196,9 +187,7 @@ public:
     return "rm";
   }
 
-  virtual result isolate(Shell::ShellContext *, unsigned int,
-      const char * const *);
-  virtual result run(unsigned int, const char * const *);
+  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
 };
 //------------------------------------------------------------------------------
 class Synchronize : public Shell::ShellCommand
@@ -214,7 +203,7 @@ public:
     return "sync";
   }
 
-  virtual result run(unsigned int, const char * const *);
+  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
 };
 //------------------------------------------------------------------------------
 #endif //COMMANDS_HPP_

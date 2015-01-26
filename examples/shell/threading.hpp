@@ -32,7 +32,7 @@ public:
     return "swarm";
   }
 
-  virtual result run(unsigned int, const char * const *);
+  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
 
 private:
   enum
@@ -59,7 +59,7 @@ public:
   WorkerThread(ThreadSwarm &parent);
   ~WorkerThread();
 
-  void process(unsigned int, const char * const *);
+  void process(unsigned int, const char * const *, Shell::ShellContext *);
   void start();
 
 private:
@@ -76,11 +76,12 @@ private:
 
   Semaphore semaphore;
   Thread thread;
+  bool finalize;
 
-  Shell::ShellContext context;
+  Shell::ShellContext environment;
+  Shell::ShellContext *baseContext;
   unsigned int argumentCount;
   const char * const *firstArgument;
-  bool finalize;
 };
 //------------------------------------------------------------------------------
 #endif //THREADING_HPP_

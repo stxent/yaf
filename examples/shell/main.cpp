@@ -13,6 +13,7 @@
 #include <cstring>
 #include <ctime>
 #include <iostream>
+#include <openssl/md5.h>
 #include "commands.hpp"
 #include "crypto.hpp"
 #include "shell.hpp"
@@ -77,6 +78,49 @@ private:
   Rtc *timer;
 };
 #endif
+//------------------------------------------------------------------------------
+class Md5Hash : public ComputationAlgorithm
+{
+public:
+  static const char *name()
+  {
+    return "md5sum";
+  }
+
+  virtual void finalize(char *digest, uint32_t length)
+  {
+    assert(length >= 33); //32 hexadecimal numbers
+
+    unsigned char result[16];
+
+    MD5_Final(result, &context);
+
+    //TODO Style for lambdas
+    auto hexify = [](unsigned char value) {
+      return value < 10 ? '0' + value : 'a' + (value - 10);
+    };
+
+    for (unsigned int pos = 0; pos < 16; pos++)
+    {
+      digest[pos * 2 + 0] = hexify(result[pos] >> 4);
+      digest[pos * 2 + 1] = hexify(result[pos] & 0x0F);
+    }
+    digest[32] = '\0';
+  }
+
+  virtual void reset()
+  {
+    MD5_Init(&context);
+  }
+
+  virtual void update(const uint8_t *buffer, uint32_t length)
+  {
+    MD5_Update(&context, buffer, length);
+  }
+
+private:
+  MD5_CTX context;
+};
 //------------------------------------------------------------------------------
 class Application
 {
@@ -223,7 +267,7 @@ Shell *Application::initShell(FsHandle *handle)
   shell->append(CommandBuilder<RemoveEntry>());
   shell->append(CommandBuilder<Synchronize>());
 
-  shell->append(CommandBuilder<ComputeHash>());
+  shell->append(CommandBuilder<ComputationCommand<Md5Hash>>());
 
 #ifdef CONFIG_FAT_THREADS
   shell->append(CommandBuilder<ThreadSwarm>());

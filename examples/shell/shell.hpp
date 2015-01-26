@@ -69,16 +69,6 @@ public:
     }
 
     /**
-     * Run command with a different context.
-     * @param environment Pointer to an independent context object.
-     * @param count Argument count.
-     * @param arguments Array of the arguments.
-     * @return @b E_OK on success, @b E_ERROR on unrecoverable error.
-     */
-    virtual result isolate(ShellContext *environment, unsigned int count,
-        const char * const *arguments);
-
-    /**
      * Get name of the command.
      * @return Pointer to a statically allocated string with a read-only access.
      */
@@ -88,24 +78,16 @@ public:
      * Run command with specified arguments.
      * @param count Argument count.
      * @param arguments Array of the arguments.
+     * @param environment Pointer to a context object.
      * @return @b E_OK on success, @b E_ERROR on unrecoverable error.
      */
-    virtual result run(unsigned int count, const char * const *arguments) = 0;
-
-    /**
-     * Connect an execution context with the command.
-     * @param environment Pointer to a context object.
-     */
-    void link(ShellContext *environment)
-    {
-      context = environment;
-    }
+    virtual result run(unsigned int count, const char * const *arguments,
+        ShellContext *environment) = 0;
 
   protected:
     ShellCommand(Shell &);
 
     Shell &owner;
-    ShellContext *context;
   };
 
   Shell(struct Interface *console, struct FsHandle *root);
@@ -121,7 +103,6 @@ public:
   {
     T *command = builder.create(*this);
 
-    command->link(&context);
     registeredCommands.push_back(command);
   }
 
