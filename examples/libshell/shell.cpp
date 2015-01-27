@@ -164,10 +164,13 @@ void Shell::log(const char *format, ...)
 
   mutexLock(&logMutex);
   va_start(arguments, format);
-  length = vsnprintf(logBuffer, LOG_LENGTH - 1, format, arguments);
+  //Version with sized buffer does not work on some platforms
+  length = vsprintf(logBuffer, format, arguments);
   va_end(arguments);
 
-  if (length > 0 && length < LOG_LENGTH - 1)
+  assert(length >= 0 && length < LOG_LENGTH - 1);
+
+  if (length)
   {
     memcpy(logBuffer + length, "\n", 2);
     ifWrite(consoleInterface, reinterpret_cast<const uint8_t *>(logBuffer),

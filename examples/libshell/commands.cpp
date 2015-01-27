@@ -518,7 +518,7 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
       if (filter && !strstr(info.name, filter))
         continue;
 
-      int64_t atime = 0;
+      time64_t atime = 0;
       uint64_t size = 0;
       access_t access = 0;
 
@@ -535,14 +535,17 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
       {
         //Access
         char accessStr[4];
+
         accessStr[0] = (info.type == FS_TYPE_DIR) ? 'd' : '-';
         accessStr[1] = access & FS_ACCESS_READ ? 'r' : '-';
         accessStr[2] = access & FS_ACCESS_WRITE ? 'w' : '-';
         accessStr[3] = '\0';
 
+        //Date and time
         char timeStr[24];
-//        strftime(timeStr, 24, "%Y-%m-%d %H:%M:%S",
-//            gmtime(static_cast<time_t *>(&atime)));
+        time_t standardTime = static_cast<time_t>(atime);
+
+        strftime(timeStr, 24, "%Y-%m-%d %H:%M:%S", gmtime(&standardTime));
 
         owner.log("%s %10lu %s %s", accessStr, size, timeStr, info.name);
       }

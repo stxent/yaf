@@ -735,7 +735,8 @@ static enum result readSector(struct CommandContext *context,
 }
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_TIME
-enum result rawTimestampToTime(time_t *converted, uint16_t date, uint16_t time)
+enum result rawTimestampToTime(time64_t *converted, uint16_t date,
+    uint16_t time)
 {
   struct RtcTime timestamp = {
       .second = time & 0x1F,
@@ -1846,7 +1847,7 @@ static enum result fatGet(const void *object, enum fsNodeData type, void *data)
       const uint16_t rawDate = fromLittleEndian16(entry->date);
       const uint16_t rawTime = fromLittleEndian16(entry->time);
 
-      res = rawTimestampToTime((time_t *)data, rawDate, rawTime);
+      res = rawTimestampToTime((time64_t *)data, rawDate, rawTime);
       break;
     }
 #endif

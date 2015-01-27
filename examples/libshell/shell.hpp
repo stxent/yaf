@@ -14,6 +14,7 @@ extern "C"
 {
 #include <interface.h>
 #include <fs.h>
+#include <rtc.h>
 #include <os/mutex.h>
 }
 //------------------------------------------------------------------------------

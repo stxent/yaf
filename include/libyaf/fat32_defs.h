@@ -336,7 +336,7 @@ static enum result readSector(struct CommandContext *, struct FatHandle *,
     uint32_t);
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_TIME
-enum result rawTimestampToTime(time_t *, uint16_t, uint16_t);
+enum result rawTimestampToTime(time64_t *, uint16_t, uint16_t);
 uint16_t timeToRawDate(const struct RtcTime *);
 uint16_t timeToRawTime(const struct RtcTime *);
 #endif

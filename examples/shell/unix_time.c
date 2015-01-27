@@ -10,9 +10,9 @@
 static enum result tmrInit(void *, const void *);
 static void tmrDeinit(void *);
 static enum result tmrCallback(void *, void (*)(void *), void *);
-static enum result tmrSetAlarm(void *, time_t);
-static enum result tmrSetTime(void *, time_t);
-static time_t tmrTime(void *);
+static enum result tmrSetAlarm(void *, time64_t);
+static enum result tmrSetTime(void *, time64_t);
+static time64_t tmrTime(void *);
 /*----------------------------------------------------------------------------*/
 struct UnixTime
 {
@@ -51,18 +51,18 @@ static enum result tmrCallback(void *object __attribute__((unused)),
 }
 /*----------------------------------------------------------------------------*/
 static enum result tmrSetAlarm(void *object __attribute__((unused)),
-    time_t alarmTime __attribute__((unused)))
+    time64_t alarmTime __attribute__((unused)))
 {
   return E_ERROR;
 }
 /*----------------------------------------------------------------------------*/
 static enum result tmrSetTime(void *object __attribute__((unused)),
-    time_t currentTime __attribute__((unused)))
+    time64_t currentTime __attribute__((unused)))
 {
   return E_ERROR;
 }
 /*----------------------------------------------------------------------------*/
-static time_t tmrTime(void *object __attribute__((unused)))
+static time64_t tmrTime(void *object __attribute__((unused)))
 {
-  return (time_t)time(0);
+  return (time64_t)time(0);
 }
