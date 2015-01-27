@@ -12,7 +12,9 @@
 
 extern "C"
 {
+#include <interface.h>
 #include <fs.h>
+#include <os/mutex.h>
 }
 //------------------------------------------------------------------------------
 class Shell;
@@ -42,6 +44,11 @@ public:
   {
     ARGUMENT_COUNT = 16,
     ARGUMENT_LENGTH = 32
+  };
+
+  enum
+  {
+    LOG_LENGTH = 80
   };
 
   struct ShellContext
@@ -85,11 +92,11 @@ public:
   };
 
   Shell(struct Interface *console, struct FsHandle *root);
-  virtual ~Shell();
-
-  virtual void log(const char *, ...) = 0;
+  ~Shell();
 
   result execute(const char *);
+  void log(const char *, ...);
+
   static const char *extractName(const char *);
   static void joinPaths(char *, const char *, const char *);
 
@@ -123,6 +130,9 @@ private:
 
   ShellContext context;
   char *argumentPool[ARGUMENT_COUNT];
+
+  char logBuffer[LOG_LENGTH * 2 + 1];
+  Mutex logMutex;
 };
 //------------------------------------------------------------------------------
 #endif //LIBSHELL_SHELL_HPP_

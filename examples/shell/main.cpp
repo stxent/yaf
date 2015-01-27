@@ -4,7 +4,6 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#include <cassert>
 #include <iostream>
 #include "libshell/commands.hpp"
 #include "libshell/shell.hpp"
@@ -16,54 +15,11 @@ extern "C"
 {
 #include <libyaf/fat32.h>
 #include <os/mutex.h>
+#include "shell/console.h"
 #include "shell/mmi.h"
 }
 //------------------------------------------------------------------------------
 using namespace std;
-//------------------------------------------------------------------------------
-class ConsoleShell : public Shell
-{
-public:
-  ConsoleShell(struct Interface *console, struct FsHandle *root) :
-      Shell(console, root)
-  {
-    result res;
-
-    res = mutexInit(&logMutex);
-    assert(res == E_OK);
-
-    //Log function should be called after mutex initialization
-    log("Shell opened, size %u", static_cast<unsigned int>(sizeof(Shell)));
-  }
-
-  virtual ~ConsoleShell()
-  {
-    mutexDeinit(&logMutex);
-  }
-
-  virtual void log(const char *format, ...)
-  {
-    va_list arguments;
-
-    mutexLock(&logMutex);
-    va_start(arguments, format);
-    vsnprintf(logBuffer, LOG_LENGTH - 1, format, arguments);
-    va_end(arguments);
-
-    strcat(logBuffer, "\n");
-    printf(logBuffer);
-    mutexUnlock(&logMutex);
-  }
-
-private:
-  enum
-  {
-    LOG_LENGTH = 80
-  };
-
-  char logBuffer[LOG_LENGTH * 2 + 1];
-  Mutex logMutex;
-};
 //------------------------------------------------------------------------------
 class Application
 {
@@ -80,20 +36,23 @@ private:
     RUNTIME_ERROR = -2
   };
 
+  Interface *consoleInterface;
   Interface *fsInterface;
   FsHandle *fsHandle;
   Shell *appShell;
 
+  Interface *initConsole();
   Interface *initInterface(const char *);
   FsHandle *initHandle(Interface *);
-  Shell *initShell(FsHandle *);
+  Shell *initShell(Interface *, FsHandle *);
 };
 //------------------------------------------------------------------------------
 Application::Application(const char *file)
 {
+  consoleInterface = initConsole();
   fsInterface = initInterface(file);
   fsHandle = initHandle(fsInterface);
-  appShell = initShell(fsHandle);
+  appShell = initShell(consoleInterface, fsHandle);
 }
 //------------------------------------------------------------------------------
 Application::~Application()
@@ -101,6 +60,7 @@ Application::~Application()
   delete appShell;
   deinit(fsHandle);
   deinit(fsInterface);
+  deinit(consoleInterface);
 }
 //------------------------------------------------------------------------------
 int Application::run()
@@ -136,6 +96,20 @@ int Application::run()
   }
 
   return exitFlag;
+}
+//------------------------------------------------------------------------------
+Interface *Application::initConsole()
+{
+  Interface *interface;
+
+  interface = reinterpret_cast<Interface *>(init(Console, 0));
+  if (interface == nullptr)
+  {
+    printf("Error creating console interface\n");
+    exit(INIT_FAILED);
+  }
+
+  return interface;
 }
 //------------------------------------------------------------------------------
 Interface *Application::initInterface(const char *file)
@@ -195,9 +169,9 @@ FsHandle *Application::initHandle(Interface *interface)
   return handle;
 }
 //------------------------------------------------------------------------------
-Shell *Application::initShell(FsHandle *handle)
+Shell *Application::initShell(Interface *console, FsHandle *handle)
 {
-  Shell *shell = new ConsoleShell(0, handle);
+  Shell *shell = new Shell(console, handle);
 
   shell->append(CommandBuilder<ChangeDirectory>());
   shell->append(CommandBuilder<CopyEntry>());

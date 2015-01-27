@@ -76,6 +76,7 @@ LDLIBS += -l$(PROJECT) -lxcore
 CFLAGS += -std=c11 -Wall -Wcast-qual -Wextra -Winline -pedantic -Wshadow
 CFLAGS += $(OPT_FLAGS) $(CPU_FLAGS) $(CONFIG_FLAGS)
 CXXFLAGS += -std=c++11 -Wall -Wcast-qual -Wextra -Winline -pedantic -Wshadow -Wold-style-cast
+CXXFLAGS += -fno-exceptions -fno-rtti
 CXXFLAGS += $(OPT_FLAGS) $(CPU_FLAGS) $(CONFIG_FLAGS)
 
 #Search for project modules
