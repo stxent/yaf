@@ -1,14 +1,15 @@
 /*
- * timestamps.hpp
+ * libshell/timestamps.hpp
  * Copyright (C) 2014 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef TIMESTAMPS_HPP_
-#define TIMESTAMPS_HPP_
+#ifndef LIBSHELL_TIMESTAMPS_HPP_
+#define LIBSHELL_TIMESTAMPS_HPP_
 //------------------------------------------------------------------------------
-#include "shell.hpp"
-//------------------------------------------------------------------------------
+#include <cstring>
+#include "libshell/shell.hpp"
+
 extern "C"
 {
 #include <rtc.h>
@@ -85,4 +86,4 @@ public:
   }
 };
 //------------------------------------------------------------------------------
-#endif //TIMESTAMPS_HPP_
+#endif //LIBSHELL_TIMESTAMPS_HPP_

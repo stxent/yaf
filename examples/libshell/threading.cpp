@@ -6,7 +6,7 @@
 
 #include <cassert>
 #include <cstring>
-#include "threading.hpp"
+#include "libshell/threading.hpp"
 //------------------------------------------------------------------------------
 void workerThreadWrapper(void *argument)
 {

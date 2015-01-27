@@ -5,7 +5,7 @@
  */
 
 #include <cstring>
-#include "crypto.hpp"
+#include "libshell/crypto.hpp"
 //------------------------------------------------------------------------------
 #ifndef CONFIG_SHELL_BUFFER
 #define CONFIG_SHELL_BUFFER 512

@@ -1,13 +1,13 @@
 /*
- * commands.hpp
+ * libshell/commands.hpp
  * Copyright (C) 2014 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef COMMANDS_HPP_
-#define COMMANDS_HPP_
+#ifndef LIBSHELL_COMMANDS_HPP_
+#define LIBSHELL_COMMANDS_HPP_
 //------------------------------------------------------------------------------
-#include "shell.hpp"
+#include "libshell/shell.hpp"
 //------------------------------------------------------------------------------
 class DataProcessing : public Shell::ShellCommand
 {
@@ -206,4 +206,4 @@ public:
   virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
 };
 //------------------------------------------------------------------------------
-#endif //COMMANDS_HPP_
+#endif //LIBSHELL_COMMANDS_HPP_

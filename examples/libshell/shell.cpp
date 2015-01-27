@@ -4,15 +4,8 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-/* TODO Fix defines */
-#define _POSIX_C_SOURCE 200809L
-#define _BSD_SOURCE
-
-#include <cassert>
-#include <cstdio> //FIXME
 #include <cstring>
-#include <ctime>
-#include "shell.hpp"
+#include "libshell/shell.hpp"
 //------------------------------------------------------------------------------
 using namespace std;
 //------------------------------------------------------------------------------
@@ -57,19 +50,11 @@ void Shell::joinPaths(char *buffer, const char *directory, const char *path)
 Shell::Shell(Interface *console, FsHandle *root) :
     rootHandle(root), consoleInterface(console)
 {
-  result res;
-
   strcpy(context.currentDir, "/");
   strcpy(context.pathBuffer, "");
 
   for (unsigned int pos = 0; pos < ARGUMENT_COUNT; ++pos)
     argumentPool[pos] = new char[ARGUMENT_LENGTH];
-
-  res = mutexInit(&logMutex);
-  assert(res == E_OK);
-
-  //Log function should be called after mutex initialization
-  log("Shell opened, size %u", static_cast<unsigned int>(sizeof(Shell)));
 }
 //------------------------------------------------------------------------------
 Shell::~Shell()
@@ -79,8 +64,6 @@ Shell::~Shell()
 
   for (unsigned int pos = 0; pos < ARGUMENT_COUNT; ++pos)
     delete[] argumentPool[pos];
-
-  mutexDeinit(&logMutex);
 }
 //------------------------------------------------------------------------------
 result Shell::execute(const char *input)
@@ -160,18 +143,4 @@ result Shell::execute(const char *input)
   }
 
   return E_OK;
-}
-//------------------------------------------------------------------------------
-void Shell::log(const char *format, ...)
-{
-  va_list arguments;
-
-  mutexLock(&logMutex);
-  va_start(arguments, format);
-  vsnprintf(logBuffer, LOG_LENGTH - 1, format, arguments);
-  va_end(arguments);
-
-  strcat(logBuffer, "\n");
-  printf(logBuffer);
-  mutexUnlock(&logMutex);
 }

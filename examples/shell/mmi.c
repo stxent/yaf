@@ -10,7 +10,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <os/semaphore.h>
-#include "mmi.h"
+#include "shell/mmi.h"
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_MMI_DEBUG
 #include <stdio.h>

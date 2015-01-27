@@ -7,7 +7,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include "commands.hpp"
+#include "libshell/commands.hpp"
 //------------------------------------------------------------------------------
 #ifndef CONFIG_SHELL_BUFFER
 #define CONFIG_SHELL_BUFFER 512
@@ -541,8 +541,8 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
         accessStr[3] = '\0';
 
         char timeStr[24];
-        strftime(timeStr, 24, "%Y-%m-%d %H:%M:%S",
-            gmtime(static_cast<time_t *>(&atime)));
+//        strftime(timeStr, 24, "%Y-%m-%d %H:%M:%S",
+//            gmtime(static_cast<time_t *>(&atime)));
 
         owner.log("%s %10lu %s %s", accessStr, size, timeStr, info.name);
       }

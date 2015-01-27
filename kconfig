@@ -48,31 +48,6 @@ config TARGET
 	default "CORTEX-M3" if TARGET_CORTEX_M3
 	default "CORTEX-M4" if TARGET_CORTEX_M4
 
-config EXAMPLES
-	bool "Build code examples"
-	depends on TARGET_X86 || TARGET_X86_64
-
-menu "Debug options"
-	depends on TARGET_X86 || TARGET_X86_64
-
-config FAT_DEBUG
-	bool "Filesystem debug messages"
-
-config MMI_DEBUG
-	bool "Interface debug messages"
-	depends on EXAMPLES
-
-config MMI_STATUS
-	bool "Interface status"
-	depends on EXAMPLES
-
-config SHELL_BUFFER
-	int "Shell buffer size"
-	default 1024
-	depends on EXAMPLES
-
-endmenu
-
 menu "Filesystem options"
 
 config OVERRIDE_LENGTH
@@ -114,5 +89,37 @@ config FAT_WRITE
 	bool "Write support"
 	help
 	  Enable write functions.
+
+endmenu
+
+menu "Examples"
+
+config LIBSHELL
+	bool "Build shell library"
+
+config SHELL
+	bool "Build shell example"
+	depends on (TARGET_X86 || TARGET_X86_64) && LIBSHELL
+
+endmenu
+
+menu "Debug options"
+	depends on TARGET_X86 || TARGET_X86_64
+
+config FAT_DEBUG
+	bool "Filesystem debug messages"
+
+config MMI_DEBUG
+	bool "Interface debug messages"
+	depends on SHELL
+
+config MMI_STATUS
+	bool "Interface status"
+	depends on SHELL
+
+config SHELL_BUFFER
+	int "Shell buffer size"
+	default 1024
+	depends on SHELL
 
 endmenu

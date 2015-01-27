@@ -4,122 +4,65 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#define _POSIX_C_SOURCE 200809L
-#define _BSD_SOURCE
-
 #include <cassert>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
 #include <iostream>
-#include <openssl/md5.h>
-#include "commands.hpp"
-#include "crypto.hpp"
-#include "shell.hpp"
-//------------------------------------------------------------------------------
-#ifdef CONFIG_FAT_THREADS
-#include "threading.hpp"
-#endif
-#ifdef CONFIG_FAT_TIME
-#include "timestamps.hpp"
-#endif
-//------------------------------------------------------------------------------
+#include "libshell/commands.hpp"
+#include "libshell/shell.hpp"
+#include "libshell/threading.hpp"
+#include "shell/crypto_wrapper.hpp"
+#include "shell/time_wrapper.hpp"
+
 extern "C"
 {
 #include <libyaf/fat32.h>
-#include "mmi.h"
-#include "unix_time.h"
+#include <os/mutex.h>
+#include "shell/mmi.h"
 }
 //------------------------------------------------------------------------------
 using namespace std;
 //------------------------------------------------------------------------------
-#ifdef CONFIG_FAT_TIME
-class UnixTimeProvider : public TimeProvider
+class ConsoleShell : public Shell
 {
 public:
-  virtual ~UnixTimeProvider()
+  ConsoleShell(struct Interface *console, struct FsHandle *root) :
+      Shell(console, root)
   {
-    deinit(timer);
+    result res;
+
+    res = mutexInit(&logMutex);
+    assert(res == E_OK);
+
+    //Log function should be called after mutex initialization
+    log("Shell opened, size %u", static_cast<unsigned int>(sizeof(Shell)));
   }
 
-  virtual uint64_t microtime()
+  virtual ~ConsoleShell()
   {
-    struct timespec currentTime;
-
-    if (!clock_gettime(CLOCK_REALTIME, &currentTime))
-      return currentTime.tv_sec * 1000000 + currentTime.tv_nsec / 1000;
-    else
-      return 0;
+    mutexDeinit(&logMutex);
   }
 
-  virtual Rtc *rtc()
+  virtual void log(const char *format, ...)
   {
-    return timer;
-  }
+    va_list arguments;
 
-  static UnixTimeProvider *instance()
-  {
-    static UnixTimeProvider object;
+    mutexLock(&logMutex);
+    va_start(arguments, format);
+    vsnprintf(logBuffer, LOG_LENGTH - 1, format, arguments);
+    va_end(arguments);
 
-    return &object;
+    strcat(logBuffer, "\n");
+    printf(logBuffer);
+    mutexUnlock(&logMutex);
   }
 
 private:
-  UnixTimeProvider()
+  enum
   {
-    timer = reinterpret_cast<Rtc *>(init(UnixTime, 0));
-    assert(timer != nullptr);
-  }
+    LOG_LENGTH = 80
+  };
 
-  UnixTimeProvider(const UnixTimeProvider &);
-  UnixTimeProvider &operator=(UnixTimeProvider &);
-
-  Rtc *timer;
-};
-#endif
-//------------------------------------------------------------------------------
-class Md5Hash : public ComputationAlgorithm
-{
-public:
-  static const char *name()
-  {
-    return "md5sum";
-  }
-
-  virtual void finalize(char *digest, uint32_t length)
-  {
-    assert(length >= 33); //32 hexadecimal numbers
-
-    unsigned char result[16];
-
-    MD5_Final(result, &context);
-
-    //TODO Style for lambdas
-    auto hexify = [](unsigned char value) {
-      return value < 10 ? '0' + value : 'a' + (value - 10);
-    };
-
-    for (unsigned int pos = 0; pos < 16; pos++)
-    {
-      digest[pos * 2 + 0] = hexify(result[pos] >> 4);
-      digest[pos * 2 + 1] = hexify(result[pos] & 0x0F);
-    }
-    digest[32] = '\0';
-  }
-
-  virtual void reset()
-  {
-    MD5_Init(&context);
-  }
-
-  virtual void update(const uint8_t *buffer, uint32_t length)
-  {
-    MD5_Update(&context, buffer, length);
-  }
-
-private:
-  MD5_CTX context;
+  char logBuffer[LOG_LENGTH * 2 + 1];
+  Mutex logMutex;
 };
 //------------------------------------------------------------------------------
 class Application
@@ -254,7 +197,7 @@ FsHandle *Application::initHandle(Interface *interface)
 //------------------------------------------------------------------------------
 Shell *Application::initShell(FsHandle *handle)
 {
-  Shell *shell = new Shell(0, handle);
+  Shell *shell = new ConsoleShell(0, handle);
 
   shell->append(CommandBuilder<ChangeDirectory>());
   shell->append(CommandBuilder<CopyEntry>());

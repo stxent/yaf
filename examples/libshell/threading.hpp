@@ -1,15 +1,15 @@
 /*
- * threading.hpp
+ * libshell/threading.hpp
  * Copyright (C) 2014 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef THREADING_HPP_
-#define THREADING_HPP_
+#ifndef LIBSHELL_THREADING_HPP_
+#define LIBSHELL_THREADING_HPP_
 //------------------------------------------------------------------------------
 #include <queue>
-#include "shell.hpp"
-//------------------------------------------------------------------------------
+#include "libshell/shell.hpp"
+
 extern "C"
 {
 #include <os/mutex.h>
@@ -84,4 +84,4 @@ private:
   const char * const *firstArgument;
 };
 //------------------------------------------------------------------------------
-#endif //THREADING_HPP_
+#endif //LIBSHELL_THREADING_HPP_

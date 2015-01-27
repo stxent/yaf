@@ -1,13 +1,13 @@
 /*
- * crypto.hpp
+ * libshell/crypto.hpp
  * Copyright (C) 2014 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef CRYPTO_HPP_
-#define CRYPTO_HPP_
+#ifndef LIBSHELL_CRYPTO_HPP_
+#define LIBSHELL_CRYPTO_HPP_
 //------------------------------------------------------------------------------
-#include "shell.hpp"
+#include "libshell/shell.hpp"
 //------------------------------------------------------------------------------
 class ComputationAlgorithm
 {
@@ -60,4 +60,4 @@ public:
   }
 };
 //------------------------------------------------------------------------------
-#endif //CRYPTO_HPP_
+#endif //LIBSHELL_CRYPTO_HPP_
