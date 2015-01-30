@@ -14,7 +14,6 @@
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_DEBUG
 #include <stdio.h>
-#include <stdlib.h>
 #define DEBUG_PRINT(...) printf(__VA_ARGS__)
 #else
 #define DEBUG_PRINT(...) do {} while (0)
@@ -653,14 +652,14 @@ static enum result mount(struct FatHandle *handle)
   DEBUG_PRINT("Data sector:    %u\n", (unsigned int)handle->dataSector);
 
 #ifdef CONFIG_FAT_WRITE
-  handle->tableNumber = boot->fatCopies;
+  handle->tableCount = boot->fatCopies;
   handle->tableSize = fromLittleEndian32(boot->fatSize);
   handle->clusterCount = ((fromLittleEndian32(boot->partitionSize)
       - handle->dataSector) >> handle->clusterSize) + 2;
   handle->infoSector = fromLittleEndian16(boot->infoSector);
 
   DEBUG_PRINT("Info sector:    %u\n", (unsigned int)handle->infoSector);
-  DEBUG_PRINT("Table copies:   %u\n", (unsigned int)handle->tableNumber);
+  DEBUG_PRINT("Table copies:   %u\n", (unsigned int)handle->tableCount);
   DEBUG_PRINT("Table size:     %u\n", (unsigned int)handle->tableSize);
   DEBUG_PRINT("Cluster count:  %u\n", (unsigned int)handle->clusterCount);
   DEBUG_PRINT("Sectors count:  %u\n",
@@ -1513,7 +1512,7 @@ static enum result syncFile(struct CommandContext *context,
 static enum result updateTable(struct CommandContext *context,
     struct FatHandle *handle, uint32_t offset)
 {
-  for (uint8_t fat = 0; fat < handle->tableNumber; ++fat)
+  for (uint8_t fat = 0; fat < handle->tableCount; ++fat)
   {
     const enum result res = writeSector(context, handle, offset
         + handle->tableSector + handle->tableSize * fat);
@@ -2686,57 +2685,6 @@ static uint32_t fatFileWrite(void *entry __attribute__((unused)),
     uint32_t length __attribute__((unused)))
 {
   return 0;
-}
-#endif
-/*----------------------------------------------------------------------------*/
-#if defined(CONFIG_FAT_WRITE) && defined(CONFIG_FAT_DEBUG)
-uint32_t fat32CountFree(void *object)
-{
-  struct FatHandle * const handle = object;
-  uint32_t * const count = malloc(sizeof(uint32_t) * handle->tableNumber);
-  struct CommandContext *context;
-  uint32_t empty = 0;
-
-  if (!count)
-    return 0; /* Memory allocation problem */
-
-  if (!(context = allocateContext(handle)))
-    return E_MEMORY;
-
-  for (uint8_t fat = 0; fat < handle->tableNumber; ++fat)
-  {
-    count[fat] = 0;
-    for (uint32_t current = 0; current < handle->clusterCount; ++current)
-    {
-      if (readSector(context, handle, handle->tableSector
-          + (current >> CELL_COUNT)) != E_OK)
-      {
-        freeContext(handle, context);
-        return empty;
-      }
-
-      uint16_t offset = (current & ((1 << CELL_COUNT) - 1)) << 2;
-
-      if (clusterFree(*(const uint32_t *)(context->buffer + offset)))
-        ++count[fat];
-    }
-  }
-  for (uint8_t i = 0; i < handle->tableNumber; ++i)
-  {
-    for (uint8_t j = 0; j < handle->tableNumber; ++j)
-    {
-      if (i != j && count[i] != count[j])
-      {
-        DEBUG_PRINT("Table sizes differ: %u and %u\n", count[i], count[j]);
-      }
-    }
-  }
-  empty = count[0];
-
-  freeContext(handle, context);
-  free(count);
-
-  return empty;
 }
 #endif
 /*------------------Unimplemented functions-----------------------------------*/

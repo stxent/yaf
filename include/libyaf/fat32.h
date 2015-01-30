@@ -7,10 +7,8 @@
 #ifndef LIBYAF_FAT32_H_
 #define LIBYAF_FAT32_H_
 /*----------------------------------------------------------------------------*/
-#include <stdbool.h>
-#include <stdint.h>
-#include <interface.h>
 #include <fs.h>
+#include <interface.h>
 #include <rtc.h>
 /*----------------------------------------------------------------------------*/
 extern const struct FsHandleClass * const FatHandle;
@@ -44,9 +42,5 @@ struct Fat32Config
    * This option is used only when support for multiple threads is enabled. */
   uint16_t threads;
 };
-/*----------------------------------------------------------------------------*/
-#if defined(CONFIG_FAT_WRITE) && defined(CONFIG_FAT_DEBUG)
-uint32_t fat32CountFree(void *);
-#endif
 /*----------------------------------------------------------------------------*/
 #endif /* LIBYAF_FAT32_H_ */
