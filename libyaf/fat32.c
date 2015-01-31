@@ -258,6 +258,18 @@ static struct CommandContext *allocateContext(struct FatHandle *handle)
 #endif
 }
 /*----------------------------------------------------------------------------*/
+static struct FsMetadata *allocateMetadata(struct FatHandle *handle)
+{
+  struct FsMetadata *metadata = 0;
+
+  lockPools(handle);
+  if (!queueEmpty(&handle->metadataPool.queue))
+    queuePop(&handle->metadataPool.queue, &metadata);
+  unlockPools(handle);
+
+  return metadata;
+}
+/*----------------------------------------------------------------------------*/
 static void *allocateNode(struct FatHandle *handle)
 {
   const struct FatNodeConfig config = {
@@ -443,16 +455,14 @@ static const char *followPath(struct CommandContext *context,
   enum result res;
 
   /* Allocate temporary metadata buffers */
-  lockPools(handle);
-  if (queueSize(&handle->metadataPool.queue) >= 2)
-  {
-    queuePop(&handle->metadataPool.queue, &currentName);
-    queuePop(&handle->metadataPool.queue, &pathPart);
-  }
-  unlockPools(handle);
-
-  if (!currentName || !pathPart)
+  if (!(currentName = allocateMetadata(handle)))
     return 0;
+
+  if (!(pathPart = allocateMetadata(handle)))
+  {
+    freeMetadata(handle, currentName);
+    return 0;
+  }
 
   path = getChunk(path, pathPart->name);
 
@@ -488,10 +498,8 @@ static const char *followPath(struct CommandContext *context,
     path = 0;
 
   /* Return buffers to metadata pool */
-  lockPools(handle);
-  queuePush(&handle->metadataPool.queue, pathPart);
-  queuePush(&handle->metadataPool.queue, currentName);
-  unlockPools(handle);
+  freeMetadata(handle, pathPart);
+  freeMetadata(handle, currentName);
 
   return path;
 }
@@ -552,6 +560,14 @@ static void freeContext(struct FatHandle *handle __attribute__((unused)),
 
 }
 #endif
+/*----------------------------------------------------------------------------*/
+static void freeMetadata(struct FatHandle *handle,
+    const struct FsMetadata *metadata)
+{
+  lockPools(handle);
+  queuePush(&handle->metadataPool.queue, metadata);
+  unlockPools(handle);
+}
 /*----------------------------------------------------------------------------*/
 /* Output buffer length should be greater or equal to maximum name length */
 static const char *getChunk(const char *src, char *dest)
@@ -793,15 +809,21 @@ static uint8_t getChecksum(const char *name, uint8_t length)
 static enum result readLongName(struct CommandContext *context, char *name,
     const struct FatNode *node)
 {
+  struct FatHandle * const handle = (struct FatHandle *)node->handle;
   const struct DirEntryImage *entry;
+  struct FsMetadata *nameBuffer;
   struct FatNode allocatedNode;
   uint8_t chunks = 0;
   enum result res;
 
-  /* Initialize temporary node */
-  res = allocateStaticNode((struct FatHandle *)node->handle, &allocatedNode);
-  if (res != E_OK)
+  /* Initialize temporary data */
+  if (!(nameBuffer = allocateMetadata(handle)))
+    return E_MEMORY;
+  if ((res = allocateStaticNode(handle, &allocatedNode)) != E_OK)
+  {
+    freeMetadata(handle, nameBuffer);
     return res;
+  }
 
   allocatedNode.cluster = node->nameCluster;
   allocatedNode.index = node->nameIndex;
@@ -825,9 +847,10 @@ static enum result readLongName(struct CommandContext *context, char *name,
     }
 
     if (entry->ordinal & LFN_LAST)
-      *((char16_t *)name + (offset + 1) * LFN_ENTRY_LENGTH) = 0;
+      *((char16_t *)nameBuffer->name + (offset + 1) * LFN_ENTRY_LENGTH) = 0;
 
-    extractLongName((char16_t *)name + offset * LFN_ENTRY_LENGTH, entry);
+    extractLongName((char16_t *)nameBuffer->name + offset * LFN_ENTRY_LENGTH,
+        entry);
     ++chunks;
     ++allocatedNode.index;
   }
@@ -839,12 +862,16 @@ static enum result readLongName(struct CommandContext *context, char *name,
   if (res == E_OK)
   {
     if (chunks)
-      uFromUtf16(name, (const char16_t *)name, CONFIG_FILENAME_LENGTH);
+    {
+      uFromUtf16(name, (const char16_t *)nameBuffer->name,
+          CONFIG_FILENAME_LENGTH);
+    }
     else
       res = E_ENTRY;
   }
 
   freeStaticNode(&allocatedNode);
+  freeMetadata(handle, nameBuffer);
   return res;
 }
 #endif
@@ -971,12 +998,7 @@ static enum result createNode(struct CommandContext *context,
 
 #ifdef CONFIG_FAT_UNICODE
   /* Allocate temporary metadata buffer */
-  struct FsMetadata *nameBuffer = 0;
-
-  lockPools(handle);
-  if (!queueEmpty(&handle->metadataPool.queue))
-    queuePop(&handle->metadataPool.queue, &nameBuffer);
-  unlockPools(handle);
+  struct FsMetadata * const nameBuffer = allocateMetadata(handle);
 
   if (!nameBuffer)
     return E_MEMORY;
@@ -1049,9 +1071,7 @@ static enum result createNode(struct CommandContext *context,
   }
 
   /* Return buffer to metadata pool */
-  lockPools(handle);
-  queuePush(&handle->metadataPool.queue, nameBuffer);
-  unlockPools(handle);
+  freeMetadata(handle, nameBuffer);
 #endif
 
   if (res != E_OK)

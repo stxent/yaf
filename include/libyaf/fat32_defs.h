@@ -317,6 +317,7 @@ static void freePool(struct Pool *);
 static enum result allocateBuffers(struct FatHandle *,
     const struct Fat32Config * const);
 static struct CommandContext *allocateContext(struct FatHandle *);
+static struct FsMetadata *allocateMetadata(struct FatHandle *);
 static void *allocateNode(struct FatHandle *);
 static void extractShortName(char *, const struct DirEntryImage *);
 static enum result fetchEntry(struct CommandContext *, struct FatNode *);
@@ -326,6 +327,7 @@ static const char *followPath(struct CommandContext *, struct FatNode *,
     const char *, const struct FatNode *);
 static void freeBuffers(struct FatHandle *, enum cleanup);
 static void freeContext(struct FatHandle *, const struct CommandContext *);
+static void freeMetadata(struct FatHandle *, const struct FsMetadata *);
 static const char *getChunk(const char *, char *);
 static enum result getNextCluster(struct CommandContext *, struct FatHandle *,
     uint32_t *);
