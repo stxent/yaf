@@ -115,6 +115,8 @@ result Shell::execute(const char *input)
       if (!braces)
       {
         braces = true;
+        spaces = false;
+        start = pos + 1;
         continue;
       }
       else
@@ -168,7 +170,7 @@ void Shell::log(const char *format, ...)
   length = vsprintf(logBuffer, format, arguments);
   va_end(arguments);
 
-  assert(length >= 0 && length < LOG_LENGTH - 1);
+  assert(length >= 0 && length < sizeof(logBuffer) - 1);
 
   if (length)
   {

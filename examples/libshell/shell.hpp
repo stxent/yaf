@@ -44,7 +44,7 @@ public:
   enum
   {
     ARGUMENT_COUNT = 16,
-    ARGUMENT_LENGTH = 32
+    ARGUMENT_LENGTH = 64
   };
 
   enum
@@ -132,7 +132,7 @@ private:
   ShellContext context;
   char *argumentPool[ARGUMENT_COUNT];
 
-  char logBuffer[LOG_LENGTH * 2 + 1];
+  char logBuffer[LOG_LENGTH * 3 + 1];
   Mutex logMutex;
 };
 //------------------------------------------------------------------------------
