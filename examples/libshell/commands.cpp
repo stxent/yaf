@@ -160,18 +160,13 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   if (*destination)
   {
     //Entry already exists
-    res = fsGet(*destination, FS_NODE_TYPE, &type);
-    if (res != E_OK || type != FS_TYPE_FILE)
-    {
-      fsFree(*destination);
-      fsFree(location);
-      fsFree(*source);
-      owner.log("%s: %s: destination entry type error", name(),
-          destinationPath);
-      return res == E_OK ? E_ENTRY : res;
-    }
-
+    fsFree(*destination);
     fsFree(location);
+    fsFree(*source);
+
+    owner.log("%s: %s: destination entry already exists", name(),
+        destinationPath);
+    return E_ENTRY;
   }
   else
   {
