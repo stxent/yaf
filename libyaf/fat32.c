@@ -1004,10 +1004,12 @@ static enum result createNode(struct CommandContext *context,
     return E_MEMORY;
 #endif
 
-  /* TODO Check for duplicates */
   res = fillShortName(shortName, metadata->name);
   if ((metadata->type & FS_TYPE_DIR))
     memset(shortName + sizeof(entry->name), ' ', sizeof(entry->extension));
+
+  /* Propose new short name when selected name already exists */
+  uniqueNamePropose(context, root, shortName);
 
 #ifdef CONFIG_FAT_UNICODE
   /* Check whether the file name is valid for use as short name */
@@ -1437,6 +1439,159 @@ static char processCharacter(char value)
     /* Drop all multibyte UTF-8 code points and non-printing characters */
     return 0;
   }
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef CONFIG_FAT_WRITE
+static void uniqueBaseExtract(char *baseName, const char *shortName)
+{
+  const uint8_t nameLength = FIELD_SIZE(DirEntryImage, name);
+  uint8_t index;
+
+  for (index = 0; index < nameLength; ++index)
+  {
+    if (!shortName[index] || shortName[index] == ' ' || shortName[index] == '.')
+      break;
+    baseName[index] = shortName[index];
+  }
+  baseName[index] = '\0';
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef CONFIG_FAT_WRITE
+static unsigned int uniqueNameConvert(char *shortName)
+{
+  const uint8_t nameLength = FIELD_SIZE(DirEntryImage, name);
+  unsigned int nameIndex = 0;
+  uint8_t delimiterPosition = 0;
+
+  //TODO Search for delimiter from the end
+  for (uint8_t position = 0; position < nameLength; ++position)
+  {
+    if (!shortName[position] || shortName[position] == ' ')
+    {
+      break;
+    }
+    else if (shortName[position] == '~')
+    {
+      delimiterPosition = position++;
+
+      while (position < nameLength)
+      {
+        if (shortName[position] < '0' || shortName[position] > '9')
+          break;
+
+        const uint8_t currentNumber = shortName[position] - '0';
+
+        nameIndex = (nameIndex * 10) + (unsigned int)currentNumber;
+        ++position;
+      }
+
+      if (shortName[position] != '\0')
+        nameIndex = 0;
+      break;
+    }
+  }
+
+  if (nameIndex)
+    shortName[delimiterPosition] = '\0';
+
+  return nameIndex;
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef CONFIG_FAT_WRITE
+static enum result uniqueNamePropose(struct CommandContext *context,
+    const struct FatNode *root, char *shortName)
+{
+  const uint8_t nameLength = FIELD_SIZE(DirEntryImage, name);
+  struct FatHandle * const handle = (struct FatHandle *)root->handle;
+  struct FatNode allocatedNode;
+  unsigned int proposed = 0;
+  char currentName[nameLength + 1];
+  enum result res;
+
+  /* Initialize temporary node */
+  if ((res = allocateStaticNode(handle, &allocatedNode)) != E_OK)
+    return res;
+
+  uniqueBaseExtract(currentName, shortName);
+  allocatedNode.cluster = root->payload;
+  allocatedNode.index = 0;
+
+  while ((res = fetchEntry(context, &allocatedNode)) == E_OK)
+  {
+    /* Sector is already loaded during entry fetching */
+    const struct DirEntryImage * const entry =
+        (const struct DirEntryImage *)(context->buffer
+            + ENTRY_OFFSET(allocatedNode.index));
+
+    if (entry->name[0] == E_FLAG_EMPTY || (entry->flags & MASK_LFN) == MASK_LFN)
+    {
+      ++allocatedNode.index;
+      continue;
+    }
+
+    unsigned int instance;
+    char baseName[nameLength + 1];
+
+    /* Extract short name without extension */
+    uniqueBaseExtract(baseName, entry->name);
+
+    if ((instance = uniqueNameConvert(baseName)))
+    {
+      if (!strncmp(baseName, currentName, strlen(baseName))
+          && proposed <= instance)
+      {
+        proposed = instance + 1;
+      }
+    }
+    else
+    {
+      if (!strcmp(currentName, baseName) && !proposed)
+        ++proposed;
+    }
+
+    ++allocatedNode.index;
+  }
+
+  if (proposed)
+  {
+    char suffix[nameLength - 1];
+    char *position = suffix;
+
+    while (proposed)
+    {
+      const uint8_t symbol = proposed % 10;
+
+      *position++ = symbol + '0';
+      proposed /= 10;
+    }
+
+    const uint8_t proposedLength = position - suffix;
+    const uint8_t remainingSpace = nameLength - proposedLength - 1;
+    uint8_t baseLength = strlen(currentName);
+
+    if (baseLength > remainingSpace)
+      baseLength = remainingSpace;
+
+    memset(shortName + baseLength, ' ', nameLength - baseLength);
+    shortName[baseLength] = '~';
+
+    for (uint8_t index = 1; index <= proposedLength; ++index)
+      shortName[baseLength + index] = suffix[proposedLength - index];
+
+    DEBUG_PRINT("Proposed short name: \"%.8s\"\n", shortName);
+
+    res = E_OK;
+  }
+  else
+  {
+    res = E_ERROR;
+  }
+
+  freeStaticNode(&allocatedNode);
+  return res;
 }
 #endif
 /*----------------------------------------------------------------------------*/

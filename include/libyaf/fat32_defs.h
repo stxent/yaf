@@ -369,6 +369,10 @@ static char processCharacter(char);
 static enum result setupDirCluster(struct CommandContext *,
     const struct FatNode *);
 static enum result syncFile(struct CommandContext *, struct FatFile *);
+static void uniqueBaseExtract(char *, const char *);
+static unsigned int uniqueNameConvert(char *);
+static enum result uniqueNamePropose(struct CommandContext *,
+    const struct FatNode *, char *);
 static enum result updateTable(struct CommandContext *, struct FatHandle *,
     uint32_t);
 static enum result writeBuffer(struct FatHandle *, uint32_t, const uint8_t *,
