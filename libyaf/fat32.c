@@ -810,7 +810,6 @@ static enum result readLongName(struct CommandContext *context, char *name,
     const struct FatNode *node)
 {
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
-  const struct DirEntryImage *entry;
   struct FsMetadata *nameBuffer;
   struct FatNode allocatedNode;
   uint8_t chunks = 0;
@@ -831,8 +830,9 @@ static enum result readLongName(struct CommandContext *context, char *name,
   while ((res = fetchEntry(context, &allocatedNode)) == E_OK)
   {
     /* Sector is already loaded during entry fetching */
-    entry = (const struct DirEntryImage *)(context->buffer
-        + ENTRY_OFFSET(allocatedNode.index));
+    const struct DirEntryImage * const entry =
+        (const struct DirEntryImage *)(context->buffer
+            + ENTRY_OFFSET(allocatedNode.index));
 
     if ((entry->flags & MASK_LFN) != MASK_LFN)
       break;
@@ -1212,7 +1212,6 @@ static enum result findGap(struct CommandContext *context, struct FatNode *node,
     const struct FatNode *root, uint8_t chainLength)
 {
   struct FatHandle * const handle = (struct FatHandle *)root->handle;
-  const struct DirEntryImage *entry;
   uint32_t parent = root->payload;
   uint16_t index = 0;
   uint8_t chunks = 0;
@@ -1268,8 +1267,9 @@ static enum result findGap(struct CommandContext *context, struct FatNode *node,
      * Entry processing will be executed only after entry fetching so
      * in this case sector reloading is redundant.
      */
-    entry = (const struct DirEntryImage *)(context->buffer
-        + ENTRY_OFFSET(node->index));
+    const struct DirEntryImage * const entry =
+        (const struct DirEntryImage *)(context->buffer
+            + ENTRY_OFFSET(node->index));
 
     /* Empty node, deleted long file name node or deleted node */
     if (!entry->name[0] || ((entry->flags & MASK_LFN) == MASK_LFN
@@ -1359,7 +1359,6 @@ static enum result markFree(struct CommandContext *context,
     const struct FatNode *node)
 {
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
-  struct DirEntryImage *entry;
   struct FatNode allocatedNode;
   uint32_t lastSector;
   enum result res;
@@ -1385,8 +1384,9 @@ static enum result markFree(struct CommandContext *context,
         && allocatedNode.index == node->index;
 
     /* Sector is already loaded */
-    entry = (struct DirEntryImage *)(context->buffer
-        + ENTRY_OFFSET(allocatedNode.index));
+    struct DirEntryImage * const entry =
+        (struct DirEntryImage *)(context->buffer
+            + ENTRY_OFFSET(allocatedNode.index));
 
     /* Mark entry as empty by changing first byte of the name */
     entry->name[0] = E_FLAG_EMPTY;
@@ -1767,7 +1767,6 @@ static void fatFree(void *object)
 /*----------------------------------------------------------------------------*/
 static enum result fatGet(const void *object, enum fsNodeData type, void *data)
 {
-  const struct DirEntryImage *entry;
   const struct FatNode * const node = object;
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
   struct CommandContext *context;
@@ -1833,8 +1832,10 @@ static enum result fatGet(const void *object, enum fsNodeData type, void *data)
     freeContext(handle, context);
     return res;
   }
-  entry = (const struct DirEntryImage *)(context->buffer
-      + ENTRY_OFFSET(node->index));
+
+  const struct DirEntryImage * const entry =
+      (const struct DirEntryImage *)(context->buffer
+          + ENTRY_OFFSET(node->index));
 
   res = E_OK;
   switch (type)

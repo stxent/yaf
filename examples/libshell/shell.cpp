@@ -170,7 +170,7 @@ void Shell::log(const char *format, ...)
   length = vsprintf(logBuffer, format, arguments);
   va_end(arguments);
 
-  assert(length >= 0 && length < sizeof(logBuffer) - 1);
+  assert(length >= 0 && length < static_cast<int>(sizeof(logBuffer)) - 1);
 
   if (length)
   {
