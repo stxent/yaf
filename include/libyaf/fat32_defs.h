@@ -56,6 +56,7 @@
 #define CLUSTER_EOC_VAL         0x0FFFFFF8UL
 #define E_FLAG_EMPTY            (char)0xE5 /* Directory entry free flag */
 #define FILE_SIZE_MAX           0xFFFFFFFFUL
+#define MAX_SIMILAR_NAMES       100
 #define RESERVED_CLUSTER        0 /* Reserved cluster number */
 #define RESERVED_SECTOR         0xFFFFFFFFUL /* Initial sector number */
 /*----------------------------------------------------------------------------*/

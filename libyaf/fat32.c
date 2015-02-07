@@ -996,24 +996,25 @@ static enum result createNode(struct CommandContext *context,
   uint8_t chunks = 0;
   enum result res;
 
+  res = fillShortName(shortName, metadata->name);
+  if (metadata->type & FS_TYPE_DIR)
+    memset(shortName + sizeof(entry->name), ' ', sizeof(entry->extension));
+
 #ifdef CONFIG_FAT_UNICODE
   /* Allocate temporary metadata buffer */
   struct FsMetadata * const nameBuffer = allocateMetadata(handle);
+  const bool longNameRequired = res != E_OK;
 
   if (!nameBuffer)
     return E_MEMORY;
 #endif
 
-  res = fillShortName(shortName, metadata->name);
-  if ((metadata->type & FS_TYPE_DIR))
-    memset(shortName + sizeof(entry->name), ' ', sizeof(entry->extension));
-
   /* Propose new short name when selected name already exists */
-  uniqueNamePropose(context, root, shortName);
+  if ((res = uniqueNamePropose(context, root, shortName)) != E_OK)
+    return res;
 
 #ifdef CONFIG_FAT_UNICODE
-  /* Check whether the file name is valid for use as short name */
-  if (res != E_OK)
+  if (longNameRequired)
   {
     const uint16_t entryCount = CONFIG_FILENAME_LENGTH / 2 / LFN_ENTRY_LENGTH;
     const uint16_t length = uToUtf16((char16_t *)nameBuffer->name,
@@ -1031,16 +1032,15 @@ static enum result createNode(struct CommandContext *context,
 #endif
 
   /* Find suitable space within the directory */
-  if ((res = findGap(context, node, root, chunks + 1)) != E_OK)
-    return res;
+  res = findGap(context, node, root, chunks + 1);
 
 #ifdef CONFIG_FAT_UNICODE
-  /* Save start cluster and index values before filling the chain */
-  node->nameCluster = node->cluster;
-  node->nameIndex = node->index;
-
-  if (chunks)
+  if (res == E_OK && chunks)
   {
+    /* Save start cluster and index values before filling the chain */
+    node->nameCluster = node->cluster;
+    node->nameIndex = node->index;
+
     const uint8_t checksum = getChecksum(shortName, sizeof(entry->filename));
 
     for (uint8_t current = chunks; current; --current)
@@ -1555,7 +1555,11 @@ static enum result uniqueNamePropose(struct CommandContext *context,
     ++allocatedNode.index;
   }
 
-  if (proposed)
+  if (!proposed)
+  {
+    res = E_OK;
+  }
+  else if (proposed < MAX_SIMILAR_NAMES)
   {
     char suffix[nameLength - 1];
     char *position = suffix;
@@ -1587,7 +1591,7 @@ static enum result uniqueNamePropose(struct CommandContext *context,
   }
   else
   {
-    res = E_ERROR;
+    res = E_EXIST;
   }
 
   freeStaticNode(&allocatedNode);
