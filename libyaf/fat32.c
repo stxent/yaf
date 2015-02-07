@@ -942,7 +942,7 @@ static enum result allocateCluster(struct CommandContext *context,
 
       info->lastAllocated = toLittleEndian32(current);
       info->freeClusters =
-          toLittleEndian32(fromLittleEndian32(info->freeClusters) + 1);
+          toLittleEndian32(fromLittleEndian32(info->freeClusters) - 1);
 
       if ((res = writeSector(context, handle, handle->infoSector)))
         return res;
@@ -1412,32 +1412,30 @@ static enum result markFree(struct CommandContext *context,
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_WRITE
-/* Returns zero when character is not allowed or character code otherwise */
 static char processCharacter(char value)
 {
-  /* All slashes are already removed while file path being processed */
+  /* Returns zero when character is not allowed or character code otherwise */
 
   if (value == ' ')
   {
-    /* Replace spaces with underscores */
-    return '_';
+    /* Remove spaces */
+    return 0;
   }
   else if (value >= 'a' && value <= 'z')
   {
     /* Convert lower case characters to upper case */
-    return value - 32;
+    return value - ('a' - 'A');
   }
-  else if (value > 0x20 && value != 0x22 && value != 0x7C && !(value & 0x80)
-      && !(value >= 0x2A && value <= 0x2F)
+  else if (value > 0x20 && !(value & 0x80)
       && !(value >= 0x3A && value <= 0x3F)
-      && !(value >= 0x5B && value <= 0x5D))
+      && !strchr("\x22\x2A\x2B\x2C\x2E\x2F\x5B\x5C\x5D\x7C\x7F", value))
   {
     return value;
   }
   else
   {
-    /* Drop all multibyte UTF-8 code points and non-printing characters */
-    return 0;
+    /* Replace all other characters with underscore */
+    return '_';
   }
 }
 #endif
