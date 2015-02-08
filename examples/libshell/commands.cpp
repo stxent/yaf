@@ -17,12 +17,12 @@ result DataProcessing::copyContent(FsNode *sourceNode, FsNode *destinationNode,
     unsigned int blockSize, unsigned int blockCount, unsigned int seek,
     unsigned int skip, bool overwrite) const
 {
-  FsEntry *sourceFile = nullptr, *destinationFile = nullptr;
-  char buffer[CONFIG_SHELL_BUFFER];
   result res = E_OK;
 
   //Open file entries
-  sourceFile = reinterpret_cast<FsEntry *>(fsOpen(sourceNode, FS_ACCESS_READ));
+  FsEntry * const sourceFile = reinterpret_cast<FsEntry *>(fsOpen(sourceNode,
+      FS_ACCESS_READ));
+
   if (sourceFile == nullptr)
   {
     owner.log("%s: source file opening error", name());
@@ -31,21 +31,19 @@ result DataProcessing::copyContent(FsNode *sourceNode, FsNode *destinationNode,
 
   if (overwrite)
   {
-    res = fsTruncate(destinationNode);
-    if (res != E_OK)
+    if ((res = fsTruncate(destinationNode)) != E_OK)
       return res;
   }
 
-  destinationFile = reinterpret_cast<FsEntry *>(fsOpen(destinationNode,
-      FS_ACCESS_WRITE));
+  FsEntry * const destinationFile =
+      reinterpret_cast<FsEntry *>(fsOpen(destinationNode, FS_ACCESS_WRITE));
+
   if (destinationFile == nullptr)
   {
     fsClose(sourceFile);
-    owner.log("%s: source file opening error", name());
+    owner.log("%s: destination file opening error", name());
     return E_ENTRY;
   }
-
-  uint32_t read = 0, written = 0, blocks = 0;
 
   if (!overwrite)
   {
@@ -62,6 +60,9 @@ result DataProcessing::copyContent(FsNode *sourceNode, FsNode *destinationNode,
       return res;
   }
 
+  uint32_t read = 0, written = 0, blocks = 0;
+  char buffer[CONFIG_SHELL_BUFFER];
+
   //Copy file content
   while (!fsEnd(sourceFile))
   {
@@ -69,7 +70,8 @@ result DataProcessing::copyContent(FsNode *sourceNode, FsNode *destinationNode,
       break;
     ++blocks;
 
-    uint32_t inCount = fsRead(sourceFile, buffer, blockSize);
+    const uint32_t inCount = fsRead(sourceFile, buffer, blockSize);
+
     if (!inCount)
     {
       owner.log("%s: read error at %u", name(), read);
@@ -78,8 +80,8 @@ result DataProcessing::copyContent(FsNode *sourceNode, FsNode *destinationNode,
     }
     read += inCount;
 
-    const uint32_t outCount = inCount;
-    inCount = fsWrite(destinationFile, buffer, outCount);
+    const uint32_t outCount = fsWrite(destinationFile, buffer, inCount);
+
     if (inCount != outCount)
     {
       owner.log("%s: write error at %u", name(), written);
@@ -104,7 +106,9 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   result res;
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, destinationPath);
-  const char *namePosition = Shell::extractName(context->pathBuffer);
+
+  const char * const namePosition = Shell::extractName(context->pathBuffer);
+
   if (namePosition == nullptr)
     return E_VALUE; //Node name not found
 
@@ -118,6 +122,7 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   //Find destination directory where entry should be placed
   FsNode * const location = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
       context->pathBuffer, nullptr));
+
   if (location == nullptr)
   {
     owner.log("%s: %s: target directory not found", name(),
@@ -185,7 +190,7 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
     fsFree(location);
     if (res != E_OK)
     {
-      owner.log("%s: node creation failed", name());
+      owner.log("%s: directory creation failed", name());
       return res;
     }
   }
@@ -230,21 +235,21 @@ result ChangeDirectory::run(unsigned int count, const char * const *arguments,
   if ((res = processArguments(count, arguments, &path)) != E_OK)
     return res;
 
-  FsNode *node;
-  FsEntry *dir;
-
   Shell::joinPaths(context->pathBuffer, context->currentDir, path);
-  node = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
+
+  FsNode * const node = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
       context->pathBuffer, nullptr));
+
   if (node == nullptr)
   {
     owner.log("cd: %s: no such directory", context->pathBuffer);
     return E_ENTRY;
   }
 
-  dir = reinterpret_cast<FsEntry *>(fsOpen(node, FS_ACCESS_READ));
-  fsFree(node);
+  FsEntry * const dir = reinterpret_cast<FsEntry *>(fsOpen(node,
+      FS_ACCESS_READ));
 
+  fsFree(node);
   if (dir == nullptr)
   {
     owner.log("cd: %s: access denied", context->pathBuffer);
@@ -393,7 +398,7 @@ result DirectData::processArguments(unsigned int count,
 
   if (output->block > CONFIG_SHELL_BUFFER)
   {
-    owner.log("dd: block size is too long");
+    owner.log("dd: block is too large");
     return E_VALUE;
   }
 
@@ -600,9 +605,11 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments,
 
   //Check for target entry existence
   Shell::joinPaths(context->pathBuffer, context->currentDir, target);
+
   FsNode *destinationNode = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
       context->pathBuffer, nullptr));
-  if (destinationNode == nullptr)
+
+  if (destinationNode != nullptr)
   {
     fsFree(destinationNode);
     owner.log("mkdir: %s: entry already exists", context->pathBuffer);
@@ -610,10 +617,10 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments,
   }
 
   FsMetadata info;
-  info.type = FS_TYPE_DIR;
 
   //Find destination directory where named entry should be placed
   const char *namePosition = Shell::extractName(context->pathBuffer);
+
   if (!namePosition)
     return E_VALUE; //No entry name found
 
@@ -623,8 +630,9 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments,
   //Remove the directory name from the path
   context->pathBuffer[namePosition - context->pathBuffer] = '\0';
 
-  FsNode *location = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
+  FsNode * const location = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
       context->pathBuffer, nullptr));
+
   if (location == nullptr)
   {
     owner.log("mkdir: %s: target directory not found", context->pathBuffer);
@@ -633,12 +641,18 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments,
   else
   {
     fsNodeType type;
-    if ((res = fsGet(location, FS_NODE_TYPE, &type)) != E_OK
-        || type != FS_TYPE_DIR)
+
+    if ((res = fsGet(location, FS_NODE_TYPE, &type)) != E_OK)
     {
       fsFree(location);
-      owner.log("mkdir: %s: wrong destination type", context->pathBuffer);
-      return res == E_OK ? E_ENTRY : res;
+      owner.log("mkdir: %s: metadata reading failed", context->pathBuffer);
+      return res;
+    }
+    if (type != FS_TYPE_DIR)
+    {
+      fsFree(location);
+      owner.log("mkdir: %s: wrong entry type", context->pathBuffer);
+      return E_ENTRY;
     }
   }
 
@@ -689,9 +703,11 @@ result RemoveDirectory::run(unsigned int count, const char * const *arguments,
     return E_ENTRY;
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, target);
-  FsNode *destinationNode = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
+
+  FsNode * const node = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
       context->pathBuffer, nullptr));
-  if (destinationNode == nullptr)
+
+  if (node == nullptr)
   {
     owner.log("rmdir: %s: no such entry", context->pathBuffer);
     return E_ENTRY;
@@ -700,27 +716,30 @@ result RemoveDirectory::run(unsigned int count, const char * const *arguments,
   fsNodeType type;
   result res;
 
-  if ((res = fsGet(destinationNode, FS_NODE_TYPE, &type)) != E_OK
+  if ((res = fsGet(node, FS_NODE_TYPE, &type)) != E_OK
       || type != FS_TYPE_DIR)
   {
     owner.log("rmdir: %s: wrong entry type", context->pathBuffer);
     goto free_node;
   }
 
-  if ((res = fsTruncate(destinationNode)) != E_OK)
+  if ((res = fsTruncate(node)) != E_OK)
   {
-    owner.log("rmdir: %s: directory not empty", context->pathBuffer);
+    if (res == E_EXIST)
+      owner.log("rmdir: %s: directory not empty", context->pathBuffer);
+    else
+      owner.log("rmdir: %s: directory deletion failed", context->pathBuffer);
     goto free_node;
   }
 
-  if ((res = fsUnlink(destinationNode)) != E_OK)
+  if ((res = fsUnlink(node)) != E_OK)
   {
     owner.log("rmdir: %s: unlinking failed", context->pathBuffer);
     goto free_node;
   }
 
 free_node:
-  fsFree(destinationNode);
+  fsFree(node);
   return res;
 }
 //------------------------------------------------------------------------------

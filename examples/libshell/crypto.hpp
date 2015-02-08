@@ -36,6 +36,8 @@ protected:
 private:
   const char * const *getNextEntry(unsigned int, const char * const *) const;
   result processArguments(unsigned int, const char * const *) const;
+  result processEntry(FsEntry *, Shell::ShellContext *,
+      ComputationAlgorithm *) const;
 };
 //------------------------------------------------------------------------------
 template<class T> class ComputationCommand : public AbstractComputationCommand

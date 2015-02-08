@@ -85,6 +85,7 @@ int Application::run()
       case E_ACCESS:
       case E_BUSY:
       case E_ENTRY:
+      case E_INVALID:
       case E_VALUE:
         break;
 
