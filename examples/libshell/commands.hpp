@@ -188,6 +188,11 @@ public:
   }
 
   virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+
+private:
+  result processArguments(unsigned int, const char * const *, bool *,
+      const char **) const;
+  result removeRecursively(FsNode *, Shell::ShellContext *) const;
 };
 //------------------------------------------------------------------------------
 class Synchronize : public Shell::ShellCommand

@@ -766,13 +766,12 @@ free_node:
   return res;
 }
 //------------------------------------------------------------------------------
-result RemoveEntry::run(unsigned int count, const char * const *arguments,
-    Shell::ShellContext *context)
+result RemoveEntry::processArguments(unsigned int count,
+    const char * const *arguments, bool *recursive, const char **targets) const
 {
-  const char *target = nullptr;
-  bool help = false, recursive = false;
+  unsigned int entries = 0;
+  bool help = false;
 
-  //TODO Implement recursive remove and multiple entries
   for (unsigned int i = 0; i < count; ++i)
   {
     if (!strcmp(arguments[i], "--help"))
@@ -782,11 +781,10 @@ result RemoveEntry::run(unsigned int count, const char * const *arguments,
     }
     if (!strcmp(arguments[i], "-r"))
     {
-      recursive = true;
+      *recursive = true;
       continue;
     }
-    if (target == nullptr)
-      target = arguments[i];
+    targets[entries++] = arguments[i];
   }
 
   if (help)
@@ -794,45 +792,147 @@ result RemoveEntry::run(unsigned int count, const char * const *arguments,
     owner.log("Usage: rm [OPTION]... ENTRY");
     owner.log("  --help  print help message");
     owner.log("  -r      remove directories and their content");
-    return E_OK;
+    return E_BUSY;
   }
 
-  if (target == nullptr)
-    return E_ENTRY;
+  return !entries ? E_ENTRY : E_OK;
+}
+//------------------------------------------------------------------------------
+result RemoveEntry::removeRecursively(FsNode *node,
+    Shell::ShellContext *context) const
+{
+  FsEntry *dir = reinterpret_cast<FsEntry *>(fsOpen(node, FS_ACCESS_READ));
 
-  Shell::joinPaths(context->pathBuffer, context->currentDir, target);
-  FsNode *destinationNode = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
-      context->pathBuffer, nullptr));
-  if (destinationNode == nullptr)
+  if (dir == nullptr)
   {
-    owner.log("rm: %s: no such entry", context->pathBuffer);
-    return E_ENTRY;
+    owner.log("rm: directory opening failed");
+    return E_DEVICE;
   }
 
-  fsNodeType type;
+  FsNode *iterator;
   result res;
 
-  if ((res = fsGet(destinationNode, FS_NODE_TYPE, &type)) != E_OK
-      || (type == FS_TYPE_DIR && !recursive))
+  if ((iterator = reinterpret_cast<FsNode *>(fsClone(node))) == nullptr)
   {
-    owner.log("rm: %s: wrong entry type", context->pathBuffer);
-    goto free_node;
+    fsClose(dir);
+
+    owner.log("rm: node allocation failed");
+    return E_MEMORY;
   }
 
-  if ((res = fsTruncate(destinationNode)) != E_OK)
+  //Previously allocated node is reused
+  while ((res = fsFetch(dir, iterator)) == E_OK)
   {
-    owner.log("rm: %s: payload removing failed", context->pathBuffer);
-    goto free_node;
+    if (fsEnd(dir))
+    {
+      owner.log("rm: unexpected end of directory");
+      break;
+    }
+
+    fsNodeType type;
+
+    //FIXME Ignore . and ..
+    if ((res = fsGet(node, FS_NODE_TYPE, &type)) != E_OK)
+    {
+      owner.log("rm: wrong entry");
+      break;
+    }
+
+    if (type == FS_TYPE_DIR)
+    {
+      if ((res = removeRecursively(iterator, context)) != E_OK)
+        break;
+    }
+
+    if ((res = fsTruncate(iterator)) != E_OK)
+    {
+      owner.log("rm: payload deletion failed");
+      break;
+    }
+
+    if ((res = fsUnlink(iterator)) != E_OK)
+    {
+      owner.log("rm: unlinking failed");
+      break;
+    }
   }
 
-  if ((res = fsUnlink(destinationNode)) != E_OK)
+  fsFree(iterator);
+  fsClose(dir);
+
+  return res;
+}
+//------------------------------------------------------------------------------
+result RemoveEntry::run(unsigned int count, const char * const *arguments,
+    Shell::ShellContext *context)
+{
+  const char *targets[Shell::ARGUMENT_COUNT - 1] = {nullptr};
+  FsNode *node;
+  result res;
+  bool recursive = false;
+
+  if ((res = processArguments(count, arguments, &recursive, targets)) != E_OK)
+    return res;
+
+  for (unsigned int i = 0; i < Shell::ARGUMENT_COUNT - 1; ++i)
   {
-    owner.log("rm: %s: unlinking failed", context->pathBuffer);
-    goto free_node;
+    if (targets[i] == nullptr)
+      break;
+
+    Shell::joinPaths(context->pathBuffer, context->currentDir, targets[i]);
+    node = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
+        context->pathBuffer, nullptr));
+
+    if (node == nullptr)
+    {
+      owner.log("rm: %s: no such entry", context->pathBuffer);
+      res = E_ENTRY;
+      break;
+    }
+
+    fsNodeType type;
+
+    if ((res = fsGet(node, FS_NODE_TYPE, &type)) != E_OK)
+    {
+      owner.log("rm: %s: wrong entry", context->pathBuffer);
+      fsFree(node);
+      break;
+    }
+
+    if (type == FS_TYPE_DIR)
+    {
+      if (!recursive)
+      {
+        owner.log("rm: %s: directory ignored", context->pathBuffer);
+        res = E_INVALID;
+      }
+      else if ((res = removeRecursively(node, context)) != E_OK)
+      {
+        owner.log("rm: %s: recursive deletion failed", context->pathBuffer);
+      }
+
+      if (res != E_OK)
+      {
+        fsFree(node);
+        break;
+      }
+    }
+
+    if ((res = fsTruncate(node)) != E_OK)
+    {
+      owner.log("rm: %s: payload deletion failed", context->pathBuffer);
+    }
+    else if ((res = fsUnlink(node)) != E_OK)
+    {
+      owner.log("rm: %s: unlinking failed", context->pathBuffer);
+    }
+
+    fsFree(node);
+
+    if (res != E_OK)
+      break;
   }
 
-free_node:
-  fsFree(destinationNode);
   return res;
 }
 //------------------------------------------------------------------------------
