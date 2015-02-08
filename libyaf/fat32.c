@@ -1229,11 +1229,13 @@ static enum result findGap(struct CommandContext *context, struct FatNode *node,
     switch ((res = fetchEntry(context, node)))
     {
       case E_EMPTY:
+        /* End of the cluster chain, there are no empty entries */
         index = 0;
         allocateParent = true;
         break;
 
       case E_ENTRY:
+        /* There are empty entries in the current cluster */
         index = node->index;
         parent = node->cluster;
         allocateParent = false;
@@ -1254,9 +1256,15 @@ static enum result findGap(struct CommandContext *context, struct FatNode *node,
       {
         if ((res = allocateCluster(context, handle, &node->cluster)) != E_OK)
           return res;
+        if ((res = clearCluster(context, handle, node->cluster)) != E_OK)
+        {
+          //FIXME Directory may contain erroneous entries
+          return res;
+        }
 
         if (allocateParent)
         {
+          /* Place new entry in the beginning of the allocated cluster */
           parent = node->cluster;
           allocateParent = false;
         }
@@ -2111,25 +2119,27 @@ static enum result fatMake(void *object, const struct FsMetadata *metadata,
     /* Prevent unexpected modifications from other threads */
     lockHandle(handle);
 
-    res = E_OK;
+    /* Allocate a cluster chain for the directory */
     if (metadata->type == FS_TYPE_DIR)
     {
       res = allocateCluster(context, handle, &allocatedNode.payload);
 
       if (res == E_OK)
       {
-        /* Coherence checking is not needed for directory setup */
+        /*
+         * Coherence checking is not needed during setup of the first cluster
+         * because the directory entry will be created on the next step.
+         */
         unlockHandle(handle);
         res = setupDirCluster(context, &allocatedNode);
         lockHandle(handle);
-      }
-      else
-      {
-        /* Return value is ignored */
-        freeChain(context, handle, allocatedNode.payload);
+
+        if (res != E_OK)
+          freeChain(context, handle, allocatedNode.payload);
       }
     }
 
+    /* Create an entry in the parent directory */
     if (res == E_OK)
     {
       res = createNode(context, &allocatedNode, node, metadata);
@@ -2300,10 +2310,10 @@ static enum result fatTruncate(void *object)
 
     /* Check whether the directory is not empty */
     node->cluster = node->payload;
-    node->index = 2; /* Exclude . and .. */
+    node->index = 2; /* Exclude . and .. */ //FIXME Make the position arbitrary
 
     if ((res = fetchNode(context, node, 0)) == E_OK)
-      res = E_VALUE;
+      res = E_EXIST;
     if (res != E_EMPTY && res != E_ENTRY)
     {
       freeContext(handle, context);
