@@ -449,10 +449,15 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
 {
   const char *filter = nullptr, *path = nullptr;
   int verifyCount = -1;
-  bool help = false, verbose = false;
+  bool help = false, showIndex = false, verbose = false;
 
   for (unsigned int i = 0; i < count; ++i)
   {
+    if (!strcmp(arguments[i], "-i"))
+    {
+      showIndex = true;
+      continue;
+    }
     if (!strcmp(arguments[i], "-l"))
     {
       verbose = true;
@@ -480,6 +485,7 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
   if (help)
   {
     owner.log("Usage: ls [OPTION]... [DIRECTORY]...");
+    owner.log("  -l                    show index of each entry");
     owner.log("  -l                    show detailed information");
     owner.log("  --help                print help message");
     owner.log("  --filter NAME         filter entries by NAME substring");
@@ -488,8 +494,10 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
   }
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, path);
-  FsNode *node = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
+
+  FsNode * const node = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
       context->pathBuffer, nullptr));
+
   if (node == nullptr)
   {
     owner.log("ls: %s: no such directory", context->pathBuffer);
@@ -497,9 +505,10 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
   }
 
   FsEntry *dir = reinterpret_cast<FsEntry *>(fsOpen(node, FS_ACCESS_READ));
+
   if (dir == nullptr)
   {
-    owner.log("ls: %s: open directory failed", context->pathBuffer);
+    owner.log("ls: %s: directory opening failed", context->pathBuffer);
     return E_DEVICE;
   }
 
@@ -510,52 +519,66 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
   //Previously allocated node is reused
   while ((res = fsFetch(dir, node)) == E_OK)
   {
-    if (!fsEnd(dir))
+    if (fsEnd(dir))
     {
-      if ((res = fsGet(node, FS_NODE_METADATA, &info)) != E_OK)
-        break;
+      owner.log("ls: unexpected end of directory");
+      break;
+    }
 
-      if (filter && !strstr(info.name, filter))
-        continue;
+    if ((res = fsGet(node, FS_NODE_METADATA, &info)) != E_OK)
+      break;
 
-      time64_t atime = 0;
-      uint64_t size = 0;
-      access_t access = 0;
+    if (filter && !strstr(info.name, filter))
+      continue;
 
-      //Try to get update time
-      fsGet(node, FS_NODE_TIME, &atime);
+    time64_t atime = 0;
+    uint64_t size = 0;
+    access_t access = 0;
 
-      if ((res = fsGet(node, FS_NODE_SIZE, &size)) != E_OK)
-        break;
+    //Try to get update time
+    fsGet(node, FS_NODE_TIME, &atime);
 
-      if ((res = fsGet(node, FS_NODE_ACCESS, &access)) != E_OK)
-        break;
+    if ((res = fsGet(node, FS_NODE_SIZE, &size)) != E_OK)
+      break;
 
-      if (verbose)
+    if ((res = fsGet(node, FS_NODE_ACCESS, &access)) != E_OK)
+      break;
+
+    if (verbose)
+    {
+      //Access
+      char accessStr[4];
+
+      accessStr[0] = (info.type == FS_TYPE_DIR) ? 'd' : '-';
+      accessStr[1] = access & FS_ACCESS_READ ? 'r' : '-';
+      accessStr[2] = access & FS_ACCESS_WRITE ? 'w' : '-';
+      accessStr[3] = '\0';
+
+      //Date and time
+      char timeStr[24];
+      time_t standardTime = static_cast<time_t>(atime);
+
+      strftime(timeStr, 24, "%Y-%m-%d %H:%M:%S", gmtime(&standardTime));
+
+      if (showIndex)
       {
-        //Access
-        char accessStr[4];
+        //Index number of the entry
+        const uint64_t index = fsTell(dir);
 
-        accessStr[0] = (info.type == FS_TYPE_DIR) ? 'd' : '-';
-        accessStr[1] = access & FS_ACCESS_READ ? 'r' : '-';
-        accessStr[2] = access & FS_ACCESS_WRITE ? 'w' : '-';
-        accessStr[3] = '\0';
-
-        //Date and time
-        char timeStr[24];
-        time_t standardTime = static_cast<time_t>(atime);
-
-        strftime(timeStr, 24, "%Y-%m-%d %H:%M:%S", gmtime(&standardTime));
-
-        owner.log("%s %10lu %s %s", accessStr, size, timeStr, info.name);
+        owner.log("%12lX %s %10lu %s %s", index, accessStr, size, timeStr,
+            info.name);
       }
       else
       {
-        owner.log(info.name);
+        owner.log("%s %10lu %s %s", accessStr, size, timeStr, info.name);
       }
-
-      ++entries;
     }
+    else
+    {
+      owner.log(info.name);
+    }
+
+    ++entries;
   }
 
   fsClose(dir);
