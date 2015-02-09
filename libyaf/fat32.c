@@ -2429,7 +2429,18 @@ static enum result fatDirFetch(void *object, void *nodeBase)
   node->cluster = dir->currentCluster;
   node->index = dir->currentIndex;
 
-  res = fetchNode(context, node, 0);
+  while ((res = fetchNode(context, node, 0)) == E_OK)
+  {
+    const struct DirEntryImage * const entry = getEntry(context, node->index);
+    char nameBuffer[BASENAME_LENGTH + 1];
+
+    extractShortBasename(nameBuffer, entry->name);
+    if (!(!strcmp(nameBuffer, ".") || !strcmp(nameBuffer, "..")))
+      break;
+
+    ++node->index;
+  }
+
   freeContext(handle, context);
 
   if (res != E_OK)
