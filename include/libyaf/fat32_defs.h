@@ -71,6 +71,16 @@
 /* Directory entry position in cluster */
 #define ENTRY_SECTOR(index)     ((index) >> ENTRY_EXP)
 /*----------------------------------------------------------------------------*/
+/* Length of both entry name and extension */
+#define NAME_LENGTH \
+    ARRAY_SIZE(((const struct DirEntryImage *)0)->filename)
+/* Length of the extension */
+#define EXTENSION_LENGTH \
+    ARRAY_SIZE(((const struct DirEntryImage *)0)->extension)
+/* Length of the entry name */
+#define BASENAME_LENGTH \
+    ARRAY_SIZE(((const struct DirEntryImage *)0)->name)
+/*----------------------------------------------------------------------------*/
 struct CommandContext
 {
   uint32_t sector;
@@ -320,6 +330,7 @@ static enum result allocateBuffers(struct FatHandle *,
 static struct CommandContext *allocateContext(struct FatHandle *);
 static struct FsMetadata *allocateMetadata(struct FatHandle *);
 static void *allocateNode(struct FatHandle *);
+static void extractShortBasename(char *, const char *);
 static void extractShortName(char *, const struct DirEntryImage *);
 static enum result fetchEntry(struct CommandContext *, struct FatNode *);
 static enum result fetchNode(struct CommandContext *, struct FatNode *,
@@ -370,7 +381,6 @@ static char processCharacter(char);
 static enum result setupDirCluster(struct CommandContext *,
     const struct FatNode *);
 static enum result syncFile(struct CommandContext *, struct FatFile *);
-static void uniqueBaseExtract(char *, const char *);
 static unsigned int uniqueNameConvert(char *);
 static enum result uniqueNamePropose(struct CommandContext *,
     const struct FatNode *, char *);

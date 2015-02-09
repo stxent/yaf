@@ -18,9 +18,6 @@
 #else
 #define DEBUG_PRINT(...) do {} while (0)
 #endif
-/*----------------------------------------------------------------------------*/
-/* Return size of an array placed in structure */
-#define FIELD_SIZE(parent, array) ARRAY_SIZE(((struct parent *)0)->array)
 /*------------------Class descriptors-----------------------------------------*/
 static const struct FsHandleClass fatHandleTable = {
     .size = sizeof(struct FatHandle),
@@ -292,30 +289,43 @@ static void *allocateNode(struct FatHandle *handle)
   return node;
 }
 /*----------------------------------------------------------------------------*/
+#ifdef CONFIG_FAT_WRITE
+static void extractShortBasename(char *baseName, const char *shortName)
+{
+  uint8_t index;
+
+  for (index = 0; index < BASENAME_LENGTH; ++index)
+  {
+    if (!shortName[index] || shortName[index] == ' ')
+      break;
+    baseName[index] = shortName[index];
+  }
+  baseName[index] = '\0';
+}
+#endif
+/*----------------------------------------------------------------------------*/
 static void extractShortName(char *name, const struct DirEntryImage *entry)
 {
   const char *source = entry->name;
   char *destination = name;
-  uint8_t counter = 0;
 
-  while (counter++ < sizeof(entry->name))
+  /* Copy entry name */
+  for (uint8_t position = 0; position < BASENAME_LENGTH; ++position)
   {
     if (*source != ' ')
-      *destination++ = *source;
-    source++;
+      *destination++ = *source++;
   }
   /* Add dot when entry is not directory or extension exists */
   if (!(entry->flags & FLAG_DIR) && entry->extension[0] != ' ')
   {
     *destination++ = '.';
-    /* Copy entry extension */
-    counter = 0;
     source = entry->extension;
-    while (counter++ < sizeof(entry->extension))
+
+    /* Copy entry extension */
+    for (uint8_t position = 0; position < BASENAME_LENGTH; ++position)
     {
       if (*source != ' ')
-        *destination++ = *source;
-      ++source;
+        *destination++ = *source++;
     }
   }
   *destination = '\0';
@@ -349,8 +359,7 @@ static enum result fetchEntry(struct CommandContext *context,
 
     if ((res = readSector(context, handle, sector)) != E_OK)
       return res;
-    entry = (const struct DirEntryImage *)(context->buffer
-        + ENTRY_OFFSET(node->index));
+    entry = getEntry(context, node->index);
 
     /* Check for the end of the directory */
     if (!entry->name[0])
@@ -385,8 +394,7 @@ static enum result fetchNode(struct CommandContext *context,
   while ((res = fetchEntry(context, node)) == E_OK)
   {
     /* There is no need to reload sector in current context */
-    entry = (const struct DirEntryImage *)(context->buffer
-        + ENTRY_OFFSET(node->index));
+    entry = getEntry(context, node->index);
 
 #ifdef CONFIG_FAT_UNICODE
     if ((entry->flags & MASK_LFN) == MASK_LFN
@@ -420,7 +428,7 @@ static enum result fetchNode(struct CommandContext *context,
 
 #ifdef CONFIG_FAT_UNICODE
   if (!found || found != chunks || checksum != getChecksum(entry->filename,
-      sizeof(entry->filename)))
+      NAME_LENGTH))
   {
     /* Wrong checksum or chunk count does not match */
     node->nameIndex = node->index;
@@ -812,7 +820,6 @@ static enum result readLongName(struct CommandContext *context, char *name,
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
   struct FsMetadata *nameBuffer;
   struct FatNode allocatedNode;
-  uint8_t chunks = 0;
   enum result res;
 
   /* Initialize temporary data */
@@ -827,12 +834,13 @@ static enum result readLongName(struct CommandContext *context, char *name,
   allocatedNode.cluster = node->nameCluster;
   allocatedNode.index = node->nameIndex;
 
+  uint8_t chunks = 0;
+
   while ((res = fetchEntry(context, &allocatedNode)) == E_OK)
   {
     /* Sector is already loaded during entry fetching */
-    const struct DirEntryImage * const entry =
-        (const struct DirEntryImage *)(context->buffer
-            + ENTRY_OFFSET(allocatedNode.index));
+    const struct DirEntryImage * const entry = getEntry(context,
+        allocatedNode.index);
 
     if ((entry->flags & MASK_LFN) != MASK_LFN)
       break;
@@ -990,15 +998,13 @@ static enum result createNode(struct CommandContext *context,
     const struct FsMetadata *metadata)
 {
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
-  struct DirEntryImage *entry;
-  uint32_t sector;
-  char shortName[sizeof(entry->filename)];
+  char shortName[NAME_LENGTH];
   uint8_t chunks = 0;
   enum result res;
 
   res = fillShortName(shortName, metadata->name);
   if (metadata->type & FS_TYPE_DIR)
-    memset(shortName + sizeof(entry->name), ' ', sizeof(entry->extension));
+    memset(shortName + BASENAME_LENGTH, ' ', EXTENSION_LENGTH);
 
 #ifdef CONFIG_FAT_UNICODE
   /* Allocate temporary metadata buffer */
@@ -1041,15 +1047,17 @@ static enum result createNode(struct CommandContext *context,
     node->nameCluster = node->cluster;
     node->nameIndex = node->index;
 
-    const uint8_t checksum = getChecksum(shortName, sizeof(entry->filename));
+    const uint8_t checksum = getChecksum(shortName, NAME_LENGTH);
 
     for (uint8_t current = chunks; current; --current)
     {
-      sector = getSector(handle, node->cluster) + ENTRY_SECTOR(node->index);
+      const uint32_t sector = getSector(handle, node->cluster)
+          + ENTRY_SECTOR(node->index);
+
       if ((res = readSector(context, handle, sector)) != E_OK)
         break;
-      entry = (struct DirEntryImage *)(context->buffer
-          + ENTRY_OFFSET(node->index));
+
+      struct DirEntryImage * const entry = getEntry(context, node->index);
 
       fillLongName(entry, (const char16_t *)nameBuffer->name + (current - 1)
           * LFN_ENTRY_LENGTH);
@@ -1080,13 +1088,14 @@ static enum result createNode(struct CommandContext *context,
     return res;
 
   /* Buffer is already filled with actual sector data */
-  entry = (struct DirEntryImage *)(context->buffer + ENTRY_OFFSET(node->index));
-  sector = getSector(handle, node->cluster) + ENTRY_SECTOR(node->index);
+  const uint32_t sector = getSector(handle, node->cluster)
+      + ENTRY_SECTOR(node->index);
+  struct DirEntryImage * const entry = getEntry(context, node->index);
 
   /* Fill uninitialized node fields */
   node->access = FS_ACCESS_READ | FS_ACCESS_WRITE;
   node->type = metadata->type;
-  memcpy(entry->filename, shortName, sizeof(entry->filename));
+  memcpy(entry->filename, shortName, NAME_LENGTH);
   /* Node data pointer is already initialized */
   fillDirEntry(entry, node);
 
@@ -1142,12 +1151,10 @@ static void fillDirEntry(struct DirEntryImage *entry,
 /* Returns success when node is a valid short name */
 static enum result fillShortName(char *shortName, const char *name)
 {
-  const uint8_t extLength = FIELD_SIZE(DirEntryImage, extension);
-  const uint8_t nameLength = FIELD_SIZE(DirEntryImage, name);
   const char *dot;
   enum result res = E_OK;
 
-  memset(shortName, ' ', extLength + nameLength);
+  memset(shortName, ' ', NAME_LENGTH);
 
   /* Find start position of the extension */
   const uint16_t length = strlen(name);
@@ -1157,17 +1164,18 @@ static enum result fillShortName(char *shortName, const char *name)
   if (dot < name)
   {
     /* Dot not found */
-    if (length > nameLength)
+    if (length > BASENAME_LENGTH)
       res = E_VALUE;
     dot = 0;
   }
   else
   {
     /* Check whether file name and extension have adequate length */
-    const uint8_t position = dot - name;
-
-    if (position > nameLength || length - position - 1 > extLength)
+    if ((uint16_t)(length - (dot - name)) > EXTENSION_LENGTH + 1
+        || (uint16_t)(dot - name) > BASENAME_LENGTH)
+    {
       res = E_VALUE;
+    }
   }
 
   uint8_t position = 0;
@@ -1176,7 +1184,7 @@ static enum result fillShortName(char *shortName, const char *name)
   {
     if (dot && name == dot)
     {
-      position = nameLength;
+      position = BASENAME_LENGTH;
       ++name;
       continue;
     }
@@ -1190,7 +1198,7 @@ static enum result fillShortName(char *shortName, const char *name)
       continue;
     shortName[position++] = converted;
 
-    if (position == nameLength)
+    if (position == BASENAME_LENGTH)
     {
       if (dot) /* Check whether extension exists */
       {
@@ -1200,7 +1208,7 @@ static enum result fillShortName(char *shortName, const char *name)
       else
         break;
     }
-    if (position == extLength + nameLength)
+    if (position == NAME_LENGTH)
       break;
   }
 
@@ -1277,9 +1285,7 @@ static enum result findGap(struct CommandContext *context, struct FatNode *node,
      * Entry processing will be executed only after entry fetching so
      * in this case sector reloading is redundant.
      */
-    const struct DirEntryImage * const entry =
-        (const struct DirEntryImage *)(context->buffer
-            + ENTRY_OFFSET(node->index));
+    const struct DirEntryImage * const entry = getEntry(context, node->index);
 
     /* Empty node, deleted long file name node or deleted node */
     if (!entry->name[0] || ((entry->flags & MASK_LFN) == MASK_LFN
@@ -1370,7 +1376,6 @@ static enum result markFree(struct CommandContext *context,
 {
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
   struct FatNode allocatedNode;
-  uint32_t lastSector;
   enum result res;
 
   /* Initialize temporary node */
@@ -1382,8 +1387,7 @@ static enum result markFree(struct CommandContext *context,
   allocatedNode.index = node->nameIndex;
 #endif
 
-  /* Calculate first sector */
-  lastSector = getSector(handle, allocatedNode.cluster)
+  const uint32_t lastSector = getSector(handle, allocatedNode.cluster)
       + ENTRY_SECTOR(allocatedNode.index);
 
   while ((res = fetchEntry(context, &allocatedNode)) == E_OK)
@@ -1394,9 +1398,7 @@ static enum result markFree(struct CommandContext *context,
         && allocatedNode.index == node->index;
 
     /* Sector is already loaded */
-    struct DirEntryImage * const entry =
-        (struct DirEntryImage *)(context->buffer
-            + ENTRY_OFFSET(allocatedNode.index));
+    struct DirEntryImage * const entry = getEntry(context, allocatedNode.index);
 
     /* Mark entry as empty by changing first byte of the name */
     entry->name[0] = E_FLAG_EMPTY;
@@ -1449,30 +1451,13 @@ static char processCharacter(char value)
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_WRITE
-static void uniqueBaseExtract(char *baseName, const char *shortName)
-{
-  const uint8_t nameLength = FIELD_SIZE(DirEntryImage, name);
-  uint8_t index;
-
-  for (index = 0; index < nameLength; ++index)
-  {
-    if (!shortName[index] || shortName[index] == ' ' || shortName[index] == '.')
-      break;
-    baseName[index] = shortName[index];
-  }
-  baseName[index] = '\0';
-}
-#endif
-/*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
 static unsigned int uniqueNameConvert(char *shortName)
 {
-  const uint8_t nameLength = FIELD_SIZE(DirEntryImage, name);
   unsigned int nameIndex = 0;
   uint8_t delimiterPosition = 0;
 
   //TODO Search for delimiter from the end
-  for (uint8_t position = 0; position < nameLength; ++position)
+  for (uint8_t position = 0; position < BASENAME_LENGTH; ++position)
   {
     if (!shortName[position] || shortName[position] == ' ')
     {
@@ -1482,7 +1467,7 @@ static unsigned int uniqueNameConvert(char *shortName)
     {
       delimiterPosition = position++;
 
-      while (position < nameLength)
+      while (position < BASENAME_LENGTH)
       {
         if (shortName[position] < '0' || shortName[position] > '9')
           break;
@@ -1510,27 +1495,26 @@ static unsigned int uniqueNameConvert(char *shortName)
 static enum result uniqueNamePropose(struct CommandContext *context,
     const struct FatNode *root, char *shortName)
 {
-  const uint8_t nameLength = FIELD_SIZE(DirEntryImage, name);
   struct FatHandle * const handle = (struct FatHandle *)root->handle;
   struct FatNode allocatedNode;
-  unsigned int proposed = 0;
-  char currentName[nameLength + 1];
+  char currentName[BASENAME_LENGTH + 1];
   enum result res;
 
   /* Initialize temporary node */
   if ((res = allocateStaticNode(handle, &allocatedNode)) != E_OK)
     return res;
 
-  uniqueBaseExtract(currentName, shortName);
+  extractShortBasename(currentName, shortName);
   allocatedNode.cluster = root->payload;
   allocatedNode.index = 0;
+
+  unsigned int proposed = 0;
 
   while ((res = fetchEntry(context, &allocatedNode)) == E_OK)
   {
     /* Sector is already loaded during entry fetching */
-    const struct DirEntryImage * const entry =
-        (const struct DirEntryImage *)(context->buffer
-            + ENTRY_OFFSET(allocatedNode.index));
+    const struct DirEntryImage * const entry = getEntry(context,
+        allocatedNode.index);
 
     if (entry->name[0] == E_FLAG_EMPTY || (entry->flags & MASK_LFN) == MASK_LFN)
     {
@@ -1539,10 +1523,10 @@ static enum result uniqueNamePropose(struct CommandContext *context,
     }
 
     unsigned int instance;
-    char baseName[nameLength + 1];
+    char baseName[BASENAME_LENGTH + 1];
 
     /* Extract short name without extension */
-    uniqueBaseExtract(baseName, entry->name);
+    extractShortBasename(baseName, entry->name);
 
     if ((instance = uniqueNameConvert(baseName)))
     {
@@ -1567,7 +1551,7 @@ static enum result uniqueNamePropose(struct CommandContext *context,
   }
   else if (proposed < MAX_SIMILAR_NAMES)
   {
-    char suffix[nameLength - 1];
+    char suffix[BASENAME_LENGTH - 1];
     char *position = suffix;
 
     while (proposed)
@@ -1579,13 +1563,13 @@ static enum result uniqueNamePropose(struct CommandContext *context,
     }
 
     const uint8_t proposedLength = position - suffix;
-    const uint8_t remainingSpace = nameLength - proposedLength - 1;
+    const uint8_t remainingSpace = BASENAME_LENGTH - proposedLength - 1;
     uint8_t baseLength = strlen(currentName);
 
     if (baseLength > remainingSpace)
       baseLength = remainingSpace;
 
-    memset(shortName + baseLength, ' ', nameLength - baseLength);
+    memset(shortName + baseLength, ' ', BASENAME_LENGTH - baseLength);
     shortName[baseLength] = '~';
 
     for (uint8_t index = 1; index <= proposedLength; ++index)
@@ -1615,16 +1599,16 @@ static enum result setupDirCluster(struct CommandContext *context,
   if ((res = clearCluster(context, handle, node->payload)) != E_OK)
     return res;
 
-  struct DirEntryImage *entry = (struct DirEntryImage *)context->buffer;
+  struct DirEntryImage *entry = getEntry(context, 0);
 
   /* Current directory entry . */
-  memset(entry->filename, ' ', sizeof(entry->filename));
+  memset(entry->filename, ' ', NAME_LENGTH);
   entry->name[0] = '.';
   fillDirEntry(entry, node);
 
   /* Parent directory entry .. */
   ++entry;
-  memset(entry->filename, ' ', sizeof(entry->filename));
+  memset(entry->filename, ' ', NAME_LENGTH);
   entry->name[0] = entry->name[1] = '.';
   fillDirEntry(entry, node);
   if (node->cluster != handle->rootCluster)
@@ -1665,8 +1649,7 @@ static enum result syncFile(struct CommandContext *context,
   }
 
   /* Pointer to entry position in sector */
-  struct DirEntryImage * const entry = (struct DirEntryImage *)(context->buffer
-      + ENTRY_OFFSET(file->parentIndex));
+  struct DirEntryImage * const entry = getEntry(context, file->parentIndex);
 
   /* Update first cluster when writing to empty file or truncating file */
   entry->clusterHigh = toLittleEndian16((uint16_t)(file->payload >> 16));
@@ -1998,11 +1981,8 @@ static enum result fatGet(const void *object, enum fsNodeData type, void *data)
     return res;
   }
 
-  const struct DirEntryImage * const entry =
-      (const struct DirEntryImage *)(context->buffer
-          + ENTRY_OFFSET(node->index));
+  const struct DirEntryImage * const entry = getEntry(context, node->index);
 
-  res = E_OK;
   switch (type)
   {
     case FS_NODE_METADATA:
@@ -2104,7 +2084,6 @@ static enum result fatMake(void *object, const struct FsMetadata *metadata,
 
   if (node->type != FS_TYPE_DIR)
     return E_VALUE;
-
   if (!(node->access & FS_ACCESS_WRITE))
     return E_ACCESS;
 
@@ -2254,8 +2233,7 @@ static enum result fatSet(void *object, enum fsNodeData type, const void *data)
   if ((res = readSector(context, handle, sector)) != E_OK)
     return res;
 
-  struct DirEntryImage * const entry =
-      (struct DirEntryImage *)(context->buffer + ENTRY_OFFSET(node->index));
+  struct DirEntryImage * const entry = getEntry(context, node->index);
 
   switch (type)
   {

@@ -25,6 +25,12 @@ static inline bool clusterUsed(uint32_t cluster)
       && (cluster & 0x0FFFFFFFUL) <= 0x0FFFFFEFUL;
 }
 /*----------------------------------------------------------------------------*/
+struct DirEntryImage *getEntry(struct CommandContext *context, uint16_t index)
+{
+  return (struct DirEntryImage *)(context->buffer
+      + ENTRY_OFFSET(index));
+}
+/*----------------------------------------------------------------------------*/
 /* Calculate first sector number of the cluster */
 static inline uint32_t getSector(const struct FatHandle *handle,
     uint32_t cluster)
