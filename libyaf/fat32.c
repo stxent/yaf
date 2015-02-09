@@ -2281,27 +2281,42 @@ static enum result fatTruncate(void *object)
 
   if (node->type == FS_TYPE_DIR && node->payload != RESERVED_CLUSTER)
   {
-    /* Preserve information */
-    const uint32_t cluster = node->cluster;
-    const uint16_t index = node->index;
-    const enum fsNodeType type = node->type;
+    struct FatNode allocatedNode;
 
-    /* Check whether the directory is not empty */
-    node->cluster = node->payload;
-    node->index = 2; /* Exclude . and .. */ //FIXME Make the position arbitrary
-
-    if ((res = fetchNode(context, node, 0)) == E_OK)
-      res = E_EXIST;
-    if (res != E_EMPTY && res != E_ENTRY)
+    /* Initialize temporary data */
+    if ((res = allocateStaticNode(handle, &allocatedNode)) != E_OK)
     {
       freeContext(handle, context);
       return res;
     }
 
-    /* Restore values changed by node fetching function */
-    node->cluster = cluster;
-    node->index = index;
-    node->type = type;
+    allocatedNode.cluster = node->payload;
+    allocatedNode.index = 0;
+
+    /* Check whether the directory is not empty */
+    while ((res = fetchNode(context, &allocatedNode, 0)) == E_OK)
+    {
+      const struct DirEntryImage * const entry = getEntry(context,
+          allocatedNode.index);
+      char nameBuffer[BASENAME_LENGTH + 1];
+
+      extractShortBasename(nameBuffer, entry->name);
+      if (!(!strcmp(nameBuffer, ".") || !strcmp(nameBuffer, "..")))
+      {
+        res = E_EXIST;
+        break;
+      }
+
+      ++allocatedNode.index;
+    }
+
+    freeStaticNode(&allocatedNode);
+
+    if (res != E_EMPTY && res != E_ENTRY)
+    {
+      freeContext(handle, context);
+      return res;
+    }
   }
 
   /* Mark clusters as free */
