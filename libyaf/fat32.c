@@ -18,6 +18,146 @@
 #else
 #define DEBUG_PRINT(...) do {} while (0)
 #endif
+/*----------------------------------------------------------------------------*/
+enum cleanup
+{
+  FREE_ALL,
+  FREE_FILE_POOL,
+  FREE_DIR_POOL,
+  FREE_NODE_POOL,
+  FREE_FILE_LIST,
+  FREE_METADATA_POOL,
+  FREE_CONTEXT_POOL,
+  FREE_LOCKS
+};
+/*----------------------------------------------------------------------------*/
+static enum result allocatePool(struct Pool *, unsigned int, unsigned int,
+    const void *);
+static void freePool(struct Pool *);
+/*----------------------------------------------------------------------------*/
+static enum result allocateBuffers(struct FatHandle *,
+    const struct Fat32Config * const);
+static struct CommandContext *allocateContext(struct FatHandle *);
+static struct FsMetadata *allocateMetadata(struct FatHandle *);
+static void *allocateNode(struct FatHandle *);
+static void extractShortBasename(char *, const char *);
+static void extractShortName(char *, const struct DirEntryImage *);
+static enum result fetchEntry(struct CommandContext *, struct FatNode *);
+static enum result fetchNode(struct CommandContext *, struct FatNode *,
+    struct FsMetadata *);
+static const char *followPath(struct CommandContext *, struct FatNode *,
+    const char *, const struct FatNode *);
+static void freeBuffers(struct FatHandle *, enum cleanup);
+static void freeContext(struct FatHandle *, const struct CommandContext *);
+static void freeMetadata(struct FatHandle *, const struct FsMetadata *);
+static const char *getChunk(const char *, char *);
+static enum result getNextCluster(struct CommandContext *, struct FatHandle *,
+    uint32_t *);
+static enum result mountStorage(struct FatHandle *);
+static enum result readBuffer(struct FatHandle *, uint32_t, uint8_t *,
+    uint32_t);
+static enum result readSector(struct CommandContext *, struct FatHandle *,
+    uint32_t);
+/*----------------------------------------------------------------------------*/
+#ifdef CONFIG_FAT_TIME
+static enum result rawTimestampToTime(time64_t *, uint16_t, uint16_t);
+static uint16_t timeToRawDate(const struct RtcTime *);
+static uint16_t timeToRawTime(const struct RtcTime *);
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef CONFIG_FAT_UNICODE
+static void extractLongName(char16_t *, const struct DirEntryImage *);
+static uint8_t getChecksum(const char *, uint8_t);
+static enum result readLongName(struct CommandContext *, char *,
+    const struct FatNode *);
+#endif
+/*----------------------------------------------------------------------------*/
+#ifdef CONFIG_FAT_WRITE
+static enum result allocateCluster(struct CommandContext *, struct FatHandle *,
+    uint32_t *);
+static enum result clearCluster(struct CommandContext *, struct FatHandle *,
+    uint32_t);
+static void copyNode(struct FatNode *, const struct FatNode *);
+static enum result createNode(struct CommandContext *, struct FatNode *,
+    const struct FatNode *, const struct FsMetadata *);
+static void fillDirEntry(struct DirEntryImage *, const struct FatNode *);
+static enum result fillShortName(char *, const char *);
+static enum result findGap(struct CommandContext *, struct FatNode *,
+    const struct FatNode *, uint8_t);
+static enum result freeChain(struct CommandContext *, struct FatHandle *,
+    uint32_t);
+static enum result markFree(struct CommandContext *, const struct FatNode *);
+static char processCharacter(char);
+static enum result setupDirCluster(struct CommandContext *,
+    const struct FatNode *);
+static enum result syncFile(struct CommandContext *, struct FatFile *);
+static unsigned int uniqueNameConvert(char *);
+static enum result uniqueNamePropose(struct CommandContext *,
+    const struct FatNode *, char *);
+static enum result updateTable(struct CommandContext *, struct FatHandle *,
+    uint32_t);
+static enum result writeBuffer(struct FatHandle *, uint32_t, const uint8_t *,
+    uint32_t);
+static enum result writeSector(struct CommandContext *, struct FatHandle *,
+    uint32_t);
+#endif
+/*----------------------------------------------------------------------------*/
+#if defined(CONFIG_FAT_UNICODE) || defined(CONFIG_FAT_WRITE)
+static enum result allocateStaticNode(struct FatHandle *, struct FatNode *);
+static void freeStaticNode(struct FatNode *);
+#endif
+/*----------------------------------------------------------------------------*/
+#if defined(CONFIG_FAT_UNICODE) && defined(CONFIG_FAT_WRITE)
+static void fillLongName(struct DirEntryImage *, const char16_t *);
+static void fillLongNameEntry(struct DirEntryImage *, uint8_t, uint8_t,
+    uint8_t);
+#endif
+/*----------------------------------------------------------------------------*/
+/* Filesystem handle functions */
+static enum result fatHandleInit(void *, const void *);
+static void fatHandleDeinit(void *);
+static void *fatFollow(void *, const char *, const void *);
+static enum result fatSync(void *);
+
+/* Node functions */
+static enum result fatNodeInit(void *, const void *);
+static void fatNodeDeinit(void *);
+static void *fatClone(const void *);
+static void fatFree(void *);
+static enum result fatGet(const void *, enum fsNodeData, void *);
+static enum result fatLink(void *, const struct FsMetadata *, const void *,
+    void *);
+static enum result fatMake(void *, const struct FsMetadata *, void *);
+static void *fatOpen(void *, access_t);
+static enum result fatSet(void *, enum fsNodeData, const void *);
+static enum result fatTruncate(void *);
+static enum result fatUnlink(void *);
+
+/* Directory functions */
+static enum result fatDirInit(void *, const void *);
+static void fatDirDeinit(void *);
+static enum result fatDirClose(void *);
+static bool fatDirEnd(const void *);
+static enum result fatDirFetch(void *, void *);
+static enum result fatDirSeek(void *, uint64_t, enum fsSeekOrigin);
+static uint64_t fatDirTell(const void *);
+
+/* File functions */
+static enum result fatFileInit(void *, const void *);
+static void fatFileDeinit(void *);
+static enum result fatFileClose(void *);
+static bool fatFileEnd(const void *);
+static uint32_t fatFileRead(void *, void *, uint32_t);
+static enum result fatFileSeek(void *, uint64_t, enum fsSeekOrigin);
+static uint64_t fatFileTell(const void *);
+static uint32_t fatFileWrite(void *, const void *, uint32_t);
+
+/* Stubs */
+static enum result fatMount(void *, void *);
+static void fatUnmount(void *);
+static uint32_t fatDirRead(void *, void *, uint32_t);
+static uint32_t fatDirWrite(void *, const void *, uint32_t);
+static enum result fatFileFetch(void *, void *);
 /*------------------Class descriptors-----------------------------------------*/
 static const struct FsHandleClass fatHandleTable = {
     .size = sizeof(struct FatHandle),
@@ -630,7 +770,7 @@ static enum result getNextCluster(struct CommandContext *context,
   return E_EMPTY;
 }
 /*----------------------------------------------------------------------------*/
-static enum result mount(struct FatHandle *handle)
+static enum result mountStorage(struct FatHandle *handle)
 {
   struct CommandContext *context;
   enum result res;
@@ -758,10 +898,10 @@ static enum result readSector(struct CommandContext *context,
 }
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_TIME
-enum result rawTimestampToTime(time64_t *converted, uint16_t date,
+static enum result rawTimestampToTime(time64_t *converted, uint16_t date,
     uint16_t time)
 {
-  struct RtcTime timestamp = {
+  const struct RtcTime timestamp = {
       .second = time & 0x1F,
       .minute = (time >> 5) & 0x3F,
       .hour = (time >> 11) & 0x1F,
@@ -775,14 +915,14 @@ enum result rawTimestampToTime(time64_t *converted, uint16_t date,
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_TIME
-uint16_t timeToRawDate(const struct RtcTime *value)
+static uint16_t timeToRawDate(const struct RtcTime *value)
 {
   return value->day | (value->month << 5) | ((value->year - 1980) << 9);
 }
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_TIME
-uint16_t timeToRawTime(const struct RtcTime *value)
+static uint16_t timeToRawTime(const struct RtcTime *value)
 {
   return (value->second >> 1) | (value->minute << 5) | (value->hour << 11);
 }
@@ -971,12 +1111,14 @@ static enum result clearCluster(struct CommandContext *context,
     struct FatHandle *handle, uint32_t cluster)
 {
   uint32_t sector = getSector(handle, cluster + 1);
-  enum result res;
 
   memset(context->buffer, 0, SECTOR_SIZE);
+
   do
   {
-    if ((res = writeSector(context, handle, --sector)) != E_OK)
+    const enum result res = writeSector(context, handle, --sector);
+
+    if (res != E_OK)
       return res;
   }
   while (sector & ((1 << handle->clusterSize) - 1));
@@ -1266,7 +1408,7 @@ static enum result findGap(struct CommandContext *context, struct FatNode *node,
           return res;
         if ((res = clearCluster(context, handle, node->cluster)) != E_OK)
         {
-          //FIXME Directory may contain erroneous entries
+          /* Directory may contain erroneous entries when clearing fails */
           return res;
         }
 
@@ -1424,8 +1566,7 @@ static enum result markFree(struct CommandContext *context,
 #ifdef CONFIG_FAT_WRITE
 static char processCharacter(char value)
 {
-  /* Returns zero when character is not allowed or character code otherwise */
-
+  /* TODO Escape sequence for 0xE5 character */
   if (value == ' ')
   {
     /* Remove spaces */
@@ -1456,7 +1597,7 @@ static unsigned int uniqueNameConvert(char *shortName)
   unsigned int nameIndex = 0;
   uint8_t delimiterPosition = 0;
 
-  //TODO Search for delimiter from the end
+  /* TODO Search for delimiter from the end */
   for (uint8_t position = 0; position < BASENAME_LENGTH; ++position)
   {
     if (!shortName[position] || shortName[position] == ' ')
@@ -1800,7 +1941,7 @@ static enum result fatHandleInit(void *object, const void *configBase)
     DEBUG_PRINT("Real-time clock is not initialized");
 #endif
 
-  if ((res = mount(handle)) != E_OK)
+  if ((res = mountStorage(handle)) != E_OK)
     return res;
 
   return E_OK;
@@ -2645,8 +2786,9 @@ static uint32_t fatFileRead(void *object, void *buffer, uint32_t length)
       chunk = SECTOR_SIZE - offset;
       chunk = length < chunk ? length : chunk;
 
-      if (readSector(context, handle, getSector(handle, file->currentCluster)
-          + current) != E_OK)
+      const uint32_t sector = getSector(handle, file->currentCluster) + current;
+
+      if (readSector(context, handle, sector) != E_OK)
       {
         freeContext(handle, context);
         return 0;

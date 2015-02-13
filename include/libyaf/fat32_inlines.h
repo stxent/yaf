@@ -27,8 +27,7 @@ static inline bool clusterUsed(uint32_t cluster)
 /*----------------------------------------------------------------------------*/
 struct DirEntryImage *getEntry(struct CommandContext *context, uint16_t index)
 {
-  return (struct DirEntryImage *)(context->buffer
-      + ENTRY_OFFSET(index));
+  return (struct DirEntryImage *)(context->buffer + ENTRY_OFFSET(index));
 }
 /*----------------------------------------------------------------------------*/
 /* Calculate first sector number of the cluster */

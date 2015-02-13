@@ -831,32 +831,34 @@ result RemoveEntry::removeRecursively(FsNode *node,
 
     fsNodeType type;
 
-    //FIXME Ignore . and ..
     if ((res = fsGet(node, FS_NODE_TYPE, &type)) != E_OK)
     {
       owner.log("rm: wrong entry");
-      break;
+      goto free_node;
     }
 
     if (type == FS_TYPE_DIR)
     {
       if ((res = removeRecursively(iterator, context)) != E_OK)
-        break;
+        goto free_node;
     }
 
     if ((res = fsTruncate(iterator)) != E_OK)
     {
       owner.log("rm: payload deletion failed");
-      break;
+      goto free_node;
     }
 
     if ((res = fsUnlink(iterator)) != E_OK)
     {
       owner.log("rm: unlinking failed");
-      break;
+      goto free_node;
     }
   }
 
+  res = E_OK;
+
+free_node:
   fsFree(iterator);
   fsClose(dir);
 
