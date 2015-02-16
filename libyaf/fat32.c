@@ -614,7 +614,16 @@ static const char *followPath(struct CommandContext *context,
 
   path = getChunk(path, pathPart->name);
 
-  if (strlen(pathPart->name))
+  if (!strlen(pathPart->name))
+  {
+    path = 0;
+  }
+  else if (!strcmp(pathPart->name, ".") || !strcmp(pathPart->name, ".."))
+  {
+    /* Path contains forbidden directories */
+    path = 0;
+  }
+  else
   {
     node->index = 0;
 
@@ -642,8 +651,6 @@ static const char *followPath(struct CommandContext *context,
         path = 0;
     }
   }
-  else
-    path = 0;
 
   /* Return buffers to metadata pool */
   freeMetadata(handle, pathPart);
@@ -1145,16 +1152,21 @@ static enum result createNode(struct CommandContext *context,
   enum result res;
 
   res = fillShortName(shortName, metadata->name);
+  if (res != E_OK && res != E_VALUE)
+    return res;
   if (metadata->type & FS_TYPE_DIR)
     memset(shortName + BASENAME_LENGTH, ' ', EXTENSION_LENGTH);
 
 #ifdef CONFIG_FAT_UNICODE
   /* Allocate temporary metadata buffer */
-  struct FsMetadata * const nameBuffer = allocateMetadata(handle);
-  const bool longNameRequired = res != E_OK;
+  struct FsMetadata *nameBuffer = 0;
+  const bool longNameRequired = res == E_VALUE;
 
-  if (!nameBuffer)
-    return E_MEMORY;
+  if (longNameRequired)
+  {
+    if (!(nameBuffer = allocateMetadata(handle)))
+      return E_MEMORY;
+  }
 #endif
 
   /* Propose new short name when selected name already exists */
@@ -1183,7 +1195,7 @@ static enum result createNode(struct CommandContext *context,
   res = findGap(context, node, root, chunks + 1);
 
 #ifdef CONFIG_FAT_UNICODE
-  if (res == E_OK && chunks)
+  if (chunks && res == E_OK)
   {
     /* Save start cluster and index values before filling the chain */
     node->nameCluster = node->cluster;
@@ -1223,7 +1235,8 @@ static enum result createNode(struct CommandContext *context,
   }
 
   /* Return buffer to metadata pool */
-  freeMetadata(handle, nameBuffer);
+  if (nameBuffer)
+    freeMetadata(handle, nameBuffer);
 #endif
 
   if (res != E_OK)
@@ -1241,9 +1254,10 @@ static enum result createNode(struct CommandContext *context,
   /* Node data pointer is already initialized */
   fillDirEntry(entry, node);
 
-  res = writeSector(context, handle, sector);
+  if ((res = writeSector(context, handle, sector)) != E_OK)
+    return res;
 
-  return res;
+  return E_OK;
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -1296,10 +1310,11 @@ static enum result fillShortName(char *shortName, const char *name)
   const char *dot;
   enum result res = E_OK;
 
-  memset(shortName, ' ', NAME_LENGTH);
-
   /* Find start position of the extension */
   const uint16_t length = strlen(name);
+
+  if (!length)
+    return E_ERROR;
 
   for (dot = name + length - 1; dot >= name && *dot != '.'; --dot);
 
@@ -1322,6 +1337,7 @@ static enum result fillShortName(char *shortName, const char *name)
 
   uint8_t position = 0;
 
+  memset(shortName, ' ', NAME_LENGTH);
   for (char symbol = *name; symbol; symbol = *name)
   {
     if (dot && name == dot)
