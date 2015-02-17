@@ -171,7 +171,7 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
 
     owner.log("%s: %s: destination entry already exists", name(),
         destinationPath);
-    return E_ENTRY;
+    return E_EXIST;
   }
   else
   {
@@ -636,7 +636,7 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments,
   {
     fsFree(destinationNode);
     owner.log("mkdir: %s: entry already exists", context->pathBuffer);
-    return E_ENTRY;
+    return E_EXIST;
   }
 
   FsMetadata info;
