@@ -13,14 +13,19 @@
 class Md5Hash : public ComputationAlgorithm
 {
 public:
+  static unsigned int length()
+  {
+    return 32;
+  }
+
   static const char *name()
   {
     return "md5sum";
   }
 
-  virtual void finalize(char *digest, uint32_t length);
+  virtual void finalize(char *);
   virtual void reset();
-  virtual void update(const uint8_t *buffer, uint32_t length);
+  virtual void update(const uint8_t *, uint32_t);
 
 private:
   MD5_CTX context;

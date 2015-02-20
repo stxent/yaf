@@ -7,10 +7,8 @@
 #include <cassert>
 #include "shell/crypto_wrapper.hpp"
 //------------------------------------------------------------------------------
-void Md5Hash::finalize(char *digest, uint32_t length)
+void Md5Hash::finalize(char *digest)
 {
-  assert(length >= 33); //32 hexadecimal numbers
-
   unsigned char result[16];
 
   MD5_Final(result, &context);
@@ -33,7 +31,7 @@ void Md5Hash::reset()
   MD5_Init(&context);
 }
 //------------------------------------------------------------------------------
-void Md5Hash::update(const uint8_t *buffer, uint32_t length)
+void Md5Hash::update(const uint8_t *buffer, uint32_t bufferLength)
 {
-  MD5_Update(&context, buffer, length);
+  MD5_Update(&context, buffer, bufferLength);
 }

@@ -7,6 +7,7 @@
 #ifndef LIBSHELL_CRYPTO_HPP_
 #define LIBSHELL_CRYPTO_HPP_
 //------------------------------------------------------------------------------
+#include <cassert>
 #include "libshell/shell.hpp"
 //------------------------------------------------------------------------------
 class ComputationAlgorithm
@@ -16,7 +17,7 @@ public:
   {
   }
 
-  virtual void finalize(char *, uint32_t) = 0;
+  virtual void finalize(char *) = 0;
   virtual void reset() = 0;
   virtual void update(const uint8_t *, uint32_t) = 0;
 };
@@ -29,15 +30,25 @@ public:
   {
   }
 
+  virtual ~AbstractComputationCommand()
+  {
+  }
+
 protected:
-  virtual result compute(unsigned int, const char * const *,
+  result compute(unsigned int, const char * const *,
       Shell::ShellContext *, ComputationAlgorithm *) const;
 
 private:
-  const char * const *getNextEntry(unsigned int, const char * const *) const;
+  enum
+  {
+    MAX_LENGTH = 64
+  };
+
+  const char * const *getNextEntry(unsigned int, const char * const *, bool *,
+      char *) const;
   result processArguments(unsigned int, const char * const *) const;
   result processEntry(FsEntry *, Shell::ShellContext *,
-      ComputationAlgorithm *) const;
+      ComputationAlgorithm *, const char *) const;
 };
 //------------------------------------------------------------------------------
 template<class T> class ComputationCommand : public AbstractComputationCommand
@@ -45,6 +56,11 @@ template<class T> class ComputationCommand : public AbstractComputationCommand
 public:
   ComputationCommand(Shell &parent) :
       AbstractComputationCommand(parent)
+  {
+    assert(T::length() <= MAX_LENGTH);
+  }
+
+  virtual ~ComputationCommand()
   {
   }
 

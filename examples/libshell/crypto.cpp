@@ -12,16 +12,30 @@
 #endif
 //------------------------------------------------------------------------------
 const char * const *AbstractComputationCommand::getNextEntry(unsigned int count,
-    const char * const *arguments) const
+    const char * const *arguments, bool *check, char *expectedValue) const
 {
+  *check = false;
+
   for (unsigned int i = 0; i < count; ++i)
   {
-    //Skip options
-    if (!strncmp(arguments[i], "--", 2))
+    if (!strcmp(arguments[i], "--check"))
     {
-      ++i;
+      if (++i >= count)
+      {
+        owner.log("%s: argument processing error", name());
+        return nullptr;
+      }
+      if (strlen(arguments[i]) > MAX_LENGTH)
+      {
+        owner.log("%s: wrong argument length", name());
+        return nullptr;
+      }
+      *check = true;
+      strcpy(expectedValue, arguments[i]);
       continue;
     }
+
+    //Skip other options
     if (*arguments[i] == '-')
       continue;
 
@@ -36,7 +50,6 @@ result AbstractComputationCommand::compute(unsigned int count,
     ComputationAlgorithm *algorithm) const
 {
   const char * const *path = arguments;
-  unsigned int index;
   result res;
 
   if ((res = processArguments(count, arguments)) != E_OK)
@@ -44,9 +57,16 @@ result AbstractComputationCommand::compute(unsigned int count,
 
   while (1)
   {
-    index = count - static_cast<unsigned int>(path - arguments);
-    if ((path = getNextEntry(index, path)) == nullptr)
+    const unsigned int index = count
+        - static_cast<unsigned int>(path - arguments);
+    char expectedValue[MAX_LENGTH];
+    bool checkValue;
+
+    if ((path = getNextEntry(index, path, &checkValue,
+        expectedValue)) == nullptr)
+    {
       break;
+    }
 
     const char * const fileName = *path++;
 
@@ -90,7 +110,9 @@ result AbstractComputationCommand::compute(unsigned int count,
       break;
     }
 
-    res = processEntry(entry, context, algorithm);
+    res = processEntry(entry, context, algorithm,
+        checkValue ? expectedValue : nullptr);
+
     fsClose(entry);
 
     if (res != E_OK)
@@ -125,10 +147,12 @@ result AbstractComputationCommand::processArguments(unsigned int count,
 }
 //------------------------------------------------------------------------------
 result AbstractComputationCommand::processEntry(FsEntry *entry,
-    Shell::ShellContext *context, ComputationAlgorithm *algorithm) const
+    Shell::ShellContext *context, ComputationAlgorithm *algorithm,
+    const char *expectedValue) const
 {
   uint32_t read = 0;
   uint8_t buffer[CONFIG_SHELL_BUFFER];
+  char computedValue[MAX_LENGTH];
   result res = E_OK;
 
   algorithm->reset();
@@ -147,11 +171,18 @@ result AbstractComputationCommand::processEntry(FsEntry *entry,
     algorithm->update(buffer, chunk);
   }
 
-  algorithm->finalize(reinterpret_cast<char *>(buffer), sizeof(buffer));
-  fsClose(entry);
+  algorithm->finalize(computedValue);
 
   if (res == E_OK)
-    owner.log("%s\t%s", buffer, context->pathBuffer);
+  {
+    if (expectedValue != nullptr && strcmp(computedValue, expectedValue) != 0)
+    {
+      owner.log("%s: %s: comparison error, expected %s", name(),
+          context->pathBuffer, expectedValue);
+      res = E_VALUE;
+    }
+    owner.log("%s\t%s", computedValue, context->pathBuffer);
+  }
 
   return res;
 }

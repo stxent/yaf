@@ -285,6 +285,11 @@ result CopyEntry::processArguments(unsigned int count,
       *destination = arguments[i];
       continue;
     }
+    if (*source != nullptr && *destination != nullptr)
+    {
+      owner.log("cp: argument processing error");
+      return E_VALUE;
+    }
   }
 
   if (help)
@@ -297,7 +302,7 @@ result CopyEntry::processArguments(unsigned int count,
   if (*source == nullptr || *destination == nullptr)
   {
     owner.log("cp: not enough arguments");
-    return E_ENTRY;
+    return E_VALUE;
   }
 
   return E_OK;
@@ -331,6 +336,7 @@ result CopyEntry::run(unsigned int count, const char * const *arguments,
 result DirectData::processArguments(unsigned int count,
     const char * const *arguments, Arguments *output) const
 {
+  bool argumentError = false;
   bool help = false;
 
   output->in = output->out = nullptr;
@@ -342,12 +348,22 @@ result DirectData::processArguments(unsigned int count,
   {
     if (!strcmp(arguments[i], "--bs"))
     {
-      output->block = atoi(arguments[++i]);
+      if (++i >= count)
+      {
+        argumentError = true;
+        break;
+      }
+      output->block = atoi(arguments[i]);
       continue;
     }
     if (!strcmp(arguments[i], "--count"))
     {
-      output->count = atoi(arguments[++i]);
+      if (++i >= count)
+      {
+        argumentError = true;
+        break;
+      }
+      output->count = atoi(arguments[i]);
       continue;
     }
     if (!strcmp(arguments[i], "--help"))
@@ -357,24 +373,50 @@ result DirectData::processArguments(unsigned int count,
     }
     if (!strcmp(arguments[i], "--seek"))
     {
-      output->seek = atoi(arguments[++i]);
+      if (++i >= count)
+      {
+        argumentError = true;
+        break;
+      }
+      output->seek = atoi(arguments[i]);
       continue;
     }
     if (!strcmp(arguments[i], "--skip"))
     {
-      output->skip = atoi(arguments[++i]);
+      if (++i >= count)
+      {
+        argumentError = true;
+        break;
+      }
+      output->skip = atoi(arguments[i]);
       continue;
     }
     if (!strcmp(arguments[i], "--if"))
     {
-      output->in = arguments[++i];
+      if (++i >= count)
+      {
+        argumentError = true;
+        break;
+      }
+      output->in = arguments[i];
       continue;
     }
     if (!strcmp(arguments[i], "--of"))
     {
-      output->out = arguments[++i];
+      if (++i >= count)
+      {
+        argumentError = true;
+        break;
+      }
+      output->out = arguments[i];
       continue;
     }
+  }
+
+  if (argumentError)
+  {
+    owner.log("dd: argument processing error");
+    return E_VALUE;
   }
 
   if (help)
@@ -449,6 +491,7 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
 {
   const char *filter = nullptr, *path = nullptr;
   int verifyCount = -1;
+  bool argumentError = false;
   bool help = false, showIndex = false, verbose = false;
 
   for (unsigned int i = 0; i < count; ++i)
@@ -468,18 +511,34 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
       help = true;
       continue;
     }
-    if (!strcmp(arguments[i], "--filter") && i < count - 1)
+    if (!strcmp(arguments[i], "--filter"))
     {
-      filter = arguments[++i];
+      if (++i >= count)
+      {
+        argumentError = true;
+        break;
+      }
+      filter = arguments[i];
       continue;
     }
-    if (!strcmp(arguments[i], "--verify-count") && i < count - 1)
+    if (!strcmp(arguments[i], "--verify-count"))
     {
-      verifyCount = atoi(arguments[++i]);
+      if (++i >= count)
+      {
+        argumentError = true;
+        break;
+      }
+      verifyCount = atoi(arguments[i]);
       continue;
     }
     if (path == nullptr)
       path = arguments[i];
+  }
+
+  if (argumentError)
+  {
+    owner.log("dd: argument processing error");
+    return E_VALUE;
   }
 
   if (help)
@@ -624,7 +683,10 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments,
   }
 
   if (target == nullptr)
-    return E_ENTRY;
+  {
+    owner.log("mkdir: directory is not specified");
+    return E_VALUE;
+  }
 
   //Check for target entry existence
   Shell::joinPaths(context->pathBuffer, context->currentDir, target);
