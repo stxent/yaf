@@ -1545,8 +1545,8 @@ static enum result markFree(struct CommandContext *context,
   allocatedNode.index = node->nameIndex;
 #endif
 
-  const uint32_t lastSector = getSector(handle, allocatedNode.cluster)
-      + ENTRY_SECTOR(allocatedNode.index);
+  const uint32_t lastSector = getSector(handle, node->cluster)
+      + ENTRY_SECTOR(node->index);
 
   while ((res = fetchEntry(context, &allocatedNode)) == E_OK)
   {
