@@ -1611,38 +1611,38 @@ static char processCharacter(char value)
 static unsigned int uniqueNameConvert(char *shortName)
 {
   unsigned int nameIndex = 0;
-  uint8_t delimiterPosition = 0;
+  uint8_t end = 0, start = 0;
 
-  /* TODO Search for delimiter from the end */
-  for (uint8_t position = 0; position < BASENAME_LENGTH; ++position)
+  for (uint8_t position = strlen(shortName) - 1; position; --position)
   {
-    if (!shortName[position] || shortName[position] == ' ')
-    {
-      break;
-    }
-    else if (shortName[position] == '~')
-    {
-      delimiterPosition = position++;
+    const char value = shortName[position];
 
-      while (position < BASENAME_LENGTH)
+    if (value == '~')
+    {
+      start = position++;
+
+      while (position <= end)
       {
-        if (shortName[position] < '0' || shortName[position] > '9')
-          break;
-
         const uint8_t currentNumber = shortName[position] - '0';
 
         nameIndex = (nameIndex * 10) + (unsigned int)currentNumber;
         ++position;
       }
-
-      if (shortName[position] != '\0')
-        nameIndex = 0;
+      break;
+    }
+    else if (value >= '0' && value <= '9')
+    {
+      if (!end)
+        end = position;
+    }
+    else
+    {
       break;
     }
   }
 
   if (nameIndex)
-    shortName[delimiterPosition] = '\0';
+    shortName[start] = '\0';
 
   return nameIndex;
 }
