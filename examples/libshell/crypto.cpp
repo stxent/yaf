@@ -138,8 +138,9 @@ result AbstractComputationCommand::processArguments(unsigned int count,
 
   if (help)
   {
-    owner.log("Usage: %s FILES", name());
-    owner.log("  --help  print help message");
+    owner.log("Usage: %s [OPTION]... FILES", name());
+    owner.log("  --check VALUE  check computation result with VALUE");
+    owner.log("  --help         print help message");
     return E_BUSY;
   }
 

@@ -45,6 +45,7 @@ private:
   Mutex queueLock;
   Semaphore queueSynchronizer;
   std::queue<WorkerThread *> pool;
+  std::queue<result> results;
 };
 //------------------------------------------------------------------------------
 extern "C" void workerThreadWrapper(void *);

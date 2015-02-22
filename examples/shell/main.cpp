@@ -4,10 +4,12 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <string>
+
 #include "libshell/commands.hpp"
 #include "libshell/shell.hpp"
 #include "libshell/threading.hpp"
@@ -33,12 +35,6 @@ public:
   int run();
 
 private:
-  enum
-  {
-    INIT_FAILED = -1,
-    RUNTIME_ERROR = -2
-  };
-
   enum
   {
     BUFFER_SIZE = 512
@@ -132,7 +128,12 @@ int Application::runShell()
 
     const result res = appShell->execute(command.c_str());
 
-    cout << "Result: " << nameByValue(res) << endl;
+    if (res == static_cast<result>(Shell::E_SHELL_EXIT))
+    {
+      exitFlag = EXIT_SUCCESS;
+      terminate = true;
+      break;
+    }
 
     switch (res)
     {
@@ -145,10 +146,12 @@ int Application::runShell()
       case E_EXIST:
       case E_INVALID:
       case E_VALUE:
+        cout << "Error: " << nameByValue(res) << endl;
         break;
 
       default:
-        exitFlag = RUNTIME_ERROR;
+        cout << "Fatal error: " << nameByValue(res) << endl;
+        exitFlag = EXIT_FAILURE;
         terminate = true;
         break;
     }
@@ -162,7 +165,7 @@ int Application::runScript(const char *script)
   ifstream source(script);
 
   if (!source.is_open())
-    return INIT_FAILED;
+    return EXIT_FAILURE;
 
   string command;
   int exitFlag = 0;
@@ -181,7 +184,7 @@ int Application::runScript(const char *script)
       if (expectedResult == resultBeautifier.end())
       {
         cout << "Undefined result value" << endl;
-        exitFlag = RUNTIME_ERROR;
+        exitFlag = EXIT_FAILURE;
         break;
       }
 
@@ -192,7 +195,7 @@ int Application::runScript(const char *script)
       {
         cout << "Expected result: " << resultString << ", got: "
             << nameByValue(commandResult) << endl;
-        exitFlag = RUNTIME_ERROR;
+        exitFlag = EXIT_FAILURE;
         break;
       }
       else
@@ -213,7 +216,7 @@ Interface *Application::initConsole()
   if (interface == nullptr)
   {
     cout << "Error creating console interface" << endl;
-    exit(INIT_FAILED);
+    exit(EXIT_FAILURE);
   }
 
   return interface;
@@ -226,7 +229,7 @@ Interface *Application::initInterface(const char *file)
   if (interface == nullptr)
   {
     cout << "Error opening file" << endl;
-    exit(INIT_FAILED);
+    exit(EXIT_FAILURE);
   }
 
   MbrDescriptor mbr;
@@ -236,7 +239,7 @@ Interface *Application::initInterface(const char *file)
     if (mmiSetPartition(interface, &mbr) != E_OK)
     {
       cout << "Error during partition setup" << endl;
-      exit(INIT_FAILED);
+      exit(EXIT_FAILURE);
     }
   }
   else
@@ -269,7 +272,7 @@ FsHandle *Application::initHandle(Interface *interface)
   if (!handle)
   {
     cout << "Error creating FAT32 handle" << endl;
-    exit(INIT_FAILED);
+    exit(EXIT_FAILURE);
   }
 
   return handle;

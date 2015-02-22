@@ -435,7 +435,7 @@ result DirectData::processArguments(unsigned int count,
   if (output->in == nullptr || output->out == nullptr)
   {
     owner.log("dd: not enough arguments");
-    return E_ENTRY;
+    return E_VALUE;
   }
 
   if (output->block > CONFIG_SHELL_BUFFER)
@@ -474,7 +474,7 @@ result DirectData::run(unsigned int count, const char * const *arguments,
 //------------------------------------------------------------------------------
 result ExitShell::run(unsigned int, const char * const *, Shell::ShellContext *)
 {
-  return E_ERROR;
+  return static_cast<result>(Shell::E_SHELL_EXIT);
 }
 //------------------------------------------------------------------------------
 result ListCommands::run(unsigned int, const char * const *,
@@ -572,6 +572,7 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
   }
 
   FsMetadata info;
+  uint64_t previousIndex = fsTell(dir);
   int entries = 0;
   result res;
 
@@ -622,10 +623,8 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
       if (showIndex)
       {
         //Index number of the entry
-        const uint64_t index = fsTell(dir);
-
-        owner.log("%12lX %s %10lu %s %s", index, accessStr, size, timeStr,
-            info.name);
+        owner.log("%12lX %s %10lu %s %s", previousIndex, accessStr, size,
+            timeStr, info.name);
       }
       else
       {
@@ -637,6 +636,7 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
       owner.log(info.name);
     }
 
+    previousIndex = fsTell(dir);
     ++entries;
   }
 

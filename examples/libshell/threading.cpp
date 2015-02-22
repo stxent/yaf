@@ -4,7 +4,7 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#include <cassert>
+#include <cstdlib>
 #include <cstring>
 #include "libshell/threading.hpp"
 //------------------------------------------------------------------------------
@@ -21,16 +21,24 @@ void workerTerminateWrapper(void *argument)
 WorkerThread::WorkerThread(ThreadSwarm &parent) :
     owner(parent),
     finalize(false),
-    baseContext(nullptr), argumentCount(0), firstArgument(nullptr)
+    baseContext(nullptr),
+    argumentCount(0), firstArgument(nullptr)
 {
   result res;
 
   res = semInit(&semaphore, 0);
-  assert(res == E_OK); //FIXME
 
-  res = threadInit(&thread, THREAD_SIZE, THREAD_PRIORITY, workerThreadWrapper,
-      this);
-  assert(res == E_OK); //FIXME
+  if (res == E_OK)
+  {
+    res = threadInit(&thread, THREAD_SIZE, THREAD_PRIORITY,
+        workerThreadWrapper, this);
+  }
+
+  if (res != E_OK)
+  {
+    parent.owner.log("swarm: thread initialization error");
+    exit(EXIT_FAILURE);
+  }
 
   threadOnTerminateCallback(&thread, workerTerminateWrapper, this);
 }
@@ -38,15 +46,12 @@ WorkerThread::WorkerThread(ThreadSwarm &parent) :
 WorkerThread::~WorkerThread()
 {
   threadTerminate(&thread);
-
   threadDeinit(&thread);
   semDeinit(&semaphore);
 }
 //------------------------------------------------------------------------------
 void WorkerThread::handler()
 {
-  result res;
-
   while (1)
   {
     semWait(&semaphore);
@@ -62,7 +67,10 @@ void WorkerThread::handler()
       if (!strcmp(entry->name(), *firstArgument))
       {
         memcpy(&environment, baseContext, sizeof(Shell::ShellContext));
-        res = entry->run(argumentCount - 1, firstArgument + 1, &environment);
+
+        const result res = entry->run(argumentCount - 1, firstArgument + 1,
+            &environment);
+
         owner.onCommandCompleted(this, res);
         break;
       }
@@ -81,10 +89,13 @@ void WorkerThread::process(unsigned int count, const char * const *arguments,
 //------------------------------------------------------------------------------
 void WorkerThread::start()
 {
-  result res;
+  const result res = threadStart(&thread);
 
-  res = threadStart(&thread);
-  assert(res == E_OK); //FIXME
+  if (res != E_OK)
+  {
+    owner.owner.log("swarm: thread start error");
+    exit(EXIT_FAILURE);
+  }
 }
 //------------------------------------------------------------------------------
 void WorkerThread::terminate()
@@ -99,10 +110,15 @@ ThreadSwarm::ThreadSwarm(Shell &parent) :
   result res;
 
   res = mutexInit(&queueLock);
-  assert(res == E_OK); //FIXME
 
-  res = semInit(&queueSynchronizer, THREAD_COUNT);
-  assert(res == E_OK); //FIXME
+  if (res == E_OK)
+    res = semInit(&queueSynchronizer, THREAD_COUNT);
+
+  if (res != E_OK)
+  {
+    owner.log("swarm: initialization error");
+    exit(EXIT_FAILURE);
+  }
 
   for (unsigned int i = 0; i < THREAD_COUNT; ++i)
   {
@@ -127,7 +143,10 @@ ThreadSwarm::~ThreadSwarm()
 void ThreadSwarm::onCommandCompleted(WorkerThread *worker, result res)
 {
   mutexLock(&queueLock);
+
   pool.push(worker);
+  results.push(res);
+
   mutexUnlock(&queueLock);
   semPost(&queueSynchronizer);
 }
@@ -153,22 +172,37 @@ result ThreadSwarm::run(unsigned int count, const char * const *arguments,
     return E_OK;
   }
 
-  WorkerThread *thread;
-  unsigned int first;
   unsigned int index = 0;
+  result res = E_OK;
 
   while (index < count)
   {
-    first = index;
+    const unsigned int first = index;
+
     while (index < count && strcmp(arguments[index], "!"))
       ++index;
 
     if (index > first)
     {
       semWait(&queueSynchronizer);
-
       mutexLock(&queueLock);
-      thread = pool.front();
+
+      while (!results.empty())
+      {
+        res = results.front();
+        results.pop();
+        if (res != E_OK)
+          break;
+      }
+
+      if (res != E_OK)
+      {
+        semPost(&queueSynchronizer);
+        break;
+      }
+
+      WorkerThread * const thread = pool.front();
+
       pool.pop();
       mutexUnlock(&queueLock);
 
@@ -186,5 +220,13 @@ result ThreadSwarm::run(unsigned int count, const char * const *arguments,
   for (index = 0; index < THREAD_COUNT; ++index)
     semPost(&queueSynchronizer);
 
-  return E_OK;
+  //Clear result queue
+  while (!results.empty())
+  {
+    if (res == E_OK)
+      res = results.front();
+    results.pop();
+  }
+
+  return res;
 }

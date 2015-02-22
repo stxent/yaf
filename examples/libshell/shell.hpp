@@ -43,6 +43,11 @@ class Shell
 public:
   enum
   {
+    E_SHELL_EXIT = E_RESULT_END
+  };
+
+  enum
+  {
     ARGUMENT_COUNT = 16,
     ARGUMENT_LENGTH = 64
   };
