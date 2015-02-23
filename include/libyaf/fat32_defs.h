@@ -72,14 +72,11 @@
 #define ENTRY_SECTOR(index)     ((index) >> ENTRY_EXP)
 /*----------------------------------------------------------------------------*/
 /* Length of both entry name and extension */
-#define NAME_LENGTH \
-    ARRAY_SIZE(((const struct DirEntryImage *)0)->filename)
+#define NAME_LENGTH             sizeof(((struct DirEntryImage *)0)->filename)
 /* Length of the extension */
-#define EXTENSION_LENGTH \
-    ARRAY_SIZE(((const struct DirEntryImage *)0)->extension)
+#define EXTENSION_LENGTH        sizeof(((struct DirEntryImage *)0)->extension)
 /* Length of the entry name */
-#define BASENAME_LENGTH \
-    ARRAY_SIZE(((const struct DirEntryImage *)0)->name)
+#define BASENAME_LENGTH         sizeof(((struct DirEntryImage *)0)->name)
 /*----------------------------------------------------------------------------*/
 struct CommandContext
 {

@@ -8,16 +8,10 @@
 #include <string.h>
 #include <bits.h>
 #include <memory.h>
+#include <libyaf/debug.h>
 #include <libyaf/fat32.h>
 #include <libyaf/fat32_defs.h>
 #include <libyaf/fat32_inlines.h>
-/*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_DEBUG
-#include <stdio.h>
-#define DEBUG_PRINT(...) printf(__VA_ARGS__)
-#else
-#define DEBUG_PRINT(...) do {} while (0)
-#endif
 /*----------------------------------------------------------------------------*/
 enum cleanup
 {
@@ -300,7 +294,7 @@ static enum result allocateBuffers(struct FatHandle *handle,
   for (unsigned int index = 0; index < count; ++index, ++contextBase)
     contextBase->sector = RESERVED_SECTOR;
 
-  DEBUG_PRINT("Context pool:   %u\n", (unsigned int)(count
+  DEBUG_PRINT(1, "fat32: context pool:   %u\n", (unsigned int)(count
       * (sizeof(struct CommandContext *) + sizeof(struct CommandContext))));
 #else
   count = DEFAULT_THREAD_COUNT;
@@ -311,7 +305,7 @@ static enum result allocateBuffers(struct FatHandle *handle,
     return E_MEMORY;
   handle->context->sector = RESERVED_SECTOR;
 
-  DEBUG_PRINT("Context pool:   %u\n",
+  DEBUG_PRINT(1, "fat32: context pool:   %u\n",
       (unsigned int)sizeof(struct CommandContext));
 #endif
 
@@ -324,7 +318,7 @@ static enum result allocateBuffers(struct FatHandle *handle,
     return res;
   }
 
-  DEBUG_PRINT("Metadata pool:  %u\n", (unsigned int)(count * 2
+  DEBUG_PRINT(1, "fat32: metadata pool:  %u\n", (unsigned int)(count * 2
       * (sizeof(struct FsMetadata *) + sizeof(struct FsMetadata))));
 
 #ifdef CONFIG_FAT_WRITE
@@ -347,7 +341,7 @@ static enum result allocateBuffers(struct FatHandle *handle,
     return res;
   }
 
-  DEBUG_PRINT("Node pool:      %u\n", (unsigned int)(count
+  DEBUG_PRINT(1, "fat32: node pool:      %u\n", (unsigned int)(count
       * (sizeof(struct FatNode *) + sizeof(struct FatNode))));
 
   /* Allocate and fill directory entry pool */
@@ -359,7 +353,7 @@ static enum result allocateBuffers(struct FatHandle *handle,
     return res;
   }
 
-  DEBUG_PRINT("Directory pool: %u\n", (unsigned int)(count
+  DEBUG_PRINT(1, "fat32: directory pool: %u\n", (unsigned int)(count
       * (sizeof(struct FatDir *) + sizeof(struct FatDir))));
 
   /* Allocate and fill file entry pool */
@@ -372,7 +366,7 @@ static enum result allocateBuffers(struct FatHandle *handle,
     return res;
   }
 
-  DEBUG_PRINT("File pool:      %u\n", (unsigned int)(count
+  DEBUG_PRINT(1, "fat32: file pool:      %u\n", (unsigned int)(count
       * (sizeof(struct FatFile *) + sizeof(struct FatFile))));
 #endif /* CONFIG_FAT_POOLS */
 
@@ -818,9 +812,12 @@ static enum result mountStorage(struct FatHandle *handle)
       + boot->fatCopies * fromLittleEndian32(boot->fatSize);
   handle->rootCluster = fromLittleEndian32(boot->rootCluster);
 
-  DEBUG_PRINT("Cluster size:   %u\n", (unsigned int)(1 << handle->clusterSize));
-  DEBUG_PRINT("Table sector:   %u\n", (unsigned int)handle->tableSector);
-  DEBUG_PRINT("Data sector:    %u\n", (unsigned int)handle->dataSector);
+  DEBUG_PRINT(0, "fat32: cluster size:   %u\n",
+      (unsigned int)(1 << handle->clusterSize));
+  DEBUG_PRINT(0, "fat32: table sector:   %u\n",
+      (unsigned int)handle->tableSector);
+  DEBUG_PRINT(0, "fat32: data sector:    %u\n",
+      (unsigned int)handle->dataSector);
 
 #ifdef CONFIG_FAT_WRITE
   handle->tableCount = boot->fatCopies;
@@ -829,11 +826,15 @@ static enum result mountStorage(struct FatHandle *handle)
       - handle->dataSector) >> handle->clusterSize) + 2;
   handle->infoSector = fromLittleEndian16(boot->infoSector);
 
-  DEBUG_PRINT("Info sector:    %u\n", (unsigned int)handle->infoSector);
-  DEBUG_PRINT("Table copies:   %u\n", (unsigned int)handle->tableCount);
-  DEBUG_PRINT("Table size:     %u\n", (unsigned int)handle->tableSize);
-  DEBUG_PRINT("Cluster count:  %u\n", (unsigned int)handle->clusterCount);
-  DEBUG_PRINT("Sectors count:  %u\n",
+  DEBUG_PRINT(0, "fat32: info sector:    %u\n",
+      (unsigned int)handle->infoSector);
+  DEBUG_PRINT(0, "fat32: table copies:   %u\n",
+      (unsigned int)handle->tableCount);
+  DEBUG_PRINT(0, "fat32: table size:     %u\n",
+      (unsigned int)handle->tableSize);
+  DEBUG_PRINT(0, "fat32: cluster count:  %u\n",
+      (unsigned int)handle->clusterCount);
+  DEBUG_PRINT(0, "fat32: sectors count:  %u\n",
       (unsigned int)fromLittleEndian32(boot->partitionSize));
 
   /* Read information sector */
@@ -852,7 +853,7 @@ static enum result mountStorage(struct FatHandle *handle)
   }
   handle->lastAllocated = fromLittleEndian32(info->lastAllocated);
 
-  DEBUG_PRINT("Free clusters:  %u\n",
+  DEBUG_PRINT(0, "fat32: free clusters:  %u\n",
       (unsigned int)fromLittleEndian32(info->freeClusters));
 #endif
 
@@ -1084,7 +1085,8 @@ static enum result allocateCluster(struct CommandContext *context,
           return res;
       }
 
-      DEBUG_PRINT("Allocated cluster: %u, parent %u\n", current, *cluster);
+      DEBUG_PRINT(1, "fat32: allocated cluster: %u, parent %u\n",
+          current, *cluster);
       handle->lastAllocated = current;
       *cluster = current;
 
@@ -1108,7 +1110,7 @@ static enum result allocateCluster(struct CommandContext *context,
     ++current;
   }
 
-  DEBUG_PRINT("Allocation error, partition may be full\n");
+  DEBUG_PRINT(0, "fat32: allocation error, partition may be full\n");
   return E_FULL;
 }
 #endif
@@ -1503,7 +1505,7 @@ static enum result freeChain(struct CommandContext *context,
     }
 
     ++released;
-    DEBUG_PRINT("Cleared cluster: %u\n", current);
+    DEBUG_PRINT(1, "fat32: cleared cluster: %u\n", current);
     current = next;
   }
 
@@ -1732,7 +1734,7 @@ static enum result uniqueNamePropose(struct CommandContext *context,
     for (uint8_t index = 1; index <= proposedLength; ++index)
       shortName[baseLength + index] = suffix[proposedLength - index];
 
-    DEBUG_PRINT("Proposed short name: \"%.8s\"\n", shortName);
+    DEBUG_PRINT(1, "fat32: proposed short name: \"%.8s\"\n", shortName);
 
     res = E_OK;
   }
@@ -1954,7 +1956,7 @@ static enum result fatHandleInit(void *object, const void *configBase)
 #ifdef CONFIG_FAT_TIME
   handle->timer = config->timer;
   if (!handle->timer)
-    DEBUG_PRINT("Real-time clock is not initialized");
+    DEBUG_PRINT(0, "fat32: real-time clock is not initialized\n");
 #endif
 
   if ((res = mountStorage(handle)) != E_OK)
@@ -2038,14 +2040,15 @@ static enum result fatNodeInit(void *object, const void *configBase)
   struct FatNode * const node = object;
 
   node->handle = config->handle;
-  DEBUG_PRINT("Node allocated, address %08lX\n", (unsigned long)object);
+  DEBUG_PRINT(2, "fat32: node allocated, address %08lX\n",
+      (unsigned long)object);
 
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
 static void fatNodeDeinit(void *object __attribute__((unused)))
 {
-  DEBUG_PRINT("Node freed, address %08lX\n", (unsigned long)object);
+  DEBUG_PRINT(2, "fat32: node freed, address %08lX\n", (unsigned long)object);
 }
 /*----------------------------------------------------------------------------*/
 static void *fatClone(const void *object)
@@ -2535,14 +2538,16 @@ static enum result fatDirInit(void *object, const void *configBase)
   dir->payload = node->payload;
   dir->currentCluster = node->payload;
   dir->currentIndex = 0;
-  DEBUG_PRINT("Directory allocated, address %08lX\n", (unsigned long)object);
+  DEBUG_PRINT(2, "fat32: directory allocated, address %08lX\n",
+      (unsigned long)object);
 
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
 static void fatDirDeinit(void *object __attribute__((unused)))
 {
-  DEBUG_PRINT("Directory freed, address %08lX\n", (unsigned long)object);
+  DEBUG_PRINT(2, "fat32: directory freed, address %08lX\n",
+      (unsigned long)object);
 }
 /*----------------------------------------------------------------------------*/
 static enum result fatDirClose(void *object)
@@ -2685,7 +2690,8 @@ static enum result fatFileInit(void *object, const void *configBase)
   file->parentIndex = node->index;
 #endif
 
-  DEBUG_PRINT("File allocated, address %08lX\n", (unsigned long)object);
+  DEBUG_PRINT(2, "fat32: file allocated, address %08lX\n",
+      (unsigned long)object);
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
@@ -2713,7 +2719,7 @@ static void fatFileDeinit(void *object)
 #endif
   }
 
-  DEBUG_PRINT("File freed, address %08lX\n", (unsigned long)object);
+  DEBUG_PRINT(2, "fat32: file freed, address %08lX\n", (unsigned long)object);
 }
 /*----------------------------------------------------------------------------*/
 static enum result fatFileClose(void *object)

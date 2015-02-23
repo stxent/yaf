@@ -9,15 +9,10 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+
+#include <libyaf/debug.h>
 #include <os/semaphore.h>
 #include "shell/mmi.h"
-/*----------------------------------------------------------------------------*/
-#ifdef CONFIG_MMI_DEBUG
-#include <stdio.h>
-#define DEBUG_PRINT(...) printf(__VA_ARGS__)
-#else
-#define DEBUG_PRINT(...) do {} while (0)
-#endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_SECTOR
 #define MMI_SECTOR_EXP CONFIG_FAT_SECTOR
@@ -25,7 +20,7 @@
 #define MMI_SECTOR_EXP 9
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_MMI_DEBUG
+#ifdef CONFIG_DEBUG
 static void getSizeString(uint64_t, char *);
 #endif
 /*----------------------------------------------------------------------------*/
@@ -84,7 +79,7 @@ void mmiGetStatus(void *object, uint64_t *results)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_MMI_DEBUG
+#ifdef CONFIG_DEBUG
 static void getSizeString(uint64_t size, char *str)
 {
   const char *suffix[] = {"KiB", "MiB", "GiB", "TiB"};
@@ -136,10 +131,10 @@ static enum result mmiInit(void *object, const void *configBase)
   dev->bytesRead = dev->bytesWritten = 0;
 #endif
 
-#ifdef CONFIG_MMI_DEBUG
+#ifdef CONFIG_DEBUG
   char sizeString[16];
   getSizeString(dev->size, sizeString);
-  DEBUG_PRINT("mmaped_io: opened file: %s, size: %s\n", path, sizeString);
+  DEBUG_PRINT(0, "mmaped_io: opened file: %s, size: %s\n", path, sizeString);
 #endif
 
   return E_OK;
@@ -189,8 +184,8 @@ static enum result mmiSet(void *object, enum ifOption option,
       newPos = *(const uint64_t *)data;
       if (newPos + dev->offset >= dev->size)
       {
-        DEBUG_PRINT("mmaped_io: address 0x%012lX out of bounds\n",
-            (unsigned long)(newPos + dev->offset), (unsigned long)dev->size);
+        DEBUG_PRINT(0, "mmaped_io: address 0x%012lX out of bounds\n",
+            (unsigned long)(newPos + dev->offset));
         return E_ERROR;
       }
       dev->position = newPos;
@@ -221,7 +216,7 @@ static uint32_t mmiRead(void *object, uint8_t *buffer, uint32_t length)
   dev->bytesRead += length;
 #endif
 
-  DEBUG_PRINT("mmaped_io: read data at 0x%012lX, length %u\n",
+  DEBUG_PRINT(3, "mmaped_io: read data at 0x%012lX, length %u\n",
       (unsigned long)dev->position, length);
 
   return length;
@@ -239,7 +234,7 @@ static uint32_t mmiWrite(void *object, const uint8_t *buffer, uint32_t length)
   dev->bytesWritten += length;
 #endif
 
-  DEBUG_PRINT("mmaped_io: write data at 0x%012lX, length %u\n",
+  DEBUG_PRINT(3, "mmaped_io: write data at 0x%012lX, length %u\n",
       (unsigned long)dev->position, length);
 
   return length;
@@ -256,7 +251,7 @@ enum result mmiSetPartition(void *object, struct MbrDescriptor *desc)
   dev->size = desc->size << MMI_SECTOR_EXP;
   dev->offset = desc->offset << MMI_SECTOR_EXP;
 
-  DEBUG_PRINT("mmaped_io: partition type 0x%02X, size %u sectors, "
+  DEBUG_PRINT(0, "mmaped_io: partition type 0x%02X, size %u sectors, "
       "offset %u sectors\n",
       desc->type, (unsigned int)desc->size, (unsigned int)desc->offset);
 

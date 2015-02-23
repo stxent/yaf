@@ -6,6 +6,7 @@
 
 #include <cassert>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include "libshell/shell.hpp"
 //------------------------------------------------------------------------------
@@ -52,16 +53,16 @@ void Shell::joinPaths(char *buffer, const char *directory, const char *path)
 Shell::Shell(Interface *console, FsHandle *root) :
     rootHandle(root), consoleInterface(console)
 {
-  result res;
-
   strcpy(context.currentDir, "/");
   strcpy(context.pathBuffer, "");
 
   for (unsigned int pos = 0; pos < ARGUMENT_COUNT; ++pos)
     argumentPool[pos] = new char[ARGUMENT_LENGTH];
 
-  res = mutexInit(&logMutex);
-  assert(res == E_OK);
+  const result res = mutexInit(&logMutex);
+
+  if (res != E_OK)
+    exit(EXIT_FAILURE);
 
   //Log function should be called after mutex initialization
   log("Shell opened, size %u", static_cast<unsigned int>(sizeof(Shell)));
