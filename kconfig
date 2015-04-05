@@ -1,25 +1,4 @@
 choice
-	prompt "Optimization level"
-	default OPTIMIZATIONS_DISABLED
-
-	config OPTIMIZATIONS_DISABLED
-		bool "None"
-
-	config OPTIMIZATIONS_SIZE
-		bool "Size"
-
-	config OPTIMIZATIONS_FULL
-		bool "Full"
-
-endchoice
-
-config OPT_LEVEL
-	string
-	default "none" if OPTIMIZATIONS_DISABLED
-	default "size" if OPTIMIZATIONS_SIZE
-	default "full" if OPTIMIZATIONS_FULL
-
-choice
 	prompt "Target architecture"
 	default TARGET_X86
 
@@ -37,7 +16,6 @@ choice
 
 	config TARGET_CORTEX_M4
 		bool "ARM Cortex-M4"
-
 endchoice
 
 config TARGET
@@ -92,16 +70,29 @@ config FAT_WRITE
 
 endmenu
 
-menu "Examples"
+menu "Build options"
 
-config LIBSHELL
-	bool "Build shell library"
+choice
+	prompt "Optimization level"
+	default OPTIMIZATIONS_DISABLED
 
-config SHELL
-	bool "Build shell example"
-	depends on (TARGET_X86 || TARGET_X86_64) && LIBSHELL
+	config OPTIMIZATIONS_DISABLED
+		bool "None"
+
+	config OPTIMIZATIONS_SIZE
+		bool "Size"
+
+	config OPTIMIZATIONS_FULL
+	  bool "Full"
+endchoice
 
 endmenu
+
+config OPTIMIZATIONS
+	string
+	default "none" if OPTIMIZATIONS_DISABLED
+	default "size" if OPTIMIZATIONS_SIZE
+	default "full" if OPTIMIZATIONS_FULL
 
 menu "Debug options"
 	depends on TARGET_X86 || TARGET_X86_64
@@ -122,5 +113,16 @@ config SHELL_BUFFER
 	int "Shell buffer size"
 	default 1024
 	depends on SHELL
+
+endmenu
+
+menu "Examples"
+
+config LIBSHELL
+	bool "Build shell library"
+
+config SHELL
+	bool "Build shell example"
+	depends on (TARGET_X86 || TARGET_X86_64) && LIBSHELL
 
 endmenu
