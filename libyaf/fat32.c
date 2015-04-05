@@ -787,7 +787,7 @@ static enum result mountStorage(struct FatHandle *handle)
       (const struct BootSectorImage *)context->buffer;
 
   /* Check boot sector signature (55AA at 0x01FE) */
-  if (fromBigEndian16(boot->bootSignature) != 0x55AAU)
+  if (fromBigEndian16(boot->bootSignature) != 0x55AA)
   {
     res = E_DEVICE;
     goto exit;
@@ -809,7 +809,7 @@ static enum result mountStorage(struct FatHandle *handle)
 
   handle->tableSector = fromLittleEndian16(boot->reservedSectors);
   handle->dataSector = handle->tableSector
-      + boot->fatCopies * fromLittleEndian32(boot->fatSize);
+      + boot->tableCount * fromLittleEndian32(boot->tableSize);
   handle->rootCluster = fromLittleEndian32(boot->rootCluster);
 
   DEBUG_PRINT(0, "fat32: cluster size:   %u\n",
@@ -820,8 +820,8 @@ static enum result mountStorage(struct FatHandle *handle)
       (unsigned int)handle->dataSector);
 
 #ifdef CONFIG_FAT_WRITE
-  handle->tableCount = boot->fatCopies;
-  handle->tableSize = fromLittleEndian32(boot->fatSize);
+  handle->tableCount = boot->tableCount;
+  handle->tableSize = fromLittleEndian32(boot->tableSize);
   handle->clusterCount = ((fromLittleEndian32(boot->partitionSize)
       - handle->dataSector) >> handle->clusterSize) + 2;
   handle->infoSector = fromLittleEndian16(boot->infoSector);

@@ -279,19 +279,23 @@ struct DirEntryImage
 /* Boot sector */
 struct BootSectorImage
 {
-  char unused0[11];
+  char unused0[3];
+  char oemIdentifier[8];
   uint16_t bytesPerSector;
   uint8_t sectorsPerCluster;
-  uint16_t reservedSectors;
-  uint8_t fatCopies;
-  char unused1[15];
-  uint32_t partitionSize; /* Sectors per partition */
-  uint32_t fatSize; /* Sectors per FAT record */
-  char unused2[4];
-  uint32_t rootCluster; /* Root directory cluster */
-  uint16_t infoSector; /* Sector number for information sector */
-  char unused3[460];
-  uint16_t bootSignature;
+  uint16_t reservedSectors;  /* Reserved sectors in front of the FAT */
+  uint8_t tableCount;        /* Number of FAT copies */
+  char unused1[4];
+  uint8_t mediaDescriptor;   /* 0xF8 */
+  char unused2[6];
+  uint32_t tableOffset;      /* The number of sectors before the first FAT */
+  uint32_t partitionSize;    /* Sectors per partition */
+  uint32_t tableSize;        /* Sectors per FAT record */
+  char unused3[4];
+  uint32_t rootCluster;      /* Root directory cluster */
+  uint16_t infoSector;       /* Sector number for information sector */
+  char unused4[460];
+  uint16_t bootSignature;    /* 0xAA55 */
 } __attribute__((packed));
 /*----------------------------------------------------------------------------*/
 /* Info sector */
