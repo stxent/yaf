@@ -1584,28 +1584,34 @@ static enum result markFree(struct CommandContext *context,
 #ifdef CONFIG_FAT_WRITE
 static char processCharacter(char value)
 {
-  /* TODO Escape sequence for 0xE5 character */
-  if (value == ' ')
-  {
-    /* Remove spaces */
-    return 0;
-  }
-  else if (value >= 'a' && value <= 'z')
-  {
-    /* Convert lower case characters to upper case */
+  static const char forbidden[] = {
+      0x22, 0x2A, 0x2B, 0x2C, 0x2E, 0x2F, 0x5B, 0x5C, 0x5D, 0x7C
+  };
+
+  /* Convert lower case characters to upper case */
+  if (value >= 'a' && value <= 'z')
     return value - ('a' - 'A');
-  }
-  else if (value > 0x20 && !(value & 0x80)
-      && !(value >= 0x3A && value <= 0x3F)
-      && !strchr("\x22\x2A\x2B\x2C\x2E\x2F\x5B\x5C\x5D\x7C\x7F", value))
+  /* Remove spaces */
+  if (value == ' ')
+    return 0;
+  if (value > 0x20 && value < 0x7F && !(value >= 0x3A && value <= 0x3F))
   {
-    return value;
+    bool found = false;
+
+    for (uint8_t index = 0; index < sizeof(forbidden); ++index)
+    {
+      if (value == forbidden[index])
+      {
+        found = true;
+        break;
+      }
+    }
+    if (!found)
+      return value;
   }
-  else
-  {
-    /* Replace all other characters with underscore */
-    return '_';
-  }
+
+  /* Replace all other characters with underscore */
+  return '_';
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -2461,7 +2467,7 @@ static enum result fatTruncate(void *object)
       char nameBuffer[BASENAME_LENGTH + 1];
 
       extractShortBasename(nameBuffer, entry->name);
-      if (!(!strcmp(nameBuffer, ".") || !strcmp(nameBuffer, "..")))
+      if (strcmp(nameBuffer, ".") && strcmp(nameBuffer, ".."))
       {
         res = E_EXIST;
         break;
@@ -2597,7 +2603,7 @@ static enum result fatDirFetch(void *object, void *nodeBase)
     char nameBuffer[BASENAME_LENGTH + 1];
 
     extractShortBasename(nameBuffer, entry->name);
-    if (!(!strcmp(nameBuffer, ".") || !strcmp(nameBuffer, "..")))
+    if (strcmp(nameBuffer, ".") && strcmp(nameBuffer, ".."))
       break;
 
     ++node->index;

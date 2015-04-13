@@ -11,12 +11,8 @@
 /*----------------------------------------------------------------------------*/
 static inline bool clusterFree(uint32_t cluster)
 {
+  /* All reserved clusters and bad clusters are skipped */
   return !(cluster & 0x0FFFFFFFUL);
-}
-/*----------------------------------------------------------------------------*/
-static inline bool clusterEoc(uint32_t cluster)
-{
-  return (cluster & 0x0FFFFFF8UL) == 0x0FFFFFF8UL;
 }
 /*----------------------------------------------------------------------------*/
 static inline bool clusterUsed(uint32_t cluster)
