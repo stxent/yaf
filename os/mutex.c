@@ -42,7 +42,7 @@ bool mutexTryLock(struct Mutex *mutex, unsigned int interval)
   {
     struct timespec timestamp;
 
-    clock_gettime(CLOCK_MONOTONIC, &timestamp);
+    clock_gettime(CLOCK_REALTIME, &timestamp);
     timestamp.tv_sec += interval / 1000;
     timestamp.tv_nsec += (interval % 1000) * 1000000;
 
