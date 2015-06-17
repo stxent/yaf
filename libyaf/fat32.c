@@ -242,7 +242,7 @@ static enum result allocatePool(struct Pool *pool, unsigned int capacity,
     if (initializer)
       ((struct Entity *)data)->descriptor = initializer;
 
-    queuePush(&pool->queue, data);
+    queuePush(&pool->queue, &data);
     data += width;
   }
 
@@ -699,7 +699,7 @@ static void freeContext(struct FatHandle *handle,
     const struct CommandContext *context)
 {
   mutexLock(&handle->memoryMutex);
-  queuePush(&handle->contextPool.queue, context);
+  queuePush(&handle->contextPool.queue, &context);
   mutexUnlock(&handle->memoryMutex);
 }
 #else
@@ -714,7 +714,7 @@ static void freeMetadata(struct FatHandle *handle,
     const struct FsMetadata *metadata)
 {
   lockPools(handle);
-  queuePush(&handle->metadataPool.queue, metadata);
+  queuePush(&handle->metadataPool.queue, &metadata);
   unlockPools(handle);
 }
 /*----------------------------------------------------------------------------*/
@@ -2072,7 +2072,7 @@ static void fatFree(void *object)
   lockPools(handle);
 #ifdef CONFIG_FAT_POOLS
   FatNode->deinit(node);
-  queuePush(&handle->nodePool.queue, node);
+  queuePush(&handle->nodePool.queue, &node);
 #else
   deinit(object);
 #endif
@@ -2564,7 +2564,7 @@ static enum result fatDirClose(void *object)
   lockPools(handle);
 #ifdef CONFIG_FAT_POOLS
   FatDir->deinit(object);
-  queuePush(&handle->dirPool.queue, object);
+  queuePush(&handle->dirPool.queue, &object);
 #else
   deinit(object);
 #endif
@@ -2752,7 +2752,7 @@ static enum result fatFileClose(void *object)
   lockPools(handle);
 #ifdef CONFIG_FAT_POOLS
   FatFile->deinit(file);
-  queuePush(&handle->filePool.queue, file);
+  queuePush(&handle->filePool.queue, &file);
 #else
   deinit(object);
 #endif
