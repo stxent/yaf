@@ -7,8 +7,8 @@
 #ifndef SHELL_UNIX_TIME_H_
 #define SHELL_UNIX_TIME_H_
 /*----------------------------------------------------------------------------*/
-#include <rtc.h>
+#include <realtime.h>
 /*----------------------------------------------------------------------------*/
-extern const struct RtcClass * const UnixTime;
+extern const struct RtClockClass * const UnixTime;
 /*----------------------------------------------------------------------------*/
 #endif /* SHELL_UNIX_TIME_H_ */

@@ -12,7 +12,7 @@
 
 extern "C"
 {
-#include <rtc.h>
+#include <realtime.h>
 }
 //------------------------------------------------------------------------------
 class TimeProvider
@@ -23,7 +23,7 @@ public:
   }
 
   virtual uint64_t microtime() = 0;
-  virtual Rtc *rtc() = 0;
+  virtual RtClock *rtc() = 0;
 };
 //------------------------------------------------------------------------------
 template<class T> class CurrentDate : public Shell::ShellCommand
@@ -41,9 +41,9 @@ public:
 
   virtual result run(unsigned int, const char * const *, Shell::ShellContext *)
   {
-    RtcTime currentTime;
+    RtDateTime currentTime;
 
-    rtcMakeTime(&currentTime, rtcTime(T::instance()->rtc()));
+    rtMakeTime(&currentTime, rtTime(T::instance()->rtc()));
     owner.log("%02u:%02u:%02u %02u.%02u.%04u", currentTime.hour,
         currentTime.minute, currentTime.second, currentTime.day,
         currentTime.month, currentTime.year);

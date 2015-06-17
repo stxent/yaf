@@ -264,7 +264,7 @@ FsHandle *Application::initHandle(Interface *interface)
   fsConf.threads = 2;
 
 #ifdef CONFIG_FAT_TIME
-  fsConf.timer = UnixTimeProvider::instance()->rtc();
+  fsConf.clock = UnixTimeProvider::instance()->rtc();
 #endif
 
   handle = reinterpret_cast<FsHandle *>(init(FatHandle, &fsConf));

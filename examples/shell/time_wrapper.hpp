@@ -11,7 +11,7 @@
 
 extern "C"
 {
-#include <rtc.h>
+#include <realtime.h>
 }
 //------------------------------------------------------------------------------
 class UnixTimeProvider : public TimeProvider
@@ -20,7 +20,7 @@ public:
   virtual ~UnixTimeProvider();
 
   virtual uint64_t microtime();
-  virtual Rtc *rtc();
+  virtual RtClock *rtc();
 
   static UnixTimeProvider *instance();
 
@@ -29,7 +29,7 @@ private:
   UnixTimeProvider(const UnixTimeProvider &);
   UnixTimeProvider &operator=(UnixTimeProvider &);
 
-  Rtc *timer;
+  RtClock *clock;
 };
 //------------------------------------------------------------------------------
 #endif //SHELL_TIME_WRAPPER_HPP_

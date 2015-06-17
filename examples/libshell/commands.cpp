@@ -8,6 +8,11 @@
 #include <cstring>
 #include <ctime>
 #include "libshell/commands.hpp"
+
+extern "C"
+{
+#include <realtime.h>
+}
 //------------------------------------------------------------------------------
 #ifndef CONFIG_SHELL_BUFFER
 #define CONFIG_SHELL_BUFFER 512

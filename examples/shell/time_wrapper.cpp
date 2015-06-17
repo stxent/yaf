@@ -18,7 +18,7 @@ extern "C"
 //------------------------------------------------------------------------------
 UnixTimeProvider::~UnixTimeProvider()
 {
-  deinit(timer);
+  deinit(clock);
 }
 //------------------------------------------------------------------------------
 uint64_t UnixTimeProvider::microtime()
@@ -31,9 +31,9 @@ uint64_t UnixTimeProvider::microtime()
     return 0;
 }
 //------------------------------------------------------------------------------
-Rtc *UnixTimeProvider::rtc()
+RtClock *UnixTimeProvider::rtc()
 {
-  return timer;
+  return clock;
 }
 //------------------------------------------------------------------------------
 UnixTimeProvider *UnixTimeProvider::instance()
@@ -45,6 +45,6 @@ UnixTimeProvider *UnixTimeProvider::instance()
 //------------------------------------------------------------------------------
 UnixTimeProvider::UnixTimeProvider()
 {
-  timer = reinterpret_cast<Rtc *>(init(UnixTime, nullptr));
-  assert(timer != nullptr);
+  clock = reinterpret_cast<RtClock *>(init(UnixTime, nullptr));
+  assert(clock != nullptr);
 }
