@@ -9,7 +9,7 @@
 /*----------------------------------------------------------------------------*/
 #include <fs.h>
 #include <interface.h>
-#include <rtc.h>
+#include <realtime.h>
 /*----------------------------------------------------------------------------*/
 extern const struct FsHandleClass * const FatHandle;
 /*----------------------------------------------------------------------------*/
@@ -21,7 +21,7 @@ struct Fat32Config
    * Optional: pointer to a real-time clock. This option is used
    * only when time support is enabled.
    */
-  struct Rtc *timer;
+  struct RtClock *clock;
   /**
    * Optional: number of file descriptors in file pool. This option is used
    * only when support for object pools is enabled.

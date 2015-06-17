@@ -55,8 +55,8 @@ static enum result readSector(struct CommandContext *, struct FatHandle *,
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_TIME
 static enum result rawTimestampToTime(time64_t *, uint16_t, uint16_t);
-static uint16_t timeToRawDate(const struct RtcTime *);
-static uint16_t timeToRawTime(const struct RtcTime *);
+static uint16_t timeToRawDate(const struct RtDateTime *);
+static uint16_t timeToRawTime(const struct RtDateTime *);
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_UNICODE
@@ -909,7 +909,7 @@ static enum result readSector(struct CommandContext *context,
 static enum result rawTimestampToTime(time64_t *converted, uint16_t date,
     uint16_t time)
 {
-  const struct RtcTime timestamp = {
+  const struct RtDateTime timestamp = {
       .second = time & 0x1F,
       .minute = (time >> 5) & 0x3F,
       .hour = (time >> 11) & 0x1F,
@@ -918,19 +918,19 @@ static enum result rawTimestampToTime(time64_t *converted, uint16_t date,
       .year = ((date >> 9) & 0x7F) + 1980
   };
 
-  return rtcMakeEpochTime(converted, &timestamp);
+  return rtMakeEpochTime(converted, &timestamp);
 }
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_TIME
-static uint16_t timeToRawDate(const struct RtcTime *value)
+static uint16_t timeToRawDate(const struct RtDateTime *value)
 {
   return value->day | (value->month << 5) | ((value->year - 1980) << 9);
 }
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_TIME
-static uint16_t timeToRawTime(const struct RtcTime *value)
+static uint16_t timeToRawTime(const struct RtDateTime *value)
 {
   return (value->second >> 1) | (value->minute << 5) | (value->hour << 11);
 }
@@ -1285,11 +1285,11 @@ static void fillDirEntry(struct DirEntryImage *entry,
 #ifdef CONFIG_FAT_TIME
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
 
-  if (handle->timer)
+  if (handle->clock)
   {
-    struct RtcTime currentTime;
+    struct RtDateTime currentTime;
 
-    rtcMakeTime(&currentTime, rtcTime(handle->timer));
+    rtMakeTime(&currentTime, rtTime(handle->clock));
     entry->date = toLittleEndian16(timeToRawDate(&currentTime));
     entry->time = toLittleEndian16(timeToRawTime(&currentTime));
   }
@@ -1823,11 +1823,11 @@ static enum result syncFile(struct CommandContext *context,
   entry->size = toLittleEndian32(file->size);
 
 #ifdef CONFIG_FAT_TIME
-  if (handle->timer)
+  if (handle->clock)
   {
-    struct RtcTime currentTime;
+    struct RtDateTime currentTime;
 
-    rtcMakeTime(&currentTime, rtcTime(handle->timer));
+    rtMakeTime(&currentTime, rtTime(handle->clock));
     entry->date = toLittleEndian16(timeToRawDate(&currentTime));
     entry->time = toLittleEndian16(timeToRawTime(&currentTime));
   }
@@ -1960,8 +1960,8 @@ static enum result fatHandleInit(void *object, const void *configBase)
   handle->interface = config->interface;
 
 #ifdef CONFIG_FAT_TIME
-  handle->timer = config->timer;
-  if (!handle->timer)
+  handle->clock = config->clock;
+  if (!handle->clock)
     DEBUG_PRINT(0, "fat32: real-time clock is not initialized\n");
 #endif
 

@@ -20,7 +20,7 @@
 #endif
 
 #ifdef CONFIG_FAT_TIME
-#include <rtc.h>
+#include <realtime.h>
 #endif
 /*----------------------------------------------------------------------------*/
 /*
@@ -98,7 +98,7 @@ struct FatHandle
   struct Interface *interface;
 
 #ifdef CONFIG_FAT_TIME
-  struct Rtc *timer;
+  struct RtClock *clock;
 #endif
 
   struct Pool metadataPool;
