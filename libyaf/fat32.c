@@ -423,7 +423,6 @@ static void *allocateNode(struct FatHandle *handle)
   return node;
 }
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
 static void extractShortBasename(char *baseName, const char *shortName)
 {
   uint8_t index;
@@ -436,7 +435,6 @@ static void extractShortBasename(char *baseName, const char *shortName)
   }
   baseName[index] = '\0';
 }
-#endif
 /*----------------------------------------------------------------------------*/
 static void extractShortName(char *name, const struct DirEntryImage *entry)
 {
@@ -2012,10 +2010,11 @@ static enum result fatSync(void *object)
   struct FatHandle * const handle = object;
   struct CommandContext *context;
   struct FatFile *descriptor;
-  enum result res;
+  enum result res = E_OK;
 
   if (!(context = allocateContext(handle)))
     return E_MEMORY;
+  lockHandle(handle);
 
   const struct ListNode *current = listFirst(&handle->openedFiles);
 
@@ -2023,15 +2022,14 @@ static enum result fatSync(void *object)
   {
     listData(&handle->openedFiles, current, &descriptor);
     if ((res = syncFile(context, descriptor)) != E_OK)
-    {
-      freeContext(handle, context);
-      return res;
-    }
+      break;
     current = listNext(current);
   }
 
+  unlockHandle(handle);
   freeContext(handle, context);
-  return E_OK;
+
+  return res;
 }
 #else
 static enum result fatSync(void *object __attribute__((unused)))
@@ -2677,7 +2675,11 @@ static enum result fatFileInit(void *object, const void *configBase)
     struct FatHandle * const handle = (struct FatHandle *)node->handle;
     enum result res;
 
-    if ((res = listPush(&handle->openedFiles, &file)) != E_OK)
+    lockHandle(handle);
+    res = listPush(&handle->openedFiles, &file);
+    unlockHandle(handle);
+
+    if (res != E_OK)
       return res;
 #else
     /* Trying to open file for writing on read-only filesystem */
