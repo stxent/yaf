@@ -19,9 +19,9 @@ public:
 
 protected:
   result copyContent(FsNode *, FsNode *, unsigned int, unsigned int,
-      unsigned int, unsigned int, bool) const;
+      unsigned int, unsigned int) const;
   result prepareNodes(Shell::ShellContext *, FsNode **, FsNode **, const char *,
-      const char *);
+      const char *, bool);
 };
 //------------------------------------------------------------------------------
 class ChangeDirectory : public Shell::ShellCommand
@@ -175,26 +175,6 @@ public:
 };
 //------------------------------------------------------------------------------
 class RemoveEntry : public Shell::ShellCommand
-{
-public:
-  RemoveEntry(Shell &parent) :
-      ShellCommand(parent)
-  {
-  }
-
-  virtual const char *name() const
-  {
-    return "rm";
-  }
-
-  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
-
-private:
-  result processArguments(unsigned int, const char * const *, bool *,
-      const char **) const;
-  result removeRecursively(FsNode *, Shell::ShellContext *) const;
-};
-//------------------------------------------------------------------------------
 class Synchronize : public Shell::ShellCommand
 {
 public:
@@ -209,6 +189,26 @@ public:
   }
 
   virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+};
+//------------------------------------------------------------------------------
+class TouchEntry : public Shell::ShellCommand
+{
+public:
+  TouchEntry(Shell &parent) :
+      ShellCommand(parent)
+  {
+  }
+
+  virtual const char *name() const
+  {
+    return "touch";
+  }
+
+  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+
+private:
+  result processArguments(unsigned int, const char * const *,
+      const char **) const;
 };
 //------------------------------------------------------------------------------
 #endif //LIBSHELL_COMMANDS_HPP_

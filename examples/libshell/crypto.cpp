@@ -73,8 +73,7 @@ result AbstractComputationCommand::compute(unsigned int count,
     //Find destination node
     Shell::joinPaths(context->pathBuffer, context->currentDir, fileName);
 
-    FsNode * const node = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
-        context->pathBuffer, nullptr));
+    FsNode * const node = followPath(context->pathBuffer);
 
     if (node == nullptr)
     {
@@ -82,38 +81,10 @@ result AbstractComputationCommand::compute(unsigned int count,
       break;
     }
 
-    //Check node type
-    fsNodeType type;
-
-    res = fsGet(node, FS_NODE_TYPE, &type);
-    if (res != E_OK)
-    {
-      owner.log("%s: %s: metadata reading failed", name(), context->pathBuffer);
-      fsFree(node);
-      break;
-    }
-    if (type != FS_TYPE_FILE)
-    {
-      res = E_ENTRY;
-      owner.log("%s: %s: wrong entry type", name(), context->pathBuffer);
-      fsFree(node);
-      break;
-    }
-
-    FsEntry * const entry = reinterpret_cast<FsEntry *>(fsOpen(node,
-        FS_ACCESS_READ));
-
-    fsFree(node);
-    if (entry == nullptr)
-    {
-      owner.log("%s: %s: opening failed", name(), context->pathBuffer);
-      break;
-    }
-
-    res = processEntry(entry, context, algorithm,
+    res = processEntry(node, context, algorithm,
         checkValue ? expectedValue : nullptr);
 
-    fsClose(entry);
+    fsNodeFree(node);
 
     if (res != E_OK)
       break;
@@ -147,24 +118,38 @@ result AbstractComputationCommand::processArguments(unsigned int count,
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result AbstractComputationCommand::processEntry(FsEntry *entry,
+result AbstractComputationCommand::processEntry(FsNode *node,
     Shell::ShellContext *context, ComputationAlgorithm *algorithm,
     const char *expectedValue) const
 {
-  uint32_t read = 0;
+  uint64_t read = 0;
+  uint64_t size;
+  uint32_t chunk;
   uint8_t buffer[CONFIG_SHELL_BUFFER];
   char computedValue[MAX_LENGTH];
   result res = E_OK;
 
   algorithm->reset();
 
-  while (!fsEnd(entry))
+  res = fsNodeLength(node, FS_NODE_DATA, &size);
+  if (res != E_OK)
+    return res;
+
+  while (read < size)
   {
-    const uint32_t chunk = fsRead(entry, buffer, sizeof(buffer));
+    res = fsNodeRead(node, FS_NODE_DATA, read, buffer, sizeof(buffer), &chunk);
+
+    if (res != E_OK)
+    {
+      owner.log("%s: %s: read error at %u", name(), context->pathBuffer, read);
+      res = E_INTERFACE;
+      break;
+    }
 
     if (!chunk)
     {
-      owner.log("%s: %s: read error at %u", name(), context->pathBuffer, read);
+      owner.log("%s: %s: invalid chunk length at %u", name(),
+          context->pathBuffer, read);
       res = E_ERROR;
       break;
     }

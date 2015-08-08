@@ -18,6 +18,117 @@ Shell::ShellCommand::ShellCommand(Shell &shell) :
 
 }
 //------------------------------------------------------------------------------
+FsNode *Shell::ShellCommand::followPath(const char *path) const
+{
+  FsNode *node = nullptr;
+
+  while (path && *path)
+    path = followNextPart(&node, path);
+
+  return path != nullptr ? node : nullptr;
+}
+//------------------------------------------------------------------------------
+const char *Shell::ShellCommand::followNextPart(FsNode **node,
+    const char *path) const
+{
+  char currentName[CONFIG_FILENAME_LENGTH];
+  char nextPart[CONFIG_FILENAME_LENGTH];
+
+  path = getChunk(nextPart, path);
+
+  if (!strlen(nextPart))
+  {
+    path = nullptr;
+  }
+  else if (!strcmp(nextPart, ".") || !strcmp(nextPart, ".."))
+  {
+    //Path contains forbidden directories
+    path = nullptr;
+  }
+  else
+  {
+    if (*node == nullptr)
+    {
+      if (nextPart[0] == '/')
+      {
+        *node = reinterpret_cast<FsNode *>(fsHandleRoot(owner.handle()));
+
+        if (*node == nullptr)
+          return nullptr;
+      }
+      else
+        return nullptr;
+    }
+    else
+    {
+      FsNode *child = reinterpret_cast<FsNode *>(fsNodeHead(*node));
+      enum result res;
+
+      fsNodeFree(*node);
+      if (child == nullptr)
+        return nullptr;
+
+      do
+      {
+        res = fsNodeRead(child, FS_NODE_NAME, 0, currentName,
+            sizeof(currentName), nullptr);
+
+        if (res != E_OK)
+        {
+          fsNodeFree(child);
+          return nullptr;
+        }
+
+        if (!strcmp(nextPart, currentName))
+          break;
+      }
+      while ((res = fsNodeNext(child)) == E_OK);
+
+      //Check whether the node is found
+      if (res != E_OK)
+      {
+        fsNodeFree(child);
+        path = nullptr;
+      }
+      else
+      {
+        *node = child;
+      }
+    }
+  }
+
+  return path;
+}
+//------------------------------------------------------------------------------
+//Output buffer length should be greater or equal to maximum name length
+const char *Shell::ShellCommand::getChunk(char *dst, const char *src)
+{
+  uint16_t counter = 0;
+
+  if (!*src)
+    return src;
+
+  if (*src == '/')
+  {
+    *dst++ = '/';
+    *dst = '\0';
+    return src + 1;
+  }
+
+  while (*src && counter++ < CONFIG_FILENAME_LENGTH - 1)
+  {
+    if (*src == '/')
+    {
+      ++src;
+      break;
+    }
+    *dst++ = *src++;
+  }
+  *dst = '\0';
+
+  return src;
+}
+//------------------------------------------------------------------------------
 const char *Shell::extractName(const char *path)
 {
   int length, pos;

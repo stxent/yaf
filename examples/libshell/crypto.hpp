@@ -47,7 +47,7 @@ private:
   const char * const *getNextEntry(unsigned int, const char * const *, bool *,
       char *) const;
   result processArguments(unsigned int, const char * const *) const;
-  result processEntry(FsEntry *, Shell::ShellContext *,
+  result processEntry(FsNode *, Shell::ShellContext *,
       ComputationAlgorithm *, const char *) const;
 };
 //------------------------------------------------------------------------------

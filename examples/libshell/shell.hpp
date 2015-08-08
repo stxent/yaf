@@ -93,6 +93,11 @@ public:
   protected:
     ShellCommand(Shell &);
 
+    //Helper functions
+    FsNode *followPath(const char *) const;
+    const char *followNextPart(FsNode **, const char *) const;
+    static const char *getChunk(char *dst, const char *src);
+
     Shell &owner;
   };
 

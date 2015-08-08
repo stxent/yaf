@@ -1,10 +1,11 @@
 /*
  * main.cpp
- * Copyright (C) 2012 xent
+ * Copyright (C) 2015 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -18,8 +19,7 @@
 
 extern "C"
 {
-#include <libyaf/fat32.h>
-#include <os/mutex.h>
+#include "libyaf/fat32.h"
 #include "shell/console.h"
 #include "shell/mmi.h"
 }
@@ -247,6 +247,8 @@ Interface *Application::initInterface(const char *file)
     cout << "No partitions found, selected raw partition at 0" << endl;
   }
 
+//   fat32Format(interface, 1, 2);
+
   return interface;
 }
 //------------------------------------------------------------------------------
@@ -258,8 +260,6 @@ FsHandle *Application::initHandle(Interface *interface)
   fsConf.interface = interface;
   //Unused when pools are disabled
   fsConf.nodes = 4;
-  fsConf.directories = 2;
-  fsConf.files = 2;
   //Unused when threading is disabled
   fsConf.threads = 2;
 
@@ -290,8 +290,9 @@ Shell *Application::initShell(Interface *console, FsHandle *handle)
   shell->append(CommandBuilder<ListEntries>());
   shell->append(CommandBuilder<MakeDirectory>());
   shell->append(CommandBuilder<RemoveDirectory>());
-  shell->append(CommandBuilder<RemoveEntry>());
+//   shell->append(CommandBuilder<RemoveEntry>());
   shell->append(CommandBuilder<Synchronize>());
+  shell->append(CommandBuilder<TouchEntry>());
 
   shell->append(CommandBuilder<ComputationCommand<Md5Hash>>());
 
@@ -310,6 +311,7 @@ int main(int argc, char *argv[])
 {
   const char *image = nullptr;
   const char *script = nullptr;
+  bool format = false;
   bool help = false;
 
   for (int i = 1; i < argc; ++i)
@@ -317,6 +319,11 @@ int main(int argc, char *argv[])
     if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h"))
     {
       help = true;
+      continue;
+    }
+    if (!strcmp(argv[i], "--format") || !strcmp(argv[i], "-f"))
+    {
+      format = true;
       continue;
     }
     if (!strcmp(argv[i], "--script") || !strcmp(argv[i], "-s"))

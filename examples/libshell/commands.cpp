@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <bits.h>
 #include "libshell/commands.hpp"
 
 extern "C"
@@ -20,186 +21,128 @@ extern "C"
 //------------------------------------------------------------------------------
 result DataProcessing::copyContent(FsNode *sourceNode, FsNode *destinationNode,
     unsigned int blockSize, unsigned int blockCount, unsigned int seek,
-    unsigned int skip, bool overwrite) const
+    unsigned int skip) const
 {
+  uint64_t sourcePosition = static_cast<uint64_t>(blockSize) * skip;
+  uint64_t destinationPosition = static_cast<uint64_t>(blockSize)
+      * seek;
+  uint32_t blocks = 0;
+  char buffer[CONFIG_SHELL_BUFFER];
   result res = E_OK;
 
-  //Open file entries
-  FsEntry * const sourceFile = reinterpret_cast<FsEntry *>(fsOpen(sourceNode,
-      FS_ACCESS_READ));
-
-  if (sourceFile == nullptr)
-  {
-    owner.log("%s: source file opening error", name());
-    return E_ENTRY;
-  }
-
-  if (overwrite)
-  {
-    if ((res = fsTruncate(destinationNode)) != E_OK)
-      return res;
-  }
-
-  FsEntry * const destinationFile =
-      reinterpret_cast<FsEntry *>(fsOpen(destinationNode, FS_ACCESS_WRITE));
-
-  if (destinationFile == nullptr)
-  {
-    fsClose(sourceFile);
-    owner.log("%s: destination file opening error", name());
-    return E_ENTRY;
-  }
-
-  if (!overwrite)
-  {
-    res = fsSeek(destinationFile, static_cast<uint64_t>(blockSize)
-        * static_cast<uint64_t>(seek), FS_SEEK_SET);
-    if (res != E_OK)
-      return res;
-  }
-  if (skip)
-  {
-    res = fsSeek(sourceFile, static_cast<uint64_t>(blockSize)
-        * static_cast<uint64_t>(skip), FS_SEEK_SET);
-    if (res != E_OK)
-      return res;
-  }
-
-  uint32_t read = 0, written = 0, blocks = 0;
-  char buffer[CONFIG_SHELL_BUFFER];
-
   //Copy file content
-  while (!fsEnd(sourceFile))
+  while (!blockCount || blocks++ < blockCount)
   {
-    if (blockCount && blocks >= blockCount)
-      break;
-    ++blocks;
+    uint32_t read, written;
 
-    const uint32_t inCount = fsRead(sourceFile, buffer, blockSize);
-
-    if (!inCount)
+    res = fsNodeRead(sourceNode, FS_NODE_DATA, sourcePosition, buffer,
+        blockSize, &read);
+    if (res == E_EMPTY)
     {
-      owner.log("%s: read error at %u", name(), read);
-      res = E_ERROR;
+      res = E_OK;
       break;
     }
-    read += inCount;
-
-    const uint32_t outCount = fsWrite(destinationFile, buffer, inCount);
-
-    if (inCount != outCount)
+    if (res != E_OK)
     {
-      owner.log("%s: write error at %u", name(), written);
-      res = E_ERROR;
+      owner.log("%s: read error at %u", name(), sourcePosition);
       break;
     }
-    written += inCount;
+    sourcePosition += read;
+
+    res = fsNodeWrite(destinationNode, FS_NODE_DATA, destinationPosition,
+        buffer, read, &written);
+    if (res != E_OK || read != written)
+    {
+      owner.log("%s: write error at %u", name(), destinationPosition);
+      if (res == E_OK)
+        res = E_ERROR;
+      break;
+    }
+    destinationPosition += written;
   }
-
-  fsClose(sourceFile);
-  fsClose(destinationFile);
 
   return res;
 }
 //------------------------------------------------------------------------------
 result DataProcessing::prepareNodes(Shell::ShellContext *context,
     FsNode **destination, FsNode **source, const char *destinationPath,
-    const char *sourcePath)
+    const char *sourcePath, bool overwrite)
 {
-  FsMetadata info;
-  fsNodeType type;
+  FsNode *destinationNode;
+  FsNode *sourceNode;
   result res;
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, destinationPath);
 
-  const char * const namePosition = Shell::extractName(context->pathBuffer);
-
-  if (namePosition == nullptr)
-    return E_VALUE; //Node name not found
-
-  //Fill target entry metadata
-  info.type = FS_TYPE_FILE;
-  strcpy(info.name, namePosition);
-
-  //Remove the file name from the destination path
-  context->pathBuffer[namePosition - context->pathBuffer] = '\0';
-
-  //Find destination directory where entry should be placed
-  FsNode * const location = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
-      context->pathBuffer, nullptr));
-
-  if (location == nullptr)
+  destinationNode = followPath(context->pathBuffer);
+  if (destinationNode != nullptr)
   {
-    owner.log("%s: %s: target directory not found", name(),
-        context->pathBuffer);
-    return E_ENTRY;
-  }
-  //Check target directory entry type
-  res = fsGet(location, FS_NODE_TYPE, &type);
-  if (res != E_OK || type != FS_TYPE_DIR)
-  {
-    fsFree(location);
-    owner.log("%s: %s: target directory type error", name(),
-        context->pathBuffer);
-    return res == E_OK ? E_ENTRY : res;
-  }
-
-  //Find source entry
-  Shell::joinPaths(context->pathBuffer, context->currentDir, sourcePath);
-  *source = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
-      context->pathBuffer, nullptr));
-  if (*source == nullptr)
-  {
-    fsFree(location);
-    owner.log("%s: %s: no such file", name(), context->pathBuffer);
-    return E_ENTRY;
-  }
-  //Check source entry type
-  res = fsGet(*source, FS_NODE_TYPE, &type);
-  if (res != E_OK || type != FS_TYPE_FILE)
-  {
-    fsFree(location);
-    fsFree(*source);
-    owner.log("%s: %s: source entry type error", name(), context->pathBuffer);
-    return res == E_OK ? E_ENTRY : res;
-  }
-
-  //Check destination entry existence
-  *destination = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
-      info.name, location));
-  if (*destination)
-  {
-    //Entry already exists
-    fsFree(*destination);
-    fsFree(location);
-    fsFree(*source);
-
-    owner.log("%s: %s: destination entry already exists", name(),
-        destinationPath);
+    fsNodeFree(destinationNode);
+    owner.log("cp: %s: entry already exists", context->pathBuffer);
     return E_EXIST;
   }
-  else
-  {
-    //Clone node descriptor
-    *destination = reinterpret_cast<FsNode *>(fsClone(location));
-    if (*destination == nullptr)
-    {
-      fsFree(location);
-      fsFree(*source);
-      owner.log("%s: node allocation failed", name());
-      return E_ERROR;
-    }
 
-    //Create new node
-    res = fsMake(location, &info, *destination);
-    fsFree(location);
-    if (res != E_OK)
-    {
-      owner.log("%s: directory creation failed", name());
-      return res;
-    }
+  //Find destination directory where named entry should be placed
+  const char * const namePosition = Shell::extractName(destinationPath);
+
+  if (!namePosition)
+    return E_VALUE; //No entry name found
+
+  //Remove the directory name from the path
+  const uint32_t nameOffset = strlen(context->pathBuffer) -
+      (strlen(destinationPath) - (namePosition - destinationPath));
+  context->pathBuffer[nameOffset] = '\0';
+
+  FsNode * const root = followPath(context->pathBuffer);
+
+  if (root == nullptr)
+  {
+    owner.log("cp: %s: target directory not found", context->pathBuffer);
+    return E_ENTRY;
   }
 
+  const FsAttributeDescriptor descriptors[] = {
+      //Name descriptor
+      {
+          namePosition,
+          static_cast<uint32_t>(strlen(namePosition)) + 1,
+          FS_NODE_NAME
+      },
+      //Payload descriptor
+      {
+          nullptr,
+          0,
+          FS_NODE_DATA
+      }
+  };
+
+  res = fsNodeCreate(root, descriptors, ARRAY_SIZE(descriptors));
+  fsNodeFree(root);
+  if (res != E_OK)
+  {
+    owner.log("cp: %s: creation failed", namePosition);
+    return res;
+  }
+
+  Shell::joinPaths(context->pathBuffer, context->currentDir, destinationPath);
+  destinationNode = followPath(context->pathBuffer);
+  if (destinationNode == nullptr)
+  {
+    owner.log("cp: %s: node not found", context->pathBuffer);
+    return E_ENTRY;
+  }
+
+  Shell::joinPaths(context->pathBuffer, context->currentDir, sourcePath);
+  sourceNode = followPath(context->pathBuffer);
+  if (sourceNode == nullptr)
+  {
+    fsNodeFree(destinationNode);
+    owner.log("cp: %s: node not found", context->pathBuffer);
+    return E_ENTRY;
+  }
+
+  *source = sourceNode;
+  *destination = destinationNode;
   return E_OK;
 }
 //------------------------------------------------------------------------------
@@ -238,12 +181,11 @@ result ChangeDirectory::run(unsigned int count, const char * const *arguments,
   result res;
 
   if ((res = processArguments(count, arguments, &path)) != E_OK)
-    return res;
+    return res; //FIXME E_BUSY
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, path);
 
-  FsNode * const node = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
-      context->pathBuffer, nullptr));
+  FsNode * const node = followPath(context->pathBuffer);
 
   if (node == nullptr)
   {
@@ -251,19 +193,37 @@ result ChangeDirectory::run(unsigned int count, const char * const *arguments,
     return E_ENTRY;
   }
 
-  FsEntry * const dir = reinterpret_cast<FsEntry *>(fsOpen(node,
-      FS_ACCESS_READ));
-
-  fsFree(node);
-  if (dir == nullptr)
+  //Check whether the node has any descendants
+  if (fsNodeLength(node, FS_NODE_DATA, nullptr) == E_OK)
   {
-    owner.log("cd: %s: access denied", context->pathBuffer);
-    return E_ACCESS;
+    owner.log("cd: %s: not a directory", context->pathBuffer);
+    fsNodeFree(node);
+    return E_ENTRY;
   }
 
-  fsClose(dir);
-  strcpy(context->currentDir, context->pathBuffer);
+  //Check access rights
+  access_t access;
 
+  res = fsNodeRead(node, FS_NODE_ACCESS, 0, &access, sizeof(access), nullptr);
+  if (res == E_OK)
+  {
+    if (!(access & FS_ACCESS_READ))
+    {
+      owner.log("cd: %s: access denied", context->pathBuffer);
+      fsNodeFree(node);
+      return E_ACCESS;
+    }
+  }
+  else
+  {
+    owner.log("cd: %s: error reading attributes", context->pathBuffer);
+    fsNodeFree(node);
+    return E_ERROR;
+  }
+
+  fsNodeFree(node);
+
+  strcpy(context->currentDir, context->pathBuffer);
   return E_OK;
 }
 //------------------------------------------------------------------------------
@@ -326,14 +286,14 @@ result CopyEntry::run(unsigned int count, const char * const *arguments,
   FsNode *destination = nullptr, *source = nullptr;
 
   res = prepareNodes(context, &destination, &source, destinationPath,
-      sourcePath);
+      sourcePath, true);
   if (res != E_OK)
     return res;
 
-  res = copyContent(source, destination, CONFIG_SHELL_BUFFER, 0, 0, 0, true);
+  res = copyContent(source, destination, CONFIG_SHELL_BUFFER, 0, 0, 0);
 
-  fsFree(destination);
-  fsFree(source);
+  fsNodeFree(destination);
+  fsNodeFree(source);
 
   return res;
 }
@@ -464,15 +424,16 @@ result DirectData::run(unsigned int count, const char * const *arguments,
 
   FsNode *destination = nullptr, *source = nullptr;
 
-  res = prepareNodes(context, &destination, &source, parsed.out, parsed.in);
+  res = prepareNodes(context, &destination, &source, parsed.out, parsed.in,
+      false);
   if (res != E_OK)
     return res;
 
   res = copyContent(source, destination, parsed.block, parsed.count,
-      parsed.seek, parsed.skip, false);
+      parsed.seek, parsed.skip);
 
-  fsFree(destination);
-  fsFree(source);
+  fsNodeFree(destination);
+  fsNodeFree(source);
 
   return res;
 }
@@ -542,14 +503,14 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
 
   if (argumentError)
   {
-    owner.log("dd: argument processing error");
+    owner.log("ls: argument processing error");
     return E_VALUE;
   }
 
   if (help)
   {
     owner.log("Usage: ls [OPTION]... [DIRECTORY]...");
-    owner.log("  -l                    show index of each entry");
+    owner.log("  -i                    show index of each entry");
     owner.log("  -l                    show detailed information");
     owner.log("  --help                print help message");
     owner.log("  --filter NAME         filter entries by NAME substring");
@@ -559,96 +520,108 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, path);
 
-  FsNode * const node = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
-      context->pathBuffer, nullptr));
+  FsNode * const parentNode = followPath(context->pathBuffer);
 
-  if (node == nullptr)
+  if (parentNode == nullptr)
   {
     owner.log("ls: %s: no such directory", context->pathBuffer);
     return E_ENTRY;
   }
 
-  FsEntry *dir = reinterpret_cast<FsEntry *>(fsOpen(node, FS_ACCESS_READ));
+  FsNode *child = reinterpret_cast<FsNode *>(fsNodeHead(parentNode));
 
-  if (dir == nullptr)
+  fsNodeFree(parentNode);
+  if (child == nullptr)
   {
-    owner.log("ls: %s: directory opening failed", context->pathBuffer);
-    return E_DEVICE;
+    owner.log("ls: %s: not a directory", context->pathBuffer);
+    return E_ENTRY;
   }
 
-  FsMetadata info;
-  uint64_t previousIndex = fsTell(dir);
+  uint64_t nodeId;
+  uint64_t nodeSize;
+  time64_t nodeTime;
+  access_t nodeAccess;
+  char nodeName[CONFIG_FILENAME_LENGTH];
+  bool isDirectory;
+
   int entries = 0;
   result res;
 
-  //Previously allocated node is reused
-  while ((res = fsFetch(dir, node)) == E_OK)
+  do
   {
-    if (fsEnd(dir))
+    res = fsNodeRead(child, FS_NODE_NAME, 0, nodeName, sizeof(nodeName),
+        nullptr);
+    if (res != E_OK)
     {
-      owner.log("ls: unexpected end of directory");
+      owner.log("ls: error reading name attribute", context->pathBuffer);
+      res = E_ERROR;
       break;
     }
 
-    if ((res = fsGet(node, FS_NODE_METADATA, &info)) != E_OK)
-      break;
-
-    if (filter && !strstr(info.name, filter))
+    if (filter && !strstr(nodeName, filter))
       continue;
 
-    time64_t atime = 0;
-    uint64_t size = 0;
-    access_t access = 0;
-
-    //Try to get update time
-    fsGet(node, FS_NODE_TIME, &atime);
-
-    if ((res = fsGet(node, FS_NODE_SIZE, &size)) != E_OK)
+    res = fsNodeRead(child, FS_NODE_ACCESS, 0, &nodeAccess, sizeof(nodeAccess),
+        nullptr);
+    if (res != E_OK)
+    {
+      owner.log("ls: %s: error reading access attribute", nodeName);
+      res = E_ERROR;
       break;
+    }
 
-    if ((res = fsGet(node, FS_NODE_ACCESS, &access)) != E_OK)
-      break;
+    res = fsNodeRead(child, FS_NODE_ID, 0, &nodeId, sizeof(nodeId), nullptr);
+    if (res != E_OK)
+      nodeId = 0;
+
+    res = fsNodeLength(child, FS_NODE_DATA, &nodeSize);
+    if (res != E_OK)
+      nodeSize = 0;
+    isDirectory = res == E_INVALID;
+
+    res = fsNodeRead(child, FS_NODE_TIME, 0, &nodeTime, sizeof(nodeTime),
+        nullptr);
+    if (res != E_OK)
+      nodeTime = 0;
 
     if (verbose)
     {
       //Access
       char accessStr[4];
 
-      accessStr[0] = (info.type == FS_TYPE_DIR) ? 'd' : '-';
-      accessStr[1] = access & FS_ACCESS_READ ? 'r' : '-';
-      accessStr[2] = access & FS_ACCESS_WRITE ? 'w' : '-';
+      accessStr[0] = isDirectory ? 'd' : '-';
+      accessStr[1] = nodeAccess & FS_ACCESS_READ ? 'r' : '-';
+      accessStr[2] = nodeAccess & FS_ACCESS_WRITE ? 'w' : '-';
       accessStr[3] = '\0';
 
       //Date and time
       char timeStr[24];
-      time_t standardTime = static_cast<time_t>(atime);
+      time_t standardTime = static_cast<time_t>(nodeTime);
 
       strftime(timeStr, 24, "%Y-%m-%d %H:%M:%S", gmtime(&standardTime));
 
       if (showIndex)
       {
         //Index number of the entry
-        owner.log("%12lX %s %10lu %s %s", previousIndex, accessStr, size,
-            timeStr, info.name);
+        owner.log("%12lX %s %10lu %s %s", nodeId, accessStr, nodeSize,
+            timeStr, nodeName);
       }
       else
       {
-        owner.log("%s %10lu %s %s", accessStr, size, timeStr, info.name);
+        owner.log("%s %10lu %s %s", accessStr, nodeSize, timeStr, nodeName);
       }
     }
     else
     {
-      owner.log(info.name);
+      owner.log(nodeName);
     }
-
-    previousIndex = fsTell(dir);
     ++entries;
   }
+  while ((res = fsNodeNext(child)) == E_OK);
 
-  fsClose(dir);
-  fsFree(node);
+  fsNodeFree(child);
 
-  if (res != E_ENTRY)
+  if (res != E_OK && res != E_ENTRY)
     return res;
 
   if (verifyCount != -1 && entries != verifyCount)
@@ -693,76 +666,53 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments,
     return E_VALUE;
   }
 
-  //Check for target entry existence
   Shell::joinPaths(context->pathBuffer, context->currentDir, target);
 
-  FsNode *destinationNode = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
-      context->pathBuffer, nullptr));
-
+  FsNode * const destinationNode = followPath(context->pathBuffer);
   if (destinationNode != nullptr)
   {
-    fsFree(destinationNode);
+    fsNodeFree(destinationNode);
     owner.log("mkdir: %s: entry already exists", context->pathBuffer);
     return E_EXIST;
   }
 
-  FsMetadata info;
-
   //Find destination directory where named entry should be placed
-  const char *namePosition = Shell::extractName(context->pathBuffer);
+  const char * const namePosition = Shell::extractName(target);
 
   if (!namePosition)
     return E_VALUE; //No entry name found
 
-  info.type = FS_TYPE_DIR;
-  strcpy(info.name, namePosition);
-
   //Remove the directory name from the path
-  context->pathBuffer[namePosition - context->pathBuffer] = '\0';
+  const uint32_t nameOffset = strlen(context->pathBuffer) -
+      (strlen(target) - (namePosition - target));
+  context->pathBuffer[nameOffset] = '\0';
 
-  FsNode * const location = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
-      context->pathBuffer, nullptr));
+  FsNode * const root = followPath(context->pathBuffer);
 
-  if (location == nullptr)
+  if (root == nullptr)
   {
     owner.log("mkdir: %s: target directory not found", context->pathBuffer);
     return E_ENTRY;
   }
-  else
-  {
-    fsNodeType type;
 
-    if ((res = fsGet(location, FS_NODE_TYPE, &type)) != E_OK)
-    {
-      fsFree(location);
-      owner.log("mkdir: %s: metadata reading failed", context->pathBuffer);
-      return res;
-    }
-    if (type != FS_TYPE_DIR)
-    {
-      fsFree(location);
-      owner.log("mkdir: %s: wrong entry type", context->pathBuffer);
-      return E_ENTRY;
-    }
-  }
+  const FsAttributeDescriptor descriptors[] = {
+      //Name descriptor
+      {
+          namePosition,
+          static_cast<uint32_t>(strlen(namePosition)) + 1,
+          FS_NODE_NAME
+      }
+  };
 
-  //Clone node to allocate node from the same handle
-  destinationNode = reinterpret_cast<FsNode *>(fsClone(location));
-  if (destinationNode == nullptr)
-  {
-    fsFree(location);
-    owner.log("mkdir: node allocation failed");
-    return E_MEMORY;
-  }
-
-  res = fsMake(location, &info, destinationNode);
-  fsFree(location);
-  fsFree(destinationNode);
-
+  res = fsNodeCreate(root, descriptors, ARRAY_SIZE(descriptors));
+  fsNodeFree(root);
   if (res != E_OK)
-    owner.log("mkdir: node creation failed");
+  {
+    owner.log("mkdir: %s: creation failed", namePosition);
+    return res;
+  }
 
-  return res;
+  return E_OK;
 }
 //------------------------------------------------------------------------------
 result RemoveDirectory::run(unsigned int count, const char * const *arguments,
@@ -794,8 +744,7 @@ result RemoveDirectory::run(unsigned int count, const char * const *arguments,
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, target);
 
-  FsNode * const node = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
-      context->pathBuffer, nullptr));
+  FsNode * const node = followPath(context->pathBuffer);
 
   if (node == nullptr)
   {
@@ -803,38 +752,230 @@ result RemoveDirectory::run(unsigned int count, const char * const *arguments,
     return E_ENTRY;
   }
 
-  fsNodeType type;
-  result res;
-
-  if ((res = fsGet(node, FS_NODE_TYPE, &type)) != E_OK
-      || type != FS_TYPE_DIR)
+  //Check whether the node has any descendants
+  if (fsNodeLength(node, FS_NODE_DATA, nullptr) == E_OK)
   {
-    owner.log("rmdir: %s: wrong entry type", context->pathBuffer);
-    goto free_node;
+    owner.log("rmdir: %s: not a directory", context->pathBuffer);
+    fsNodeFree(node);
+    return E_ENTRY;
   }
 
-  if ((res = fsTruncate(node)) != E_OK)
+  //Find root directory
+  const char * const namePosition = Shell::extractName(target);
+
+  if (!namePosition)
+    return E_VALUE; //No entry name found
+
+  //Remove the directory name from the path
+  const uint32_t nameOffset = strlen(context->pathBuffer) -
+      (strlen(target) - (namePosition - target));
+  context->pathBuffer[nameOffset] = '\0';
+
+  FsNode * const root = followPath(context->pathBuffer);
+
+  if (root == nullptr)
   {
-    if (res == E_EXIST)
-      owner.log("rmdir: %s: directory not empty", context->pathBuffer);
-    else
-      owner.log("rmdir: %s: directory deletion failed", context->pathBuffer);
-    goto free_node;
+    owner.log("rmdir: %s: no such entry", context->pathBuffer);
+    fsNodeFree(node);
+    return E_ENTRY;
   }
 
-  if ((res = fsUnlink(node)) != E_OK)
+  const enum result res = fsNodeRemove(root, node);
+
+  fsNodeFree(root);
+  fsNodeFree(node);
+
+  if (res != E_OK)
   {
-    owner.log("rmdir: %s: unlinking failed", context->pathBuffer);
-    goto free_node;
+    owner.log("rmdir: %s/%s: directory deletion failed", context->pathBuffer,
+        context->pathBuffer + nameOffset + 1);
   }
 
-free_node:
-  fsFree(node);
   return res;
 }
 //------------------------------------------------------------------------------
-result RemoveEntry::processArguments(unsigned int count,
-    const char * const *arguments, bool *recursive, const char **targets) const
+//result RemoveEntry::processArguments(unsigned int count,
+//    const char * const *arguments, bool *recursive, const char **targets) const
+//{
+//  unsigned int entries = 0;
+//  bool help = false;
+//
+//  for (unsigned int i = 0; i < count; ++i)
+//  {
+//    if (!strcmp(arguments[i], "--help"))
+//    {
+//      help = true;
+//      continue;
+//    }
+//    if (!strcmp(arguments[i], "-r"))
+//    {
+//      *recursive = true;
+//      continue;
+//    }
+//    targets[entries++] = arguments[i];
+//  }
+//
+//  if (help)
+//  {
+//    owner.log("Usage: rm [OPTION]... ENTRY");
+//    owner.log("  --help  print help message");
+//    owner.log("  -r      remove directories and their content");
+//    return E_BUSY;
+//  }
+//
+//  return !entries ? E_ENTRY : E_OK;
+//}
+////------------------------------------------------------------------------------
+//result RemoveEntry::removeRecursively(FsNode *node,
+//    Shell::ShellContext *context) const
+//{
+//  FsEntry *dir = reinterpret_cast<FsEntry *>(fsOpen(node, FS_ACCESS_READ));
+//
+//  if (dir == nullptr)
+//  {
+//    owner.log("rm: directory opening failed");
+//    return E_DEVICE;
+//  }
+//
+//  FsNode *iterator;
+//  result res;
+//
+//  if ((iterator = reinterpret_cast<FsNode *>(fsClone(node))) == nullptr)
+//  {
+//    fsClose(dir);
+//
+//    owner.log("rm: node allocation failed");
+//    return E_MEMORY;
+//  }
+//
+//  //Previously allocated node is reused
+//  while ((res = fsFetch(dir, iterator)) == E_OK)
+//  {
+//    if (fsEnd(dir))
+//    {
+//      owner.log("rm: unexpected end of directory");
+//      break;
+//    }
+//
+//    fsNodeType type;
+//
+//    if ((res = fsGet(node, FS_NODE_TYPE, &type)) != E_OK)
+//    {
+//      owner.log("rm: wrong entry");
+//      goto free_node;
+//    }
+//
+//    if (type == FS_TYPE_DIR)
+//    {
+//      if ((res = removeRecursively(iterator, context)) != E_OK)
+//        goto free_node;
+//    }
+//
+//    if ((res = fsTruncate(iterator)) != E_OK)
+//    {
+//      owner.log("rm: payload deletion failed");
+//      goto free_node;
+//    }
+//
+//    if ((res = fsUnlink(iterator)) != E_OK)
+//    {
+//      owner.log("rm: unlinking failed");
+//      goto free_node;
+//    }
+//  }
+//
+//  res = E_OK;
+//
+//  free_node:
+//  fsFree(iterator);
+//  fsClose(dir);
+//
+//  return res;
+//}
+////------------------------------------------------------------------------------
+//result RemoveEntry::run(unsigned int count, const char * const *arguments,
+//    Shell::ShellContext *context)
+//{
+//  const char *targets[Shell::ARGUMENT_COUNT - 1] = {nullptr};
+//  FsNode *node;
+//  result res;
+//  bool recursive = false;
+//
+//  if ((res = processArguments(count, arguments, &recursive, targets)) != E_OK)
+//    return res;
+//
+//  for (unsigned int i = 0; i < Shell::ARGUMENT_COUNT - 1; ++i)
+//  {
+//    if (targets[i] == nullptr)
+//      break;
+//
+//    Shell::joinPaths(context->pathBuffer, context->currentDir, targets[i]);
+//    node = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
+//        context->pathBuffer, nullptr));
+//
+//    if (node == nullptr)
+//    {
+//      owner.log("rm: %s: no such entry", context->pathBuffer);
+//      res = E_ENTRY;
+//      break;
+//    }
+//
+//    fsNodeType type;
+//
+//    if ((res = fsGet(node, FS_NODE_TYPE, &type)) != E_OK)
+//    {
+//      owner.log("rm: %s: wrong entry", context->pathBuffer);
+//      fsFree(node);
+//      break;
+//    }
+//
+//    if (type == FS_TYPE_DIR)
+//    {
+//      if (!recursive)
+//      {
+//        owner.log("rm: %s: directory ignored", context->pathBuffer);
+//        res = E_INVALID;
+//      }
+//      else if ((res = removeRecursively(node, context)) != E_OK)
+//      {
+//        owner.log("rm: %s: recursive deletion failed", context->pathBuffer);
+//      }
+//
+//      if (res != E_OK)
+//      {
+//        fsFree(node);
+//        break;
+//      }
+//    }
+//
+//    if ((res = fsTruncate(node)) != E_OK)
+//    {
+//      owner.log("rm: %s: payload deletion failed", context->pathBuffer);
+//    }
+//    else if ((res = fsUnlink(node)) != E_OK)
+//    {
+//      owner.log("rm: %s: unlinking failed", context->pathBuffer);
+//    }
+//
+//    fsFree(node);
+//
+//    if (res != E_OK)
+//      break;
+//  }
+//
+//  return res;
+//}
+//------------------------------------------------------------------------------
+result Synchronize::run(unsigned int, const char * const *,
+    Shell::ShellContext *)
+{
+  result res = fsHandleSync(owner.handle());
+
+  return res;
+}
+//------------------------------------------------------------------------------
+result TouchEntry::processArguments(unsigned int count,
+    const char * const *arguments, const char **targets) const
 {
   unsigned int entries = 0;
   bool help = false;
@@ -846,101 +987,26 @@ result RemoveEntry::processArguments(unsigned int count,
       help = true;
       continue;
     }
-    if (!strcmp(arguments[i], "-r"))
-    {
-      *recursive = true;
-      continue;
-    }
     targets[entries++] = arguments[i];
   }
 
   if (help)
   {
-    owner.log("Usage: rm [OPTION]... ENTRY");
+    owner.log("Usage: touch ENTRY");
     owner.log("  --help  print help message");
-    owner.log("  -r      remove directories and their content");
     return E_BUSY;
   }
 
   return !entries ? E_ENTRY : E_OK;
 }
 //------------------------------------------------------------------------------
-result RemoveEntry::removeRecursively(FsNode *node,
-    Shell::ShellContext *context) const
-{
-  FsEntry *dir = reinterpret_cast<FsEntry *>(fsOpen(node, FS_ACCESS_READ));
-
-  if (dir == nullptr)
-  {
-    owner.log("rm: directory opening failed");
-    return E_DEVICE;
-  }
-
-  FsNode *iterator;
-  result res;
-
-  if ((iterator = reinterpret_cast<FsNode *>(fsClone(node))) == nullptr)
-  {
-    fsClose(dir);
-
-    owner.log("rm: node allocation failed");
-    return E_MEMORY;
-  }
-
-  //Previously allocated node is reused
-  while ((res = fsFetch(dir, iterator)) == E_OK)
-  {
-    if (fsEnd(dir))
-    {
-      owner.log("rm: unexpected end of directory");
-      break;
-    }
-
-    fsNodeType type;
-
-    if ((res = fsGet(node, FS_NODE_TYPE, &type)) != E_OK)
-    {
-      owner.log("rm: wrong entry");
-      goto free_node;
-    }
-
-    if (type == FS_TYPE_DIR)
-    {
-      if ((res = removeRecursively(iterator, context)) != E_OK)
-        goto free_node;
-    }
-
-    if ((res = fsTruncate(iterator)) != E_OK)
-    {
-      owner.log("rm: payload deletion failed");
-      goto free_node;
-    }
-
-    if ((res = fsUnlink(iterator)) != E_OK)
-    {
-      owner.log("rm: unlinking failed");
-      goto free_node;
-    }
-  }
-
-  res = E_OK;
-
-free_node:
-  fsFree(iterator);
-  fsClose(dir);
-
-  return res;
-}
-//------------------------------------------------------------------------------
-result RemoveEntry::run(unsigned int count, const char * const *arguments,
+result TouchEntry::run(unsigned int count, const char * const *arguments,
     Shell::ShellContext *context)
 {
   const char *targets[Shell::ARGUMENT_COUNT - 1] = {nullptr};
-  FsNode *node;
   result res;
-  bool recursive = false;
 
-  if ((res = processArguments(count, arguments, &recursive, targets)) != E_OK)
+  if ((res = processArguments(count, arguments, targets)) != E_OK)
     return res;
 
   for (unsigned int i = 0; i < Shell::ARGUMENT_COUNT - 1; ++i)
@@ -949,66 +1015,63 @@ result RemoveEntry::run(unsigned int count, const char * const *arguments,
       break;
 
     Shell::joinPaths(context->pathBuffer, context->currentDir, targets[i]);
-    node = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
-        context->pathBuffer, nullptr));
 
-    if (node == nullptr)
+    FsNode * const destinationNode = followPath(context->pathBuffer);
+    if (destinationNode != nullptr)
     {
-      owner.log("rm: %s: no such entry", context->pathBuffer);
+      fsNodeFree(destinationNode);
+      owner.log("touch: %s: entry already exists", context->pathBuffer);
+      res = E_EXIST;
+      break;
+    }
+
+    //Find destination directory where named entry should be placed
+    const char * const namePosition = Shell::extractName(targets[i]);
+
+    if (!namePosition)
+    {
+      //No entry name found
+      res = E_VALUE;
+      break;
+    }
+
+    //Remove the directory name from the path
+    const uint32_t nameOffset = strlen(context->pathBuffer) -
+        (strlen(targets[i]) - (namePosition - targets[i]));
+    context->pathBuffer[nameOffset] = '\0';
+
+    FsNode * const root = followPath(context->pathBuffer);
+
+    if (root == nullptr)
+    {
+      owner.log("touch: %s: target directory not found", context->pathBuffer);
       res = E_ENTRY;
       break;
     }
 
-    fsNodeType type;
+    const FsAttributeDescriptor descriptors[] = {
+        //Name descriptor
+        {
+            namePosition,
+            static_cast<uint32_t>(strlen(namePosition)) + 1,
+            FS_NODE_NAME
+        },
+        //Payload descriptor
+        {
+            nullptr,
+            0,
+            FS_NODE_DATA
+        }
+    };
 
-    if ((res = fsGet(node, FS_NODE_TYPE, &type)) != E_OK)
-    {
-      owner.log("rm: %s: wrong entry", context->pathBuffer);
-      fsFree(node);
-      break;
-    }
-
-    if (type == FS_TYPE_DIR)
-    {
-      if (!recursive)
-      {
-        owner.log("rm: %s: directory ignored", context->pathBuffer);
-        res = E_INVALID;
-      }
-      else if ((res = removeRecursively(node, context)) != E_OK)
-      {
-        owner.log("rm: %s: recursive deletion failed", context->pathBuffer);
-      }
-
-      if (res != E_OK)
-      {
-        fsFree(node);
-        break;
-      }
-    }
-
-    if ((res = fsTruncate(node)) != E_OK)
-    {
-      owner.log("rm: %s: payload deletion failed", context->pathBuffer);
-    }
-    else if ((res = fsUnlink(node)) != E_OK)
-    {
-      owner.log("rm: %s: unlinking failed", context->pathBuffer);
-    }
-
-    fsFree(node);
-
+    res = fsNodeCreate(root, descriptors, ARRAY_SIZE(descriptors));
+    fsNodeFree(root);
     if (res != E_OK)
+    {
+      owner.log("touch: %s: creation failed", namePosition);
       break;
+    }
   }
-
-  return res;
-}
-//------------------------------------------------------------------------------
-result Synchronize::run(unsigned int, const char * const *,
-    Shell::ShellContext *)
-{
-  result res = fsSync(owner.handle());
 
   return res;
 }
