@@ -37,8 +37,6 @@
 /*----------------------------------------------------------------------------*/
 /* Default pool sizes */
 #define DEFAULT_NODE_COUNT      4
-#define DEFAULT_DIR_COUNT       2
-#define DEFAULT_FILE_COUNT      2
 #define DEFAULT_THREAD_COUNT    1
 /*----------------------------------------------------------------------------*/
 #define FLAG_RO                 BIT(0) /* Read only */
@@ -90,6 +88,16 @@ struct Pool
   struct Queue queue;
 };
 /*----------------------------------------------------------------------------*/
+enum fatNodeType
+{
+  /** Unknown type. */
+  FAT_TYPE_NONE,
+  /** Directory entry. */
+  FAT_TYPE_DIR,
+  /** Regular file. */
+  FAT_TYPE_FILE
+};
+/*----------------------------------------------------------------------------*/
 struct FatHandle
 {
   struct FsHandle parent;
@@ -101,12 +109,8 @@ struct FatHandle
   struct RtClock *clock;
 #endif
 
-  struct Pool metadataPool;
-
 #ifdef CONFIG_FAT_POOLS
   struct Pool nodePool;
-  struct Pool dirPool;
-  struct Pool filePool;
 #endif
 
 #ifdef CONFIG_FAT_THREADS
@@ -154,71 +158,33 @@ struct FatNode
 
   struct FsHandle *handle;
 
-  /* Directory cluster where the entry is located */
-  uint32_t cluster;
-  /* First cluster of the entry */
-  uint32_t payload;
+  /* Parent cluster */
+  uint32_t parentCluster;
+  /* Position in the parent cluster */
+  uint16_t parentIndex;
 #ifdef CONFIG_FAT_UNICODE
   /* Directory cluster of the first name entry */
   uint32_t nameCluster;
   /* First name entry position in the parent cluster */
   uint16_t nameIndex;
 #endif
-  /* Entry position in the parent cluster */
-  uint16_t index;
+
+  /* First cluster of the payload */
+  uint32_t payloadCluster;
+  /* File size */
+  uint32_t payloadSize;
+  /* Length of the node name converted to UTF-8 */
+  uint16_t nameLength;
+
+  /* Cached value of the current cluster for fast access */
+  uint32_t currentCluster;
+  /* Cached value of the position in the payload */
+  uint32_t payloadPosition;
+
   /* Access rights */
   access_t access;
   /* Node type */
-  enum fsNodeType type;
-};
-/*----------------------------------------------------------------------------*/
-struct FatDirConfig
-{
-  struct FsNode *node;
-};
-/*----------------------------------------------------------------------------*/
-struct FatDir
-{
-  struct FsEntry parent;
-
-  struct FsHandle *handle;
-
-  /* First cluster of the directory entries */
-  uint32_t payload;
-  /* Current cluster of the directory entries */
-  uint32_t currentCluster;
-  /* Position in the current cluster */
-  uint16_t currentIndex;
-};
-/*----------------------------------------------------------------------------*/
-struct FatFileConfig
-{
-  struct FsNode *node;
-  access_t access;
-};
-/*----------------------------------------------------------------------------*/
-struct FatFile
-{
-  struct FsEntry parent;
-
-  struct FsHandle *handle;
-
-  /* File size */
-  uint32_t size;
-  /* First cluster of the file data */
-  uint32_t payload;
-  /* Position in the file */
-  uint32_t position;
-  /* Current cluster inside data chain */
-  uint32_t currentCluster;
-#ifdef CONFIG_FAT_WRITE
-  /* Directory cluster where entry located */
-  uint32_t parentCluster;
-  /* Entry position in parent cluster */
-  uint16_t parentIndex;
-#endif
-  /* Access rights to the file */
-  access_t access;
+  enum fatNodeType type;
 };
 /*----------------------------------------------------------------------------*/
 /* Directory entry or long file name entry */

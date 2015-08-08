@@ -23,20 +23,10 @@ struct Fat32Config
    */
   struct RtClock *clock;
   /**
-   * Optional: number of file descriptors in file pool. This option is used
-   * only when support for object pools is enabled.
-   */
-  uint16_t files;
-  /**
    * Optional: number of node descriptors in node pool. This option is used
    * only when support for object pools is enabled.
    */
   uint16_t nodes;
-  /**
-   * Optional: number of directory descriptors in directory pool.
-   * This option is used only when support for object pools is enabled.
-   */
-  uint16_t directories;
   /**
    * Optional: number of threads that can use the same handle simultaneously.
    * This option is used only when support for multiple threads is enabled. */

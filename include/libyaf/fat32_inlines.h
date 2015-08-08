@@ -34,6 +34,12 @@ static inline uint32_t getSector(const struct FatHandle *handle,
   return handle->dataSector + (((cluster) - 2) << handle->clusterSize);
 }
 /*----------------------------------------------------------------------------*/
+static inline uint32_t makeClusterNumber(const struct DirEntryImage *entry)
+{
+  return ((uint32_t)fromLittleEndian16(entry->clusterHigh) << 16)
+      | (uint32_t)fromLittleEndian16(entry->clusterLow);
+}
+/*----------------------------------------------------------------------------*/
 /* File or directory entries per directory cluster */
 static inline uint16_t nodeCount(const struct FatHandle *handle)
 {
@@ -50,7 +56,8 @@ static inline uint8_t sectorInCluster(const struct FatHandle *handle,
 #ifdef CONFIG_FAT_UNICODE
 static inline bool hasLongName(const struct FatNode *node)
 {
-  return node->cluster != node->nameCluster || node->index != node->nameIndex;
+  return node->parentCluster != node->nameCluster
+      || node->parentIndex != node->nameIndex;
 }
 #endif
 /*----------------------------------------------------------------------------*/
