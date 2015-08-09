@@ -49,7 +49,6 @@ static enum result getNextCluster(struct CommandContext *, struct FatHandle *,
 static enum result mountStorage(struct FatHandle *);
 static enum result readBuffer(struct FatHandle *, uint32_t, uint8_t *,
     uint32_t);
-//static enum result readStaticAttributes(); //FIXME
 static enum result readSector(struct CommandContext *, struct FatHandle *,
     uint32_t);
 /*----------------------------------------------------------------------------*/
@@ -60,8 +59,6 @@ static uint16_t timeToRawTime(const struct RtDateTime *);
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_UNICODE
-static uint16_t estimateLongNameLength(struct CommandContext *,
-    const struct FatNode *);
 static void extractLongName(char16_t *, const struct DirEntryImage *);
 static uint8_t getChecksum(const char *, uint8_t);
 static enum result readLongName(struct CommandContext *, char *, uint32_t,
@@ -325,47 +322,6 @@ static uint8_t computeShortNameLength(const struct DirEntryImage *entry)
 
     source = entry->extension;
     for (uint8_t index = 0; index < EXTENSION_LENGTH; ++index)
-    {
-      if (*source++ == ' ')
-        break;
-      ++nameLength;
-    }
-  }
-
-  return nameLength;
-}
-/*----------------------------------------------------------------------------*/
-static uint8_t estimateShortNameLength(struct CommandContext *context,
-    const struct FatNode *node)
-{
-  struct FatHandle * const handle = (struct FatHandle *)node->handle;
-  const uint32_t sector = getSector(handle, node->parentCluster)
-      + ENTRY_SECTOR(node->parentIndex);
-  enum result res;
-
-  if ((res = readSector(context, handle, sector)) != E_OK)
-    return res;
-
-  const struct DirEntryImage * const entry =
-      getEntry(context, node->parentIndex);
-  const char *source;
-  uint8_t index;
-  uint8_t nameLength = 0;
-
-  source = entry->name;
-  for (index = 0; index < BASENAME_LENGTH; ++index)
-  {
-    if (*source++ == ' ')
-      break;
-    ++nameLength;
-  }
-
-  if (!(entry->flags & FLAG_DIR) && entry->extension[0] != ' ')
-  {
-    ++nameLength;
-
-    source = entry->extension;
-    for (index = 0; index < EXTENSION_LENGTH; ++index)
     {
       if (*source++ == ' ')
         break;
@@ -897,46 +853,6 @@ static uint16_t timeToRawDate(const struct RtDateTime *value)
 static uint16_t timeToRawTime(const struct RtDateTime *value)
 {
   return (value->second >> 1) | (value->minute << 5) | (value->hour << 11);
-}
-#endif
-/*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_UNICODE
-static uint16_t estimateLongNameLength(struct CommandContext *context,
-    const struct FatNode *node)
-{
-  struct FatHandle * const handle = (struct FatHandle *)node->handle;
-  struct FatNode allocatedNode;
-  enum result res;
-
-  /* Initialize temporary data */
-  if ((res = allocateStaticNode(handle, &allocatedNode)) != E_OK)
-    return res;
-
-  allocatedNode.parentCluster = node->nameCluster;
-  allocatedNode.parentIndex = node->nameIndex;
-
-  /* Up to 4 bytes per Unicode character */
-  char16_t rawNameBuffer[LFN_ENTRY_LENGTH];
-  char convertedNameBuffer[LFN_ENTRY_LENGTH * 4];
-  uint16_t nameLength = 0;
-
-  while ((res = fetchEntry(context, &allocatedNode)) == E_OK)
-  {
-    /* Sector is already loaded during entry fetching */
-    const struct DirEntryImage * const entry = getEntry(context,
-        allocatedNode.parentIndex);
-
-    if ((entry->flags & MASK_LFN) != MASK_LFN)
-      break;
-
-    extractLongName(rawNameBuffer, entry);
-    nameLength += uFromUtf16(convertedNameBuffer, rawNameBuffer,
-        sizeof(rawNameBuffer));
-    ++allocatedNode.parentIndex;
-  }
-
-  freeStaticNode(&allocatedNode);
-  return nameLength;
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -1656,12 +1572,12 @@ static enum result markFree(struct CommandContext *context,
 #endif
 
   const uint32_t lastSector = getSector(handle, node->parentCluster)
-           + ENTRY_SECTOR(node->parentIndex);
+      + ENTRY_SECTOR(node->parentIndex);
 
   while ((res = fetchEntry(context, &allocatedNode)) == E_OK)
   {
     const uint32_t sector = getSector(handle, allocatedNode.parentCluster)
-             + ENTRY_SECTOR(allocatedNode.parentIndex);
+        + ENTRY_SECTOR(allocatedNode.parentIndex);
     const bool lastEntry = sector == lastSector
         && allocatedNode.parentIndex == node->parentIndex;
 
@@ -2775,6 +2691,7 @@ static enum result fatNodeWrite(void *object, enum fsNodeAttribute attribute,
 
     default:
       res = E_INVALID;
+      break;
   }
 
   freeContext(handle, context);

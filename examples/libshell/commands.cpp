@@ -780,7 +780,7 @@ result RemoveDirectory::run(unsigned int count, const char * const *arguments,
     return E_ENTRY;
   }
 
-  const enum result res = fsNodeRemove(root, node);
+  const result res = fsNodeRemove(root, node);
 
   fsNodeFree(root);
   fsNodeFree(node);
@@ -794,177 +794,111 @@ result RemoveDirectory::run(unsigned int count, const char * const *arguments,
   return res;
 }
 //------------------------------------------------------------------------------
-//result RemoveEntry::processArguments(unsigned int count,
-//    const char * const *arguments, bool *recursive, const char **targets) const
-//{
-//  unsigned int entries = 0;
-//  bool help = false;
-//
-//  for (unsigned int i = 0; i < count; ++i)
-//  {
-//    if (!strcmp(arguments[i], "--help"))
-//    {
-//      help = true;
-//      continue;
-//    }
-//    if (!strcmp(arguments[i], "-r"))
-//    {
-//      *recursive = true;
-//      continue;
-//    }
-//    targets[entries++] = arguments[i];
-//  }
-//
-//  if (help)
-//  {
-//    owner.log("Usage: rm [OPTION]... ENTRY");
-//    owner.log("  --help  print help message");
-//    owner.log("  -r      remove directories and their content");
-//    return E_BUSY;
-//  }
-//
-//  return !entries ? E_ENTRY : E_OK;
-//}
-////------------------------------------------------------------------------------
-//result RemoveEntry::removeRecursively(FsNode *node,
-//    Shell::ShellContext *context) const
-//{
-//  FsEntry *dir = reinterpret_cast<FsEntry *>(fsOpen(node, FS_ACCESS_READ));
-//
-//  if (dir == nullptr)
-//  {
-//    owner.log("rm: directory opening failed");
-//    return E_DEVICE;
-//  }
-//
-//  FsNode *iterator;
-//  result res;
-//
-//  if ((iterator = reinterpret_cast<FsNode *>(fsClone(node))) == nullptr)
-//  {
-//    fsClose(dir);
-//
-//    owner.log("rm: node allocation failed");
-//    return E_MEMORY;
-//  }
-//
-//  //Previously allocated node is reused
-//  while ((res = fsFetch(dir, iterator)) == E_OK)
-//  {
-//    if (fsEnd(dir))
-//    {
-//      owner.log("rm: unexpected end of directory");
-//      break;
-//    }
-//
-//    fsNodeType type;
-//
-//    if ((res = fsGet(node, FS_NODE_TYPE, &type)) != E_OK)
-//    {
-//      owner.log("rm: wrong entry");
-//      goto free_node;
-//    }
-//
-//    if (type == FS_TYPE_DIR)
-//    {
-//      if ((res = removeRecursively(iterator, context)) != E_OK)
-//        goto free_node;
-//    }
-//
-//    if ((res = fsTruncate(iterator)) != E_OK)
-//    {
-//      owner.log("rm: payload deletion failed");
-//      goto free_node;
-//    }
-//
-//    if ((res = fsUnlink(iterator)) != E_OK)
-//    {
-//      owner.log("rm: unlinking failed");
-//      goto free_node;
-//    }
-//  }
-//
-//  res = E_OK;
-//
-//  free_node:
-//  fsFree(iterator);
-//  fsClose(dir);
-//
-//  return res;
-//}
-////------------------------------------------------------------------------------
-//result RemoveEntry::run(unsigned int count, const char * const *arguments,
-//    Shell::ShellContext *context)
-//{
-//  const char *targets[Shell::ARGUMENT_COUNT - 1] = {nullptr};
-//  FsNode *node;
-//  result res;
-//  bool recursive = false;
-//
-//  if ((res = processArguments(count, arguments, &recursive, targets)) != E_OK)
-//    return res;
-//
-//  for (unsigned int i = 0; i < Shell::ARGUMENT_COUNT - 1; ++i)
-//  {
-//    if (targets[i] == nullptr)
-//      break;
-//
-//    Shell::joinPaths(context->pathBuffer, context->currentDir, targets[i]);
-//    node = reinterpret_cast<FsNode *>(fsFollow(owner.handle(),
-//        context->pathBuffer, nullptr));
-//
-//    if (node == nullptr)
-//    {
-//      owner.log("rm: %s: no such entry", context->pathBuffer);
-//      res = E_ENTRY;
-//      break;
-//    }
-//
-//    fsNodeType type;
-//
-//    if ((res = fsGet(node, FS_NODE_TYPE, &type)) != E_OK)
-//    {
-//      owner.log("rm: %s: wrong entry", context->pathBuffer);
-//      fsFree(node);
-//      break;
-//    }
-//
-//    if (type == FS_TYPE_DIR)
-//    {
-//      if (!recursive)
-//      {
-//        owner.log("rm: %s: directory ignored", context->pathBuffer);
-//        res = E_INVALID;
-//      }
-//      else if ((res = removeRecursively(node, context)) != E_OK)
-//      {
-//        owner.log("rm: %s: recursive deletion failed", context->pathBuffer);
-//      }
-//
-//      if (res != E_OK)
-//      {
-//        fsFree(node);
-//        break;
-//      }
-//    }
-//
-//    if ((res = fsTruncate(node)) != E_OK)
-//    {
-//      owner.log("rm: %s: payload deletion failed", context->pathBuffer);
-//    }
-//    else if ((res = fsUnlink(node)) != E_OK)
-//    {
-//      owner.log("rm: %s: unlinking failed", context->pathBuffer);
-//    }
-//
-//    fsFree(node);
-//
-//    if (res != E_OK)
-//      break;
-//  }
-//
-//  return res;
-//}
+result RemoveEntry::processArguments(unsigned int count,
+    const char * const *arguments, bool *recursive, const char **targets) const
+{
+  unsigned int entries = 0;
+  bool help = false;
+
+  for (unsigned int i = 0; i < count; ++i)
+  {
+    if (!strcmp(arguments[i], "--help"))
+    {
+      help = true;
+      continue;
+    }
+    if (!strcmp(arguments[i], "-r"))
+    {
+      *recursive = true;
+      continue;
+    }
+    targets[entries++] = arguments[i];
+  }
+
+  if (help)
+  {
+    owner.log("Usage: rm [OPTION]... ENTRY");
+    owner.log("  --help  print help message");
+//    owner.log("  -r      remove directories and their content");//TODO
+    return E_BUSY;
+  }
+
+  return !entries ? E_ENTRY : E_OK;
+}
+//------------------------------------------------------------------------------
+result RemoveEntry::run(unsigned int count, const char * const *arguments,
+    Shell::ShellContext *context)
+{
+  const char *targets[Shell::ARGUMENT_COUNT - 1] = {nullptr};
+  bool recursive = false;
+  result res;
+
+  if ((res = processArguments(count, arguments, &recursive, targets)) != E_OK)
+    return res;
+
+  for (unsigned int i = 0; i < Shell::ARGUMENT_COUNT - 1; ++i)
+  {
+    if (targets[i] == nullptr)
+      break;
+
+    Shell::joinPaths(context->pathBuffer, context->currentDir, targets[i]);
+
+    //Find root directory
+    const char * const namePosition = Shell::extractName(targets[i]);
+
+    if (!namePosition)
+    {
+      //No entry name found
+      res = E_VALUE;
+      break;
+    }
+
+    FsNode * const node = followPath(context->pathBuffer);
+
+    if (node == nullptr)
+    {
+      owner.log("rm: %s: no such entry", context->pathBuffer);
+      res = E_ENTRY;
+      break;
+    }
+
+    if (fsNodeLength(node, FS_NODE_DATA, nullptr) == E_INVALID)
+    {
+      fsNodeFree(node);
+      owner.log("rm: %s: directory ignored", context->pathBuffer);
+      res = E_INVALID;
+      break;
+    }
+
+    //Remove the directory name from the path
+    const uint32_t nameOffset = strlen(context->pathBuffer) -
+        (strlen(targets[i]) - (namePosition - targets[i]));
+    context->pathBuffer[nameOffset] = '\0';
+
+    FsNode * const root = followPath(context->pathBuffer);
+
+    if (root == nullptr)
+    {
+      fsNodeFree(node);
+      owner.log("rm: %s: root directory not found", context->pathBuffer);
+      res = E_ENTRY;
+      break;
+    }
+
+    if ((res = fsNodeRemove(root, node)) != E_OK)
+    {
+      owner.log("rm: %s: deletion failed", context->pathBuffer);
+    }
+
+    fsNodeFree(root);
+    fsNodeFree(node);
+
+    if (res != E_OK)
+      break;
+  }
+
+  return res;
+}
 //------------------------------------------------------------------------------
 result Synchronize::run(unsigned int, const char * const *,
     Shell::ShellContext *)

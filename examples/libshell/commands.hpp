@@ -175,6 +175,25 @@ public:
 };
 //------------------------------------------------------------------------------
 class RemoveEntry : public Shell::ShellCommand
+{
+public:
+  RemoveEntry(Shell &parent) :
+      ShellCommand(parent)
+  {
+  }
+
+  virtual const char *name() const
+  {
+    return "rm";
+  }
+
+  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+
+private:
+  result processArguments(unsigned int, const char * const *, bool *,
+      const char **) const;
+};
+//------------------------------------------------------------------------------
 class Synchronize : public Shell::ShellCommand
 {
 public:

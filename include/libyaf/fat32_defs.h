@@ -163,23 +163,23 @@ struct FatNode
   /* Position in the parent cluster */
   uint16_t parentIndex;
 #ifdef CONFIG_FAT_UNICODE
-  /* Directory cluster of the first name entry */
-  uint32_t nameCluster;
   /* First name entry position in the parent cluster */
   uint16_t nameIndex;
+  /* Directory cluster of the first name entry */
+  uint32_t nameCluster;
 #endif
 
   /* First cluster of the payload */
   uint32_t payloadCluster;
   /* File size */
   uint32_t payloadSize;
-  /* Length of the node name converted to UTF-8 */
-  uint16_t nameLength;
 
   /* Cached value of the current cluster for fast access */
   uint32_t currentCluster;
   /* Cached value of the position in the payload */
   uint32_t payloadPosition;
+  /* Length of the node name converted to UTF-8 */
+  uint16_t nameLength;
 
   /* Access rights */
   access_t access;

@@ -290,7 +290,7 @@ Shell *Application::initShell(Interface *console, FsHandle *handle)
   shell->append(CommandBuilder<ListEntries>());
   shell->append(CommandBuilder<MakeDirectory>());
   shell->append(CommandBuilder<RemoveDirectory>());
-//   shell->append(CommandBuilder<RemoveEntry>());
+  shell->append(CommandBuilder<RemoveEntry>());
   shell->append(CommandBuilder<Synchronize>());
   shell->append(CommandBuilder<TouchEntry>());
 
