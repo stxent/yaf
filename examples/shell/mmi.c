@@ -10,6 +10,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+#include <memory.h>
 #include <libyaf/debug.h>
 #include <os/semaphore.h>
 #include "shell/mmi.h"
@@ -167,6 +168,10 @@ static enum result mmiGet(void *object, enum ifOption option, void *data)
       *(uint64_t *)data = dev->position;
       return E_OK;
 
+    case IF_SIZE:
+      *(uint64_t *)data = dev->size;
+      return E_OK;
+
     default:
       return E_ERROR;
   }
@@ -182,7 +187,7 @@ static enum result mmiSet(void *object, enum ifOption option,
   {
     case IF_ADDRESS:
       newPos = *(const uint64_t *)data;
-      if (newPos + dev->offset >= dev->size)
+      if (newPos + dev->offset >= (uint64_t)dev->info.st_size)
       {
         DEBUG_PRINT(0, "mmaped_io: address 0x%012lX out of bounds\n",
             (unsigned long)(newPos + dev->offset));
@@ -208,7 +213,7 @@ static uint32_t mmiRead(void *object, uint8_t *buffer, uint32_t length)
 {
   struct Mmi * const dev = object;
 
-  memcpy(buffer, dev->data + dev->position + dev->offset, length);
+  memcpy(buffer, dev->data + dev->offset + dev->position, length);
   dev->position += length;
 
 #ifdef CONFIG_MMI_STATUS
@@ -226,7 +231,7 @@ static uint32_t mmiWrite(void *object, const uint8_t *buffer, uint32_t length)
 {
   struct Mmi * const dev = object;
 
-  memcpy(dev->data + dev->position + dev->offset, buffer, length);
+  memcpy(dev->data + dev->offset + dev->position, buffer, length);
   dev->position += length;
 
 #ifdef CONFIG_MMI_STATUS
@@ -273,7 +278,7 @@ enum result mmiReadTable(void *object, uint32_t sector, uint8_t index,
     return E_INTERFACE;
   if (ifRead(object, buffer, sizeof(buffer)) != sizeof(buffer))
     return E_INTERFACE;
-  if (*(uint16_t *)(buffer + 0x01FE) != 0xAA55)
+  if (fromBigEndian16(*(uint16_t *)(buffer + 0x01FE)) != 0x55AA)
     return E_ERROR;
 
   ptr = buffer + 0x01BE + (index << 4); /* Pointer to partition entry */
