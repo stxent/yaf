@@ -122,9 +122,9 @@ result AbstractComputationCommand::processEntry(FsNode *node,
     Shell::ShellContext *context, ComputationAlgorithm *algorithm,
     const char *expectedValue) const
 {
-  uint64_t read = 0;
-  uint64_t size;
-  uint32_t chunk;
+  length_t read = 0;
+  length_t size;
+  length_t chunk;
   uint8_t buffer[CONFIG_SHELL_BUFFER];
   char computedValue[MAX_LENGTH];
   result res = E_OK;

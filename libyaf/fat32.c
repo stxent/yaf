@@ -122,13 +122,13 @@ static enum result fatNodeCreate(void *, const struct FsAttributeDescriptor *,
     uint8_t);
 static void *fatNodeHead(void *);
 static void fatNodeFree(void *);
-static enum result fatNodeLength(void *, enum fsNodeAttribute, uint64_t *);
+static enum result fatNodeLength(void *, enum fsNodeAttribute, length_t *);
 static enum result fatNodeNext(void *);
-static enum result fatNodeRead(void *, enum fsNodeAttribute, uint64_t,
-    void *, uint32_t, uint32_t *);
+static enum result fatNodeRead(void *, enum fsNodeAttribute, length_t,
+    void *, length_t, length_t *);
 static enum result fatNodeRemove(void *, void *);
-static enum result fatNodeWrite(void *, enum fsNodeAttribute, uint64_t,
-    const void *, uint32_t, uint32_t *);
+static enum result fatNodeWrite(void *, enum fsNodeAttribute, length_t,
+    const void *, length_t, length_t *);
 /*------------------Class descriptors-----------------------------------------*/
 static const struct FsHandleClass fatHandleTable = {
     .size = sizeof(struct FatHandle),
@@ -2233,7 +2233,7 @@ static enum result fatNodeCreate(void *object,
 
       case FS_NODE_NAME:
         if (desc->size > CONFIG_FILENAME_LENGTH
-            || desc->size - 1 != strlen(desc->data))
+            || desc->size != strlen(desc->data) + 1)
         {
           return E_VALUE;
         }
@@ -2363,7 +2363,7 @@ static void fatNodeFree(void *object)
 }
 /*----------------------------------------------------------------------------*/
 static enum result fatNodeLength(void *object, enum fsNodeAttribute attribute,
-    uint64_t *length)
+    length_t *length)
 {
   struct FatNode * const node = object;
 
@@ -2378,7 +2378,7 @@ static enum result fatNodeLength(void *object, enum fsNodeAttribute attribute,
       if (node->type == FAT_TYPE_FILE)
       {
         if (length)
-          *length = (uint64_t)node->payloadSize;
+          *length = node->payloadSize;
       }
       else
         return E_INVALID;
@@ -2391,7 +2391,7 @@ static enum result fatNodeLength(void *object, enum fsNodeAttribute attribute,
 
     case FS_NODE_NAME:
       if (length)
-        *length = (uint64_t)node->nameLength + 1;
+        *length = node->nameLength + 1;
       break;
 
     case FS_NODE_TIME:
@@ -2441,12 +2441,12 @@ static enum result fatNodeNext(void *object)
 }
 /*----------------------------------------------------------------------------*/
 static enum result fatNodeRead(void *object, enum fsNodeAttribute attribute,
-    uint64_t position, void *buffer, uint32_t length, uint32_t *read)
+    length_t position, void *buffer, length_t length, length_t *read)
 {
   struct FatNode * const node = object;
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
   struct CommandContext *context;
-  uint32_t bytesRead = 0;
+  length_t bytesRead = 0;
   enum result res = E_OK;
 
   /* Read attributes that do not require reading from the interface */
@@ -2471,7 +2471,7 @@ static enum result fatNodeRead(void *object, enum fsNodeAttribute attribute,
       if (length < sizeof(uint64_t))
         return E_VALUE;
 
-      const uint64_t nodeId = (uint64_t)node->parentIndex
+      uint64_t nodeId = (uint64_t)node->parentIndex
           | ((uint64_t)node->parentCluster << 16);
 
       memcpy(buffer, &nodeId, sizeof(nodeId));
@@ -2510,12 +2510,15 @@ static enum result fatNodeRead(void *object, enum fsNodeAttribute attribute,
         res = E_ACCESS;
         break;
       }
+      if (position > node->payloadSize)
+      {
+        res = E_VALUE;
+        break;
+      }
       if (!length)
         break;
 
-      //TODO Improve error handling
-      bytesRead = fileReadData(context, node, (uint32_t)position, buffer,
-          length);
+      bytesRead = fileReadData(context, node, position, buffer, length);
       if (!bytesRead)
         res = E_EMPTY;
       break;
@@ -2524,9 +2527,10 @@ static enum result fatNodeRead(void *object, enum fsNodeAttribute attribute,
 #ifdef CONFIG_FAT_UNICODE
     case FS_NODE_NAME:
     {
+      if (position)
+        return E_INVALID;
       if (!hasLongName(node))
-        break; /* Short name cannot be read without sector reload */
-
+        break;
       if (length <= node->nameLength)
       {
         res = E_VALUE;
@@ -2534,7 +2538,10 @@ static enum result fatNodeRead(void *object, enum fsNodeAttribute attribute,
       }
 
       if ((res = readLongName(context, buffer, length, node)) == E_OK)
-        bytesRead = node->nameLength + 1; /* Include terminating character */
+      {
+        /* Include terminating character */
+        bytesRead = node->nameLength + 1;
+      }
       break;
     }
 #endif
@@ -2581,13 +2588,16 @@ static enum result fatNodeRead(void *object, enum fsNodeAttribute attribute,
       }
 
       extractShortName(buffer, entry);
-      bytesRead = node->nameLength + 1; /* Include terminating character */
+      /* Include terminating character */
+      bytesRead = node->nameLength + 1;
       break;
     }
 
 #ifdef CONFIG_FAT_TIME
     case FS_NODE_TIME:
     {
+      if (position)
+        return E_INVALID;
       if (length < sizeof(time64_t))
       {
         res = E_VALUE;
@@ -2605,7 +2615,9 @@ static enum result fatNodeRead(void *object, enum fsNodeAttribute attribute,
 
     default:
       res = E_INVALID;
+      break;
   }
+
   freeContext(handle, context);
 
   if (res == E_OK && read)
@@ -2652,12 +2664,12 @@ static enum result fatNodeRemove(void *parentObject __attribute__((unused)),
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_WRITE
 static enum result fatNodeWrite(void *object, enum fsNodeAttribute attribute,
-    uint64_t position, const void *buffer, uint32_t length, uint32_t *written)
+    length_t position, const void *buffer, length_t length, length_t *written)
 {
   struct FatNode * const node = object;
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
   struct CommandContext *context;
-  uint32_t bytesWritten = 0;
+  length_t bytesWritten = 0;
   enum result res = E_OK;
 
   if (!(context = allocateContext(handle)))
@@ -2678,12 +2690,15 @@ static enum result fatNodeWrite(void *object, enum fsNodeAttribute attribute,
         res = E_ACCESS;
         break;
       }
+      if (position > node->payloadSize)
+      {
+        res = E_VALUE;
+        break;
+      }
       if (!length)
         break;
 
-      //TODO Improve error handling
-      bytesWritten = fileWriteData(context, node, (uint32_t)position, buffer,
-          length);
+      bytesWritten = fileWriteData(context, node, position, buffer, length);
       if (!bytesWritten)
         res = E_EMPTY;
       break;
@@ -2703,7 +2718,7 @@ static enum result fatNodeWrite(void *object, enum fsNodeAttribute attribute,
 }
 #else
 static enum result fatNodeWrite(void *object, enum fsNodeAttribute attribute,
-    uint64_t position, const void *buffer, uint32_t length, uint32_t *written)
+    length_t position, const void *buffer, length_t length, length_t *written)
 {
   return E_INVALID;
 }

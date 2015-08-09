@@ -23,8 +23,8 @@ result DataProcessing::copyContent(FsNode *sourceNode, FsNode *destinationNode,
     unsigned int blockSize, unsigned int blockCount, unsigned int seek,
     unsigned int skip) const
 {
-  uint64_t sourcePosition = static_cast<uint64_t>(blockSize) * skip;
-  uint64_t destinationPosition = static_cast<uint64_t>(blockSize)
+  length_t sourcePosition = static_cast<length_t>(blockSize) * skip;
+  length_t destinationPosition = static_cast<length_t>(blockSize)
       * seek;
   uint32_t blocks = 0;
   char buffer[CONFIG_SHELL_BUFFER];
@@ -33,10 +33,10 @@ result DataProcessing::copyContent(FsNode *sourceNode, FsNode *destinationNode,
   //Copy file content
   while (!blockCount || blocks++ < blockCount)
   {
-    uint32_t read, written;
+    length_t read, written;
 
     res = fsNodeRead(sourceNode, FS_NODE_DATA, sourcePosition, buffer,
-        blockSize, &read);
+        static_cast<length_t>(blockSize), &read);
     if (res == E_EMPTY)
     {
       res = E_OK;
@@ -105,7 +105,7 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
       //Name descriptor
       {
           namePosition,
-          static_cast<uint32_t>(strlen(namePosition)) + 1,
+          static_cast<length_t>(strlen(namePosition) + 1),
           FS_NODE_NAME
       },
       //Payload descriptor
@@ -538,8 +538,8 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
   }
 
   uint64_t nodeId;
-  uint64_t nodeSize;
   time64_t nodeTime;
+  length_t nodeSize;
   access_t nodeAccess;
   char nodeName[CONFIG_FILENAME_LENGTH];
   bool isDirectory;
@@ -699,7 +699,7 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments,
       //Name descriptor
       {
           namePosition,
-          static_cast<uint32_t>(strlen(namePosition)) + 1,
+          static_cast<length_t>(strlen(namePosition) + 1),
           FS_NODE_NAME
       }
   };
@@ -987,7 +987,7 @@ result TouchEntry::run(unsigned int count, const char * const *arguments,
         //Name descriptor
         {
             namePosition,
-            static_cast<uint32_t>(strlen(namePosition)) + 1,
+            static_cast<length_t>(strlen(namePosition) + 1),
             FS_NODE_NAME
         },
         //Payload descriptor
