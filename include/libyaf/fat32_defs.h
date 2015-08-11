@@ -88,14 +88,12 @@ struct Pool
   struct Queue queue;
 };
 /*----------------------------------------------------------------------------*/
-enum fatNodeType
+enum
 {
-  /** Unknown type. */
-  FAT_TYPE_NONE,
-  /** Directory entry. */
-  FAT_TYPE_DIR,
-  /** Regular file. */
-  FAT_TYPE_FILE
+  FAT_FLAG_DIR    = 0x01,
+  FAT_FLAG_FILE   = 0x02,
+  FAT_FLAG_RO     = 0x04,
+  FAT_FLAG_DIRTY  = 0x08
 };
 /*----------------------------------------------------------------------------*/
 struct FatHandle
@@ -181,10 +179,8 @@ struct FatNode
   /* Length of the node name converted to UTF-8 */
   uint16_t nameLength;
 
-  /* Access rights */
-  access_t access;
-  /* Node type */
-  enum fatNodeType type;
+  /* Status flags */
+  uint8_t flags;
 };
 /*----------------------------------------------------------------------------*/
 /* Directory entry or long file name entry */
