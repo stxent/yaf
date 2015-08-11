@@ -101,7 +101,7 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
     return E_ENTRY;
   }
 
-  const FsAttributeDescriptor descriptors[] = {
+  const FsFieldDescriptor descriptors[] = {
       //Name descriptor
       {
           namePosition,
@@ -695,7 +695,7 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments,
     return E_ENTRY;
   }
 
-  const FsAttributeDescriptor descriptors[] = {
+  const FsFieldDescriptor descriptors[] = {
       //Name descriptor
       {
           namePosition,
@@ -983,7 +983,7 @@ result TouchEntry::run(unsigned int count, const char * const *arguments,
       break;
     }
 
-    const FsAttributeDescriptor descriptors[] = {
+    const FsFieldDescriptor descriptors[] = {
         //Name descriptor
         {
             namePosition,

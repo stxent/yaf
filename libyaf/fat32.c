@@ -118,16 +118,16 @@ static enum result fatHandleSync(void *);
 /* Node functions */
 static enum result fatNodeInit(void *, const void *);
 static void fatNodeDeinit(void *);
-static enum result fatNodeCreate(void *, const struct FsAttributeDescriptor *,
+static enum result fatNodeCreate(void *, const struct FsFieldDescriptor *,
     uint8_t);
 static void *fatNodeHead(void *);
 static void fatNodeFree(void *);
-static enum result fatNodeLength(void *, enum fsNodeAttribute, length_t *);
+static enum result fatNodeLength(void *, enum fsFieldType, length_t *);
 static enum result fatNodeNext(void *);
-static enum result fatNodeRead(void *, enum fsNodeAttribute, length_t,
+static enum result fatNodeRead(void *, enum fsFieldType, length_t,
     void *, length_t, length_t *);
 static enum result fatNodeRemove(void *, void *);
-static enum result fatNodeWrite(void *, enum fsNodeAttribute, length_t,
+static enum result fatNodeWrite(void *, enum fsFieldType, length_t,
     const void *, length_t, length_t *);
 /*------------------Class descriptors-----------------------------------------*/
 static const struct FsHandleClass fatHandleTable = {
@@ -2198,7 +2198,7 @@ static void fatNodeDeinit(void *object)
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_WRITE
 static enum result fatNodeCreate(void *object,
-    const struct FsAttributeDescriptor *descriptors, uint8_t count)
+    const struct FsFieldDescriptor *descriptors, uint8_t number)
 {
   const struct FatNode * const parent = object;
   struct FatHandle * const handle = (struct FatHandle *)parent->handle;
@@ -2212,17 +2212,17 @@ static enum result fatNodeCreate(void *object,
   time64_t nodeTime = 0;
   access_t nodeAccess = FS_ACCESS_READ | FS_ACCESS_WRITE;
 
-  const struct FsAttributeDescriptor *nameDesc = 0;
-  const struct FsAttributeDescriptor *payloadDesc = 0;
+  const struct FsFieldDescriptor *nameDesc = 0;
+  const struct FsFieldDescriptor *payloadDesc = 0;
 
-  for (uint8_t index = 0; index < count; ++index)
+  for (uint8_t index = 0; index < number; ++index)
   {
-    const struct FsAttributeDescriptor * const desc = descriptors + index;
+    const struct FsFieldDescriptor * const desc = descriptors + index;
 
     switch (desc->type)
     {
       case FS_NODE_ACCESS:
-        if (desc->size != sizeof(access_t))
+        if (desc->length != sizeof(access_t))
           return E_VALUE;
         memcpy(&nodeAccess, desc->data, sizeof(access_t));
         break;
@@ -2232,8 +2232,8 @@ static enum result fatNodeCreate(void *object,
         break;
 
       case FS_NODE_NAME:
-        if (desc->size > CONFIG_FILENAME_LENGTH
-            || desc->size != strlen(desc->data) + 1)
+        if (desc->length > CONFIG_FILENAME_LENGTH
+            || desc->length != strlen(desc->data) + 1)
         {
           return E_VALUE;
         }
@@ -2241,7 +2241,7 @@ static enum result fatNodeCreate(void *object,
         break;
 
       case FS_NODE_TIME:
-        if (desc->size != sizeof(time64_t))
+        if (desc->length != sizeof(time64_t))
           return E_VALUE;
         memcpy(&nodeTime, desc->data, sizeof(time64_t));
         break;
@@ -2308,7 +2308,7 @@ static enum result fatNodeCreate(void *object,
 }
 #else
 static enum result fatNodeCreate(void *object __attribute__((unused)),
-    const struct FsAttributeDescriptor *descriptors __attribute__((unused)),
+    const struct FsFieldDescriptor *descriptors __attribute__((unused)),
     uint8_t count __attribute__((unused)))
 {
   return E_INVALID;
@@ -2362,12 +2362,12 @@ static void fatNodeFree(void *object)
   freeNode(node);
 }
 /*----------------------------------------------------------------------------*/
-static enum result fatNodeLength(void *object, enum fsNodeAttribute attribute,
+static enum result fatNodeLength(void *object, enum fsFieldType type,
     length_t *length)
 {
   struct FatNode * const node = object;
 
-  switch (attribute)
+  switch (type)
   {
     case FS_NODE_ACCESS:
       if (length)
@@ -2440,7 +2440,7 @@ static enum result fatNodeNext(void *object)
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-static enum result fatNodeRead(void *object, enum fsNodeAttribute attribute,
+static enum result fatNodeRead(void *object, enum fsFieldType type,
     length_t position, void *buffer, length_t length, length_t *read)
 {
   struct FatNode * const node = object;
@@ -2449,8 +2449,8 @@ static enum result fatNodeRead(void *object, enum fsNodeAttribute attribute,
   length_t bytesRead = 0;
   enum result res = E_OK;
 
-  /* Read attributes that do not require reading from the interface */
-  switch (attribute)
+  /* Read fields that do not require reading from the interface */
+  switch (type)
   {
     case FS_NODE_ACCESS:
     {
@@ -2492,11 +2492,11 @@ static enum result fatNodeRead(void *object, enum fsNodeAttribute attribute,
     return E_OK;
   }
 
-  /* Read attributes that require reading from the interface */
+  /* Read fields that require reading from the interface */
   if (!(context = allocateContext(handle)))
     return E_MEMORY;
 
-  switch (attribute)
+  switch (type)
   {
     case FS_NODE_DATA:
     {
@@ -2563,7 +2563,7 @@ static enum result fatNodeRead(void *object, enum fsNodeAttribute attribute,
     return E_OK;
   }
 
-  /* Read attributes that require access to the directory entry */
+  /* Read fields that require access to the directory entry */
   const uint32_t sector = getSector(handle, node->parentCluster)
       + ENTRY_SECTOR(node->parentIndex);
 
@@ -2576,7 +2576,7 @@ static enum result fatNodeRead(void *object, enum fsNodeAttribute attribute,
   const struct DirEntryImage * const entry =
       getEntry(context, node->parentIndex);
 
-  switch (attribute)
+  switch (type)
   {
     case FS_NODE_NAME:
     {
@@ -2663,7 +2663,7 @@ static enum result fatNodeRemove(void *parentObject __attribute__((unused)),
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_WRITE
-static enum result fatNodeWrite(void *object, enum fsNodeAttribute attribute,
+static enum result fatNodeWrite(void *object, enum fsFieldType type,
     length_t position, const void *buffer, length_t length, length_t *written)
 {
   struct FatNode * const node = object;
@@ -2675,7 +2675,7 @@ static enum result fatNodeWrite(void *object, enum fsNodeAttribute attribute,
   if (!(context = allocateContext(handle)))
     return E_MEMORY;
 
-  switch (attribute)
+  switch (type)
   {
     case FS_NODE_DATA:
     {
@@ -2717,8 +2717,12 @@ static enum result fatNodeWrite(void *object, enum fsNodeAttribute attribute,
   return res;
 }
 #else
-static enum result fatNodeWrite(void *object, enum fsNodeAttribute attribute,
-    length_t position, const void *buffer, length_t length, length_t *written)
+static enum result fatNodeWrite(void *object __attribute__((unused)),
+    enum fsFieldType type __attribute__((unused)),
+    length_t position __attribute__((unused)),
+    const void *buffer __attribute__((unused)),
+    length_t length __attribute__((unused)),
+    length_t *written __attribute__((unused)))
 {
   return E_INVALID;
 }
