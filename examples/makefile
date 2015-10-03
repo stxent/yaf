@@ -10,12 +10,12 @@ ifeq ($(CONFIG_SHELL),y)
   BIN_EXAMPLES += shell
 endif
 
-BIN_EXAMPLE_FILES = $(BIN_EXAMPLES:%=$(OUTPUTDIR)/bin/%)
-LIB_EXAMPLE_FILES = $(LIB_EXAMPLES:%=$(OUTPUTDIR)/%.a)
+BIN_EXAMPLE_FILES = $(BIN_EXAMPLES:%=$(OUTPUT_DIR)/bin/%)
+LIB_EXAMPLE_FILES = $(LIB_EXAMPLES:%=$(OUTPUT_DIR)/%.a)
 TARGETS += $(BIN_EXAMPLE_FILES) $(LIB_EXAMPLE_FILES)
 
 ifneq ($(BIN_EXAMPLES) $(LIB_EXAMPLES),)
-  INCLUDEPATH += -I$(EXAMPLES_DIR)
+  INCLUDE_PATH += -I$(EXAMPLES_DIR)
 endif
 ifneq ($(BIN_EXAMPLES),)
   LDLIBS += -lshell
@@ -29,8 +29,8 @@ define make-example
   CSOURCES += $$($(1)_CSOURCES)
   $(1)_CXXSOURCES := $(shell find $(EXAMPLES_DIR)/$(1) -name *.cpp)
   CXXSOURCES += $$($(1)_CXXSOURCES)
-  $(1)_OBJECTS += $(CSOURCES_SHARED:%.c=$(OUTPUTDIR)/%.o)
-  $(1)_OBJECTS += $$($(1)_CSOURCES:%.c=$(OUTPUTDIR)/%.o) $$($(1)_CXXSOURCES:%.cpp=$(OUTPUTDIR)/%.o)
+  $(1)_OBJECTS += $(CSOURCES_SHARED:%.c=$(OUTPUT_DIR)/%.o)
+  $(1)_OBJECTS += $$($(1)_CSOURCES:%.c=$(OUTPUT_DIR)/%.o) $$($(1)_CXXSOURCES:%.cpp=$(OUTPUT_DIR)/%.o)
 endef
 
 $(foreach entry,$(BIN_EXAMPLES) $(LIB_EXAMPLES),$(eval $(call make-example,$(entry))))
@@ -40,6 +40,6 @@ $(BIN_EXAMPLE_FILES): $(LIBRARY_FILE) $(LIB_EXAMPLE_FILES) $$($$(notdir $$@)_OBJ
 	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) $(LDLIBS) -o $@
 
-$(LIB_EXAMPLE_FILES): $$($$(patsubst $(OUTPUTDIR)/%.a,%,$$@)_OBJECTS)
+$(LIB_EXAMPLE_FILES): $$($$(patsubst $(OUTPUT_DIR)/%.a,%,$$@)_OBJECTS)
 	@mkdir -p $(@D)
 	$(AR) -r $@ $^
