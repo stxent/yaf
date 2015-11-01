@@ -279,18 +279,19 @@ static enum result allocateBuffers(struct FatHandle *handle,
 /*----------------------------------------------------------------------------*/
 static struct CommandContext *allocateContext(struct FatHandle *handle)
 {
-#ifdef CONFIG_FAT_THREADS
   struct CommandContext *context = 0;
 
+#ifdef CONFIG_FAT_THREADS
   mutexLock(&handle->memoryMutex);
   if (!queueEmpty(&handle->contextPool.queue))
     queuePop(&handle->contextPool.queue, &context);
   mutexUnlock(&handle->memoryMutex);
-
-  return context;
 #else
-  return handle->context;
+  context = handle->context;
 #endif
+
+  context->sector = RESERVED_SECTOR;
+  return context;
 }
 /*----------------------------------------------------------------------------*/
 static void *allocateNode(struct FatHandle *handle)
