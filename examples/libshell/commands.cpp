@@ -587,28 +587,40 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
     if (verbose)
     {
       //Access
-      char accessStr[4];
+      char printableNodeAccess[4];
 
-      accessStr[0] = isDirectory ? 'd' : '-';
-      accessStr[1] = nodeAccess & FS_ACCESS_READ ? 'r' : '-';
-      accessStr[2] = nodeAccess & FS_ACCESS_WRITE ? 'w' : '-';
-      accessStr[3] = '\0';
+      printableNodeAccess[0] = isDirectory ? 'd' : '-';
+      printableNodeAccess[1] = nodeAccess & FS_ACCESS_READ ? 'r' : '-';
+      printableNodeAccess[2] = nodeAccess & FS_ACCESS_WRITE ? 'w' : '-';
+      printableNodeAccess[3] = '\0';
 
       //Date and time
-      char timeStr[24];
-      time_t standardTime = static_cast<time_t>(nodeTime);
+      const time_t standardTime = static_cast<time_t>(nodeTime);
+      char printableNodeTime[24];
 
-      strftime(timeStr, 24, "%Y-%m-%d %H:%M:%S", gmtime(&standardTime));
+      strftime(printableNodeTime, 24, "%Y-%m-%d %H:%M:%S",
+          gmtime(&standardTime));
+
+      //Convert size to printable format
+      const unsigned long printableNodeSize =
+          static_cast<unsigned long>(nodeSize);
 
       if (showIndex)
       {
-        //Index number of the entry
-        owner.log("%12lX %s %10lu %s %s", nodeId, accessStr, nodeSize,
-            timeStr, nodeName);
+        const unsigned long printableClusterPart =
+            static_cast<unsigned long>(nodeId >> 16);
+        const unsigned long printableIndexPart =
+            static_cast<unsigned long>(nodeId & 0xFFFF);
+
+        //Index number of the entry added
+        owner.log("%8lX%04lX %s %10lu %s %s", printableClusterPart,
+            printableIndexPart, printableNodeAccess, printableNodeSize,
+            printableNodeTime, nodeName);
       }
       else
       {
-        owner.log("%s %10lu %s %s", accessStr, nodeSize, timeStr, nodeName);
+        owner.log("%s %10lu %s %s", printableNodeAccess, printableNodeSize,
+            printableNodeTime, nodeName);
       }
     }
     else

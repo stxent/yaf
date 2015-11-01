@@ -78,8 +78,7 @@ public:
         res = entry->run(count - 1, arguments + 1, context);
         delta = T::instance()->microtime() - start;
 
-        owner.log("Time passed: %llu us",
-            static_cast<long long unsigned int>(delta));
+        owner.log("Time passed: %lu us", static_cast<unsigned long>(delta));
       }
     }
     return res;
