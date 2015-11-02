@@ -211,24 +211,4 @@ public:
   virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
 };
 //------------------------------------------------------------------------------
-class TouchEntry : public Shell::ShellCommand
-{
-public:
-  TouchEntry(Shell &parent) :
-      ShellCommand(parent)
-  {
-  }
-
-  virtual const char *name() const
-  {
-    return "touch";
-  }
-
-  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
-
-private:
-  result processArguments(unsigned int, const char * const *,
-      const char **) const;
-};
-//------------------------------------------------------------------------------
 #endif //LIBSHELL_COMMANDS_HPP_

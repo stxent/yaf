@@ -12,6 +12,7 @@
 #include <string>
 
 #include "libshell/commands.hpp"
+#include "libshell/file_tools.hpp"
 #include "libshell/shell.hpp"
 #include "libshell/threading.hpp"
 #include "shell/crypto_wrapper.hpp"
@@ -290,6 +291,9 @@ Shell *Application::initShell(Interface *console, FsHandle *handle)
   shell->append(CommandBuilder<RemoveDirectory>());
   shell->append(CommandBuilder<RemoveEntry>());
   shell->append(CommandBuilder<Synchronize>());
+
+  shell->append(CommandBuilder<ComputationCommand<ChecksumCrc32>>());
+  shell->append(CommandBuilder<FillEntry>());
   shell->append(CommandBuilder<TouchEntry>());
 
   shell->append(CommandBuilder<ComputationCommand<Md5Hash>>());
