@@ -105,13 +105,12 @@ config DEBUG_LEVEL
 	default 0
 	depends on DEBUG
 
+config SHELL
+	bool "Build shell example"
+	depends on LIBSHELL
+
 config MMI_STATUS
 	bool "Interface status"
-	depends on SHELL
-
-config SHELL_BUFFER
-	int "Shell buffer size"
-	default 1024
 	depends on SHELL
 
 endmenu
@@ -121,8 +120,9 @@ menu "Examples"
 config LIBSHELL
 	bool "Build shell library"
 
-config SHELL
-	bool "Build shell example"
-	depends on (TARGET_X86 || TARGET_X86_64) && LIBSHELL
+config SHELL_BUFFER
+	int "Buffer size"
+	default 512
+	depends on LIBSHELL
 
 endmenu

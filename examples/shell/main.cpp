@@ -247,8 +247,6 @@ Interface *Application::initInterface(const char *file)
     cout << "No partitions found, selected raw partition at 0" << endl;
   }
 
-//   fat32Format(interface, 1, 2);
-
   return interface;
 }
 //------------------------------------------------------------------------------
@@ -311,7 +309,6 @@ int main(int argc, char *argv[])
 {
   const char *image = nullptr;
   const char *script = nullptr;
-  bool format = false;
   bool help = false;
 
   for (int i = 1; i < argc; ++i)
@@ -319,11 +316,6 @@ int main(int argc, char *argv[])
     if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h"))
     {
       help = true;
-      continue;
-    }
-    if (!strcmp(argv[i], "--format") || !strcmp(argv[i], "-f"))
-    {
-      format = true;
       continue;
     }
     if (!strcmp(argv[i], "--script") || !strcmp(argv[i], "-s"))

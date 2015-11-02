@@ -55,12 +55,6 @@ OPTION_FILE := $(OUTPUT_DIR)/.options
 LDFLAGS += -L$(OUTPUT_DIR)
 LDLIBS += -l$(PROJECT)
 
-#External libraries
-XCORE_PATH ?= $(PROJECT_DIR)/../xcore
-INCLUDE_PATH += -I"$(XCORE_PATH)/include"
-LDFLAGS += -L"$(XCORE_PATH)/build_$(PLATFORM)"
-LDLIBS += -lxcore
-
 #Configure compiler options
 CFLAGS += -std=c11 -Wall -Wextra -Winline -pedantic -Wshadow -Wcast-qual
 CFLAGS += $(OPT_FLAGS) $(CPU_FLAGS) @$(OPTION_FILE)
@@ -71,6 +65,12 @@ CXXFLAGS += $(OPT_FLAGS) $(CPU_FLAGS) @$(OPTION_FILE)
 #Other makefiles of the project
 include lib$(PROJECT)/makefile
 include examples/makefile
+
+#External libraries
+XCORE_PATH ?= $(PROJECT_DIR)/../xcore
+INCLUDE_PATH += -I"$(XCORE_PATH)/include"
+LDFLAGS += -L"$(XCORE_PATH)/build_$(PLATFORM)"
+LDLIBS += -lxcore
 
 #Process auxiliary project options
 define append-flag
