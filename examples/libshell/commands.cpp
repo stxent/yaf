@@ -72,12 +72,20 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   FsNode *sourceNode;
   result res;
 
-  Shell::joinPaths(context->pathBuffer, context->currentDir, destinationPath);
+  Shell::joinPaths(context->pathBuffer, context->currentDir, sourcePath);
+  sourceNode = followPath(context->pathBuffer);
+  if (sourceNode == nullptr)
+  {
+    owner.log("cp: %s: node not found", context->pathBuffer);
+    return E_ENTRY;
+  }
 
+  Shell::joinPaths(context->pathBuffer, context->currentDir, destinationPath);
   destinationNode = followPath(context->pathBuffer);
   if (destinationNode != nullptr)
   {
     fsNodeFree(destinationNode);
+    fsNodeFree(sourceNode);
     owner.log("cp: %s: entry already exists", context->pathBuffer);
     return E_EXIST;
   }
@@ -86,7 +94,11 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   const char * const namePosition = Shell::extractName(destinationPath);
 
   if (!namePosition)
-    return E_VALUE; //No entry name found
+  {
+    //No entry name found
+    fsNodeFree(sourceNode);
+    return E_VALUE;
+  }
 
   //Remove the directory name from the path
   const uint32_t nameOffset = strlen(context->pathBuffer) -
@@ -97,6 +109,7 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
 
   if (root == nullptr)
   {
+    fsNodeFree(sourceNode);
     owner.log("cp: %s: target directory not found", context->pathBuffer);
     return E_ENTRY;
   }
@@ -120,6 +133,7 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   fsNodeFree(root);
   if (res != E_OK)
   {
+    fsNodeFree(sourceNode);
     owner.log("cp: %s: creation failed", namePosition);
     return res;
   }
@@ -128,15 +142,7 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   destinationNode = followPath(context->pathBuffer);
   if (destinationNode == nullptr)
   {
-    owner.log("cp: %s: node not found", context->pathBuffer);
-    return E_ENTRY;
-  }
-
-  Shell::joinPaths(context->pathBuffer, context->currentDir, sourcePath);
-  sourceNode = followPath(context->pathBuffer);
-  if (sourceNode == nullptr)
-  {
-    fsNodeFree(destinationNode);
+    fsNodeFree(sourceNode);
     owner.log("cp: %s: node not found", context->pathBuffer);
     return E_ENTRY;
   }
