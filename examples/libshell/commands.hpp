@@ -22,6 +22,7 @@ protected:
       unsigned int, unsigned int) const;
   result prepareNodes(Shell::ShellContext *, FsNode **, FsNode **, const char *,
       const char *, bool);
+  result removeNode(Shell::ShellContext *, FsNode *, char *);
 };
 //------------------------------------------------------------------------------
 class ChangeDirectory : public Shell::ShellCommand

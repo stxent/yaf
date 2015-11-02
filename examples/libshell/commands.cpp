@@ -76,7 +76,7 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   sourceNode = followPath(context->pathBuffer);
   if (sourceNode == nullptr)
   {
-    owner.log("cp: %s: node not found", context->pathBuffer);
+    owner.log("%s: %s: node not found", name(), context->pathBuffer);
     return E_ENTRY;
   }
 
@@ -84,11 +84,29 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   destinationNode = followPath(context->pathBuffer);
   if (destinationNode != nullptr)
   {
+    if (overwrite)
+    {
+      res = removeNode(context, destinationNode, context->pathBuffer);
+      if (res != E_OK)
+      {
+        owner.log("%s: %s: overwrite failed", name(), context->pathBuffer);
+      }
+    }
+    else
+    {
+      owner.log("%s: %s: entry already exists", name(), context->pathBuffer);
+      res = E_EXIST;
+    }
     fsNodeFree(destinationNode);
-    fsNodeFree(sourceNode);
-    owner.log("cp: %s: entry already exists", context->pathBuffer);
-    return E_EXIST;
+
+    if (res != E_OK)
+    {
+      fsNodeFree(sourceNode);
+      return res;
+    }
   }
+
+  Shell::joinPaths(context->pathBuffer, context->currentDir, destinationPath);
 
   //Find destination directory where named entry should be placed
   const char * const namePosition = Shell::extractName(destinationPath);
@@ -110,7 +128,8 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   if (root == nullptr)
   {
     fsNodeFree(sourceNode);
-    owner.log("cp: %s: target directory not found", context->pathBuffer);
+    owner.log("%s: %s: target directory not found", name(),
+        context->pathBuffer);
     return E_ENTRY;
   }
 
@@ -134,7 +153,7 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   if (res != E_OK)
   {
     fsNodeFree(sourceNode);
-    owner.log("cp: %s: creation failed", namePosition);
+    owner.log("%s: %s: creation failed", name(), namePosition);
     return res;
   }
 
@@ -143,7 +162,7 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   if (destinationNode == nullptr)
   {
     fsNodeFree(sourceNode);
-    owner.log("cp: %s: node not found", context->pathBuffer);
+    owner.log("%s: %s: node not found", name(), context->pathBuffer);
     return E_ENTRY;
   }
 
@@ -178,6 +197,40 @@ result ChangeDirectory::processArguments(unsigned int count,
     return E_ENTRY;
 
   return E_OK;
+}
+//------------------------------------------------------------------------------
+result DataProcessing::removeNode(Shell::ShellContext *context, FsNode *node,
+    char *path)
+{
+  //TODO Distinct directories
+  FsNode *root;
+  result res;
+
+  //Find root directory
+  const char * const namePosition = Shell::extractName(path);
+
+  if (!namePosition)
+  {
+    //No directory exists in the path
+    return E_VALUE;
+  }
+
+  path[namePosition - path] = '\0';
+  root = followPath(path);
+  if (root == nullptr)
+  {
+    owner.log("%s: %s: root directory not found", name(), context->pathBuffer);
+    return E_ENTRY;
+  }
+
+  res = fsNodeRemove(root, node);
+  if (res != E_OK)
+  {
+    owner.log("%s: %s: deletion failed", name(), context->pathBuffer);
+  }
+
+  fsNodeFree(root);
+  return res;
 }
 //------------------------------------------------------------------------------
 result ChangeDirectory::run(unsigned int count, const char * const *arguments,
