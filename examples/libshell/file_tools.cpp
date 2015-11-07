@@ -20,6 +20,147 @@ extern "C"
 #define CONFIG_SHELL_BUFFER 512
 #endif
 //------------------------------------------------------------------------------
+result CatEntry::print(FsNode *node, bool hex) const
+{
+  //TODO Style for lambdas
+  auto hexify = [](unsigned char value) {
+    return value < 10 ? '0' + value : 'A' + (value - 10);
+  };
+
+  length_t length;
+  result res;
+
+  if ((res = fsNodeLength(node, FS_NODE_DATA, &length)) != E_OK)
+  {
+    owner.log("cat: error reading data length");
+    return res;
+  }
+
+  uint8_t buffer[CONFIG_SHELL_BUFFER];
+  length_t position = 0;
+
+  //Read file content
+  while (position < length)
+  {
+    const length_t chunkLength = length - position > sizeof(buffer) ?
+        sizeof(buffer) : length - position;
+    length_t read;
+
+    res = fsNodeRead(node, FS_NODE_DATA, position, buffer, chunkLength,
+        &read);
+    if (res != E_OK || read != chunkLength)
+    {
+      owner.log("cat: read error at %u", name(), position);
+      if (res == E_OK)
+        res = E_ERROR;
+      break;
+    }
+
+    if (hex)
+    {
+      const unsigned int rowNumber =
+          (read + HEX_OUTPUT_WIDTH - 1) / HEX_OUTPUT_WIDTH;
+
+      for (unsigned int row = 0; row < rowNumber; ++row)
+      {
+        const unsigned int offset = row * HEX_OUTPUT_WIDTH;
+        const unsigned int currentRowWidth = read - offset > HEX_OUTPUT_WIDTH ?
+            HEX_OUTPUT_WIDTH : read - offset;
+        char output[HEX_OUTPUT_WIDTH * 3];
+        char *outputPosition = output;
+
+        for (unsigned int i = 0; i < currentRowWidth; ++i)
+        {
+          *outputPosition++ = hexify(buffer[offset + i] >> 4);
+          *outputPosition++ = hexify(buffer[offset + i] & 0x0F);
+          *outputPosition++ = i == currentRowWidth - 1 ? '\0' : ' ';
+        }
+        owner.log(output);
+      }
+    }
+    else
+    {
+      const unsigned int rowNumber =
+          (read + RAW_OUTPUT_WIDTH - 1) / RAW_OUTPUT_WIDTH;
+
+      for (unsigned int row = 0; row < rowNumber; ++row)
+      {
+        const unsigned int offset = row * RAW_OUTPUT_WIDTH;
+        const unsigned int currentRowWidth = read - offset > RAW_OUTPUT_WIDTH ?
+            RAW_OUTPUT_WIDTH : read - offset;
+        char output[RAW_OUTPUT_WIDTH + 1];
+
+        memcpy(output, buffer + offset, currentRowWidth);
+        output[currentRowWidth] = '\0';
+        owner.log(output);
+      }
+    }
+
+    position += read;
+  }
+
+  return res;
+}
+//------------------------------------------------------------------------------
+result CatEntry::processArguments(unsigned int count,
+    const char * const *arguments, const char **target, bool *hex) const
+{
+  bool help = false;
+
+  for (unsigned int i = 0; i < count; ++i)
+  {
+    if (!strcmp(arguments[i], "--help"))
+    {
+      help = true;
+      continue;
+    }
+    if (!strcmp(arguments[i], "--hex"))
+    {
+      *hex = true;
+      continue;
+    }
+    if (*target == nullptr)
+    {
+      *target = arguments[i];
+    }
+  }
+
+  if (help)
+  {
+    owner.log("Usage: cat ENTRY...");
+    owner.log("  --help  print help message");
+    owner.log("  --hex   print in hexadecimal format");
+    return E_BUSY;
+  }
+
+  return *target == nullptr ? E_ENTRY : E_OK;
+}
+//------------------------------------------------------------------------------
+result CatEntry::run(unsigned int count, const char * const *arguments,
+    Shell::ShellContext *context)
+{
+  const char *target = nullptr;
+  bool hex = false;
+  result res;
+
+  res = processArguments(count, arguments, &target, &hex);
+  if (res != E_OK)
+    return res;
+
+  Shell::joinPaths(context->pathBuffer, context->currentDir, target);
+  FsNode * const node = openNode(context->pathBuffer);
+  if (node == nullptr)
+  {
+    owner.log("cat: %s: node not found", context->pathBuffer);
+    return E_ENTRY;
+  }
+
+  res = print(node, hex);
+  fsNodeFree(node);
+
+  return res;
+}
+//------------------------------------------------------------------------------
 ChecksumCrc32::ChecksumCrc32() :
     sum(INITIAL_CRC)
 {

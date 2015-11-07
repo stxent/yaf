@@ -292,6 +292,7 @@ Shell *Application::initShell(Interface *console, FsHandle *handle)
   shell->append(CommandBuilder<RemoveEntry>());
   shell->append(CommandBuilder<Synchronize>());
 
+  shell->append(CommandBuilder<CatEntry>());
   shell->append(CommandBuilder<ComputationCommand<ChecksumCrc32>>());
   shell->append(CommandBuilder<FillEntry>());
   shell->append(CommandBuilder<TouchEntry>());

@@ -15,6 +15,33 @@ extern "C"
 #include <crc.h>
 }
 //------------------------------------------------------------------------------
+class CatEntry : public Shell::ShellCommand
+{
+public:
+  CatEntry(Shell &parent) :
+      ShellCommand(parent)
+  {
+  }
+
+  virtual const char *name() const
+  {
+    return "cat";
+  }
+
+  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+
+private:
+  enum : unsigned int
+  {
+    HEX_OUTPUT_WIDTH = 16,
+    RAW_OUTPUT_WIDTH = 32
+  };
+
+  result print(FsNode *, bool) const;
+  result processArguments(unsigned int, const char * const *,
+      const char **, bool *) const;
+};
+//------------------------------------------------------------------------------
 class ChecksumCrc32 : public ComputationAlgorithm
 {
 public:
