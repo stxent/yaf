@@ -18,18 +18,18 @@ Shell::ShellCommand::ShellCommand(Shell &shell) :
 
 }
 //------------------------------------------------------------------------------
-FsNode *Shell::ShellCommand::followPath(const char *path) const
+FsNode *Shell::ShellCommand::followPath(const char *path, bool leaf) const
 {
   FsNode *node = nullptr;
 
   while (path && *path)
-    path = followNextPart(&node, path);
+    path = followNextPart(&node, path, leaf);
 
   return path != nullptr ? node : nullptr;
 }
 //------------------------------------------------------------------------------
 const char *Shell::ShellCommand::followNextPart(FsNode **node,
-    const char *path) const
+    const char *path, bool leaf) const
 {
   char currentName[CONFIG_FILENAME_LENGTH];
   char nextPart[CONFIG_FILENAME_LENGTH];
@@ -92,7 +92,20 @@ const char *Shell::ShellCommand::followNextPart(FsNode **node,
       }
       else
       {
-        *node = child;
+        //TODO Change algorithm
+        const bool descendants =
+            fsNodeLength(child, FS_NODE_DATA, nullptr) == E_INVALID;
+
+        if (!leaf && !descendants)
+        {
+          //Reached the end, previous node is the target node
+          fsNodeFree(child);
+          path = "\0";
+        }
+        else
+        {
+          *node = child;
+        }
       }
     }
   }
@@ -129,6 +142,16 @@ const char *Shell::ShellCommand::getChunk(char *dst, const char *src)
   return src;
 }
 //------------------------------------------------------------------------------
+FsNode *Shell::ShellCommand::openEntry(const char *path) const
+{
+  return followPath(path, true);
+}
+//------------------------------------------------------------------------------
+FsNode *Shell::ShellCommand::openRoot(const char *path) const
+{
+  return followPath(path, false);
+}
+//------------------------------------------------------------------------------
 const char *Shell::extractName(const char *path)
 {
   int length, pos;
@@ -159,6 +182,22 @@ void Shell::joinPaths(char *buffer, const char *directory, const char *path)
   }
   else
     strcpy(buffer, path);
+}
+//------------------------------------------------------------------------------
+bool Shell::stripName(char *buffer)
+{
+  const char * const position = Shell::extractName(buffer);
+
+  if (position == nullptr)
+    return false;
+
+  unsigned int offset = position - buffer;
+
+  if (offset > 1)
+    --offset;
+  buffer[offset] = '\0';
+
+  return true;
 }
 //------------------------------------------------------------------------------
 Shell::Shell(Interface *console, FsHandle *root) :

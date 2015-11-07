@@ -154,32 +154,24 @@ result FillEntry::run(unsigned int count, const char * const *arguments,
   if (res != E_OK)
     return res;
 
-  Shell::joinPaths(context->pathBuffer, context->currentDir, target);
-
-  FsNode *destinationNode = followPath(context->pathBuffer);
-  if (destinationNode != nullptr)
+  const char * const entryName = Shell::extractName(target);
+  if (entryName == nullptr)
   {
-    fsNodeFree(destinationNode);
-    owner.log("fill: %s: entry already exists", context->pathBuffer);
-    return E_EXIST;
-  }
-
-  //Find destination directory where named entry should be placed
-  const char * const namePosition = Shell::extractName(target);
-
-  if (!namePosition)
-  {
-    //No entry name found
+    owner.log("fill: %s: incorrect name", target);
     return E_VALUE;
   }
 
-  //Remove the directory name from the path
-  const uint32_t nameOffset = strlen(context->pathBuffer) -
-      (strlen(target) - (namePosition - target));
-  context->pathBuffer[nameOffset] = '\0';
+  Shell::joinPaths(context->pathBuffer, context->currentDir, target);
 
-  FsNode * const root = followPath(context->pathBuffer);
+  FsNode *destinationNode = openEntry(context->pathBuffer);
+  if (destinationNode != nullptr)
+  {
+    fsNodeFree(destinationNode);
+    owner.log("fill: %s: node already exists", context->pathBuffer);
+    return E_EXIST;
+  }
 
+  FsNode * const root = openRoot(context->pathBuffer);
   if (root == nullptr)
   {
     owner.log("fill: %s: target directory not found", context->pathBuffer);
@@ -189,8 +181,8 @@ result FillEntry::run(unsigned int count, const char * const *arguments,
   const FsFieldDescriptor descriptors[] = {
       //Name descriptor
       {
-          namePosition,
-          static_cast<length_t>(strlen(namePosition) + 1),
+          entryName,
+          static_cast<length_t>(strlen(entryName) + 1),
           FS_NODE_NAME
       },
       //Payload descriptor
@@ -205,12 +197,11 @@ result FillEntry::run(unsigned int count, const char * const *arguments,
   fsNodeFree(root);
   if (res != E_OK)
   {
-    owner.log("fill: %s: creation failed", namePosition);
+    owner.log("fill: %s: creation failed", context->pathBuffer);
     return res;
   }
 
-  Shell::joinPaths(context->pathBuffer, context->currentDir, target);
-  destinationNode = followPath(context->pathBuffer);
+  destinationNode = openEntry(context->pathBuffer);
   if (destinationNode == nullptr)
   {
     owner.log("fill: %s: node not found", context->pathBuffer);
@@ -263,37 +254,29 @@ result TouchEntry::run(unsigned int count, const char * const *arguments,
     if (targets[i] == nullptr)
       break;
 
-    Shell::joinPaths(context->pathBuffer, context->currentDir, targets[i]);
-
-    FsNode * const destinationNode = followPath(context->pathBuffer);
-    if (destinationNode != nullptr)
+    const char * const entryName = Shell::extractName(targets[i]);
+    if (entryName == nullptr)
     {
-      fsNodeFree(destinationNode);
-      owner.log("touch: %s: entry already exists", context->pathBuffer);
-      res = E_EXIST;
-      break;
-    }
-
-    //Find destination directory where named entry should be placed
-    const char * const namePosition = Shell::extractName(targets[i]);
-
-    if (!namePosition)
-    {
-      //No entry name found
+      owner.log("touch: %s: incorrect name", targets[i]);
       res = E_VALUE;
       break;
     }
 
-    //Remove the directory name from the path
-    const uint32_t nameOffset = strlen(context->pathBuffer) -
-        (strlen(targets[i]) - (namePosition - targets[i]));
-    context->pathBuffer[nameOffset] = '\0';
+    Shell::joinPaths(context->pathBuffer, context->currentDir, targets[i]);
 
-    FsNode * const root = followPath(context->pathBuffer);
+    FsNode * const destinationNode = openEntry(context->pathBuffer);
+    if (destinationNode != nullptr)
+    {
+      fsNodeFree(destinationNode);
+      owner.log("touch: %s: node already exists", context->pathBuffer);
+      res = E_EXIST;
+      break;
+    }
 
+    FsNode * const root = openRoot(context->pathBuffer);
     if (root == nullptr)
     {
-      owner.log("touch: %s: target directory not found", context->pathBuffer);
+      owner.log("touch: %s: target root node not found", context->pathBuffer);
       res = E_ENTRY;
       break;
     }
@@ -301,8 +284,8 @@ result TouchEntry::run(unsigned int count, const char * const *arguments,
     const FsFieldDescriptor descriptors[] = {
         //Name descriptor
         {
-            namePosition,
-            static_cast<length_t>(strlen(namePosition) + 1),
+            entryName,
+            static_cast<length_t>(strlen(entryName) + 1),
             FS_NODE_NAME
         },
         //Payload descriptor
@@ -317,7 +300,7 @@ result TouchEntry::run(unsigned int count, const char * const *arguments,
     fsNodeFree(root);
     if (res != E_OK)
     {
-      owner.log("touch: %s: creation failed", namePosition);
+      owner.log("touch: %s: creation failed", context->pathBuffer);
       break;
     }
   }

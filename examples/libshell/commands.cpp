@@ -68,12 +68,17 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
     FsNode **destination, FsNode **source, const char *destinationPath,
     const char *sourcePath, bool overwrite)
 {
-  FsNode *destinationNode;
-  FsNode *sourceNode;
   result res;
 
+  const char * const entryName = Shell::extractName(destinationPath);
+  if (entryName == nullptr)
+  {
+    owner.log("%s: %s: incorrect name", name(), destinationPath);
+    return E_VALUE;
+  }
+
   Shell::joinPaths(context->pathBuffer, context->currentDir, sourcePath);
-  sourceNode = followPath(context->pathBuffer);
+  FsNode * const sourceNode = openEntry(context->pathBuffer);
   if (sourceNode == nullptr)
   {
     owner.log("%s: %s: node not found", name(), context->pathBuffer);
@@ -81,7 +86,7 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   }
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, destinationPath);
-  destinationNode = followPath(context->pathBuffer);
+  FsNode *destinationNode = openEntry(context->pathBuffer);
   if (destinationNode != nullptr)
   {
     if (overwrite)
@@ -94,7 +99,7 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
     }
     else
     {
-      owner.log("%s: %s: entry already exists", name(), context->pathBuffer);
+      owner.log("%s: %s: node already exists", name(), context->pathBuffer);
       res = E_EXIST;
     }
     fsNodeFree(destinationNode);
@@ -106,29 +111,11 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
     }
   }
 
-  Shell::joinPaths(context->pathBuffer, context->currentDir, destinationPath);
-
-  //Find destination directory where named entry should be placed
-  const char * const namePosition = Shell::extractName(destinationPath);
-
-  if (!namePosition)
-  {
-    //No entry name found
-    fsNodeFree(sourceNode);
-    return E_VALUE;
-  }
-
-  //Remove the directory name from the path
-  const uint32_t nameOffset = strlen(context->pathBuffer) -
-      (strlen(destinationPath) - (namePosition - destinationPath));
-  context->pathBuffer[nameOffset] = '\0';
-
-  FsNode * const root = followPath(context->pathBuffer);
-
+  FsNode * const root = openRoot(context->pathBuffer);
   if (root == nullptr)
   {
     fsNodeFree(sourceNode);
-    owner.log("%s: %s: target directory not found", name(),
+    owner.log("%s: %s: target root node not found", name(),
         context->pathBuffer);
     return E_ENTRY;
   }
@@ -136,8 +123,8 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   const FsFieldDescriptor descriptors[] = {
       //Name descriptor
       {
-          namePosition,
-          static_cast<length_t>(strlen(namePosition) + 1),
+          entryName,
+          static_cast<length_t>(strlen(entryName) + 1),
           FS_NODE_NAME
       },
       //Payload descriptor
@@ -153,12 +140,11 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   if (res != E_OK)
   {
     fsNodeFree(sourceNode);
-    owner.log("%s: %s: creation failed", name(), namePosition);
+    owner.log("%s: %s: creation failed", name(), context->pathBuffer);
     return res;
   }
 
-  Shell::joinPaths(context->pathBuffer, context->currentDir, destinationPath);
-  destinationNode = followPath(context->pathBuffer);
+  destinationNode = openEntry(context->pathBuffer);
   if (destinationNode == nullptr)
   {
     fsNodeFree(sourceNode);
@@ -202,29 +188,16 @@ result ChangeDirectory::processArguments(unsigned int count,
 result DataProcessing::removeNode(Shell::ShellContext *context, FsNode *node,
     char *path)
 {
-  //TODO Distinct directories
   FsNode *root;
   result res;
 
-  //Find root directory
-  const char * const namePosition = Shell::extractName(path);
-
-  if (!namePosition)
+  if ((root = openRoot(path)) == nullptr)
   {
-    //No directory exists in the path
-    return E_VALUE;
-  }
-
-  path[namePosition - path] = '\0';
-  root = followPath(path);
-  if (root == nullptr)
-  {
-    owner.log("%s: %s: root directory not found", name(), context->pathBuffer);
+    owner.log("%s: %s: root node not found", name(), context->pathBuffer);
     return E_ENTRY;
   }
 
-  res = fsNodeRemove(root, node);
-  if (res != E_OK)
+  if ((res = fsNodeRemove(root, node)) != E_OK)
   {
     owner.log("%s: %s: deletion failed", name(), context->pathBuffer);
   }
@@ -244,43 +217,42 @@ result ChangeDirectory::run(unsigned int count, const char * const *arguments,
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, path);
 
-  FsNode * const node = followPath(context->pathBuffer);
-
+  FsNode * const node = openEntry(context->pathBuffer);
   if (node == nullptr)
   {
-    owner.log("cd: %s: no such directory", context->pathBuffer);
+    owner.log("cd: %s: no such node", context->pathBuffer);
     return E_ENTRY;
   }
 
   //Check whether the node has any descendants
-  if (fsNodeLength(node, FS_NODE_DATA, nullptr) == E_OK)
+  FsNode * const descendant = reinterpret_cast<FsNode *>(fsNodeHead(node));
+  if (descendant == nullptr)
   {
-    owner.log("cd: %s: not a directory", context->pathBuffer);
+    owner.log("cd: %s: entry is empty", context->pathBuffer);
     fsNodeFree(node);
     return E_ENTRY;
   }
+  fsNodeFree(descendant);
 
   //Check access rights
   access_t access;
 
   res = fsNodeRead(node, FS_NODE_ACCESS, 0, &access, sizeof(access), nullptr);
+  fsNodeFree(node);
+
   if (res == E_OK)
   {
     if (!(access & FS_ACCESS_READ))
     {
       owner.log("cd: %s: access denied", context->pathBuffer);
-      fsNodeFree(node);
       return E_ACCESS;
     }
   }
   else
   {
     owner.log("cd: %s: error reading attributes", context->pathBuffer);
-    fsNodeFree(node);
     return E_ERROR;
   }
-
-  fsNodeFree(node);
 
   strcpy(context->currentDir, context->pathBuffer);
   return E_OK;
@@ -578,36 +550,33 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
   }
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, path);
-
-  FsNode * const parentNode = followPath(context->pathBuffer);
-
-  if (parentNode == nullptr)
+  FsNode * const root = openEntry(context->pathBuffer);
+  if (root == nullptr)
   {
-    owner.log("ls: %s: no such directory", context->pathBuffer);
+    owner.log("ls: %s: node not found", context->pathBuffer);
     return E_ENTRY;
   }
 
-  FsNode *child = reinterpret_cast<FsNode *>(fsNodeHead(parentNode));
-
-  fsNodeFree(parentNode);
+  FsNode * const child = reinterpret_cast<FsNode *>(fsNodeHead(root));
+  fsNodeFree(root);
   if (child == nullptr)
   {
-    owner.log("ls: %s: not a directory", context->pathBuffer);
+    owner.log("ls: %s: entry is empty", context->pathBuffer);
     return E_ENTRY;
   }
-
-  uint64_t nodeId;
-  time64_t nodeTime;
-  length_t nodeSize;
-  access_t nodeAccess;
-  char nodeName[CONFIG_FILENAME_LENGTH];
-  bool isDirectory;
 
   int entries = 0;
   result res;
 
   do
   {
+    char nodeName[CONFIG_FILENAME_LENGTH];
+    uint64_t nodeId = 0;
+    time64_t nodeTime = 0;
+    length_t nodeSize = 0;
+    access_t nodeAccess;
+    bool isDirectory = false;
+
     res = fsNodeRead(child, FS_NODE_NAME, 0, nodeName, sizeof(nodeName),
         nullptr);
     if (res != E_OK)
@@ -629,19 +598,16 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
       break;
     }
 
-    res = fsNodeRead(child, FS_NODE_ID, 0, &nodeId, sizeof(nodeId), nullptr);
-    if (res != E_OK)
-      nodeId = 0;
+    fsNodeRead(child, FS_NODE_ID, 0, &nodeId, sizeof(nodeId), nullptr);
+    fsNodeLength(child, FS_NODE_DATA, &nodeSize);
+    fsNodeRead(child, FS_NODE_TIME, 0, &nodeTime, sizeof(nodeTime), nullptr);
 
-    res = fsNodeLength(child, FS_NODE_DATA, &nodeSize);
-    if (res != E_OK)
-      nodeSize = 0;
-    isDirectory = res == E_INVALID;
-
-    res = fsNodeRead(child, FS_NODE_TIME, 0, &nodeTime, sizeof(nodeTime),
-        nullptr);
-    if (res != E_OK)
-      nodeTime = 0;
+    FsNode * const descendant = reinterpret_cast<FsNode *>(fsNodeHead(child));
+    if (descendant)
+    {
+      isDirectory = true;
+      fsNodeFree(descendant);
+    }
 
     if (verbose)
     {
@@ -697,7 +663,7 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
 
   if (verifyCount != -1 && entries != verifyCount)
   {
-    owner.log("ls: entry count mismatches: got %u, expected %u",
+    owner.log("ls: node numbers mismatch: got %u, expected %u",
         entries, verifyCount);
     return E_ENTRY;
   }
@@ -733,44 +699,38 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments,
 
   if (target == nullptr)
   {
-    owner.log("mkdir: directory is not specified");
+    owner.log("mkdir: target is not specified");
+    return E_VALUE;
+  }
+
+  const char * const entryName = Shell::extractName(target);
+  if (entryName == nullptr)
+  {
+    owner.log("mkdir: %s: incorrect name", target);
     return E_VALUE;
   }
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, target);
-
-  FsNode * const destinationNode = followPath(context->pathBuffer);
+  FsNode * const destinationNode = openEntry(context->pathBuffer);
   if (destinationNode != nullptr)
   {
     fsNodeFree(destinationNode);
-    owner.log("mkdir: %s: entry already exists", context->pathBuffer);
+    owner.log("mkdir: %s: node already exists", context->pathBuffer);
     return E_EXIST;
   }
 
-  //Find destination directory where named entry should be placed
-  const char * const namePosition = Shell::extractName(target);
-
-  if (!namePosition)
-    return E_VALUE; //No entry name found
-
-  //Remove the directory name from the path
-  const uint32_t nameOffset = strlen(context->pathBuffer) -
-      (strlen(target) - (namePosition - target));
-  context->pathBuffer[nameOffset] = '\0';
-
-  FsNode * const root = followPath(context->pathBuffer);
-
+  FsNode * const root = openRoot(context->pathBuffer);
   if (root == nullptr)
   {
-    owner.log("mkdir: %s: target directory not found", context->pathBuffer);
+    owner.log("mkdir: %s: target root node not found", context->pathBuffer);
     return E_ENTRY;
   }
 
   const FsFieldDescriptor descriptors[] = {
       //Name descriptor
       {
-          namePosition,
-          static_cast<length_t>(strlen(namePosition) + 1),
+          entryName,
+          static_cast<length_t>(strlen(entryName) + 1),
           FS_NODE_NAME
       }
   };
@@ -779,7 +739,7 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments,
   fsNodeFree(root);
   if (res != E_OK)
   {
-    owner.log("mkdir: %s: creation failed", namePosition);
+    owner.log("mkdir: %s: creation failed", context->pathBuffer);
     return res;
   }
 
@@ -815,38 +775,25 @@ result RemoveDirectory::run(unsigned int count, const char * const *arguments,
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, target);
 
-  FsNode * const node = followPath(context->pathBuffer);
-
+  FsNode * const node = openEntry(context->pathBuffer);
   if (node == nullptr)
   {
-    owner.log("rmdir: %s: no such entry", context->pathBuffer);
+    owner.log("rmdir: %s: node not found", context->pathBuffer);
     return E_ENTRY;
   }
 
-  //Check whether the node has any descendants
-  if (fsNodeLength(node, FS_NODE_DATA, nullptr) == E_OK)
+  //Check whether the node contains data or other entries
+  if (fsNodeLength(node, FS_NODE_DATA, nullptr) != E_INVALID)
   {
-    owner.log("rmdir: %s: not a directory", context->pathBuffer);
+    owner.log("rmdir: %s: node contains data", context->pathBuffer);
     fsNodeFree(node);
     return E_ENTRY;
   }
 
-  //Find root directory
-  const char * const namePosition = Shell::extractName(target);
-
-  if (!namePosition)
-    return E_VALUE; //No entry name found
-
-  //Remove the directory name from the path
-  const uint32_t nameOffset = strlen(context->pathBuffer) -
-      (strlen(target) - (namePosition - target));
-  context->pathBuffer[nameOffset] = '\0';
-
-  FsNode * const root = followPath(context->pathBuffer);
-
+  FsNode * const root = openRoot(context->pathBuffer);
   if (root == nullptr)
   {
-    owner.log("rmdir: %s: no such entry", context->pathBuffer);
+    owner.log("rmdir: %s: target root node not found", context->pathBuffer);
     fsNodeFree(node);
     return E_ENTRY;
   }
@@ -858,8 +805,7 @@ result RemoveDirectory::run(unsigned int count, const char * const *arguments,
 
   if (res != E_OK)
   {
-    owner.log("rmdir: %s/%s: directory deletion failed", context->pathBuffer,
-        context->pathBuffer + nameOffset + 1);
+    owner.log("rmdir: deletion failed");
   }
 
   return res;
@@ -914,17 +860,7 @@ result RemoveEntry::run(unsigned int count, const char * const *arguments,
 
     Shell::joinPaths(context->pathBuffer, context->currentDir, targets[i]);
 
-    //Find root directory
-    const char * const namePosition = Shell::extractName(targets[i]);
-
-    if (!namePosition)
-    {
-      //No entry name found
-      res = E_VALUE;
-      break;
-    }
-
-    FsNode * const node = followPath(context->pathBuffer);
+    FsNode * const node = openEntry(context->pathBuffer);
 
     if (node == nullptr)
     {
@@ -933,25 +869,19 @@ result RemoveEntry::run(unsigned int count, const char * const *arguments,
       break;
     }
 
-    if (fsNodeLength(node, FS_NODE_DATA, nullptr) == E_INVALID)
+    if ((res = fsNodeLength(node, FS_NODE_DATA, nullptr)) != E_OK)
     {
       fsNodeFree(node);
-      owner.log("rm: %s: directory ignored", context->pathBuffer);
-      res = E_INVALID;
+      owner.log("rm: %s: data-less entry ignored", context->pathBuffer);
       break;
     }
 
-    //Remove the directory name from the path
-    const uint32_t nameOffset = strlen(context->pathBuffer) -
-        (strlen(targets[i]) - (namePosition - targets[i]));
-    context->pathBuffer[nameOffset] = '\0';
-
-    FsNode * const root = followPath(context->pathBuffer);
+    FsNode * const root = openRoot(context->pathBuffer);
 
     if (root == nullptr)
     {
       fsNodeFree(node);
-      owner.log("rm: %s: root directory not found", context->pathBuffer);
+      owner.log("rm: %s: root entry not found", context->pathBuffer);
       res = E_ENTRY;
       break;
     }

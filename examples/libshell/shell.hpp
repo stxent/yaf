@@ -94,9 +94,11 @@ public:
     ShellCommand(Shell &);
 
     //Helper functions
-    FsNode *followPath(const char *) const;
-    const char *followNextPart(FsNode **, const char *) const;
+    FsNode *followPath(const char *, bool) const;
+    const char *followNextPart(FsNode **, const char *, bool) const;
     static const char *getChunk(char *dst, const char *src);
+    FsNode *openEntry(const char *) const;
+    FsNode *openRoot(const char *) const;
 
     Shell &owner;
   };
@@ -109,6 +111,7 @@ public:
 
   static const char *extractName(const char *);
   static void joinPaths(char *, const char *, const char *);
+  static bool stripName(char *);
 
   template<class T> void append(CommandBuilder<T> builder)
   {

@@ -55,7 +55,7 @@ result AbstractComputationCommand::compute(unsigned int count,
   if ((res = processArguments(count, arguments)) != E_OK)
     return res;
 
-  while (1)
+  do
   {
     const unsigned int index = count
         - static_cast<unsigned int>(path - arguments);
@@ -72,12 +72,10 @@ result AbstractComputationCommand::compute(unsigned int count,
 
     //Find destination node
     Shell::joinPaths(context->pathBuffer, context->currentDir, fileName);
-
-    FsNode * const node = followPath(context->pathBuffer);
-
+    FsNode * const node = openEntry(context->pathBuffer);
     if (node == nullptr)
     {
-      owner.log("%s: %s: no such file", name(), context->pathBuffer);
+      owner.log("%s: %s: no such node", name(), context->pathBuffer);
       break;
     }
 
@@ -85,10 +83,8 @@ result AbstractComputationCommand::compute(unsigned int count,
         checkValue ? expectedValue : nullptr);
 
     fsNodeFree(node);
-
-    if (res != E_OK)
-      break;
   }
+  while (res == E_OK);
 
   return res;
 }
