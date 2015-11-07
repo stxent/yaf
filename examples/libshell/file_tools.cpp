@@ -51,9 +51,9 @@ result FillEntry::fill(FsNode *node, const char *pattern,
     unsigned int number) const
 {
   const unsigned int patternLength = strlen(pattern);
+  char buffer[CONFIG_SHELL_BUFFER];
   unsigned int iteration = 0;
   length_t nodePosition = 0;
-  char buffer[CONFIG_SHELL_BUFFER];
   result res = E_OK;
 
   //Write file content
@@ -132,7 +132,7 @@ result FillEntry::processArguments(unsigned int count,
 
   if (help)
   {
-    owner.log("Usage: fill ENTRY");
+    owner.log("Usage: fill [OPTION]... ENTRY");
     owner.log("  --help  print help message");
     owner.log("  -n      number of iterations");
     owner.log("  -p      string pattern");
@@ -154,8 +154,8 @@ result FillEntry::run(unsigned int count, const char * const *arguments,
   if (res != E_OK)
     return res;
 
-  const char * const entryName = Shell::extractName(target);
-  if (entryName == nullptr)
+  const char * const nodeName = Shell::extractName(target);
+  if (nodeName == nullptr)
   {
     owner.log("fill: %s: incorrect name", target);
     return E_VALUE;
@@ -163,7 +163,7 @@ result FillEntry::run(unsigned int count, const char * const *arguments,
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, target);
 
-  FsNode *destinationNode = openEntry(context->pathBuffer);
+  FsNode *destinationNode = openNode(context->pathBuffer);
   if (destinationNode != nullptr)
   {
     fsNodeFree(destinationNode);
@@ -171,18 +171,18 @@ result FillEntry::run(unsigned int count, const char * const *arguments,
     return E_EXIST;
   }
 
-  FsNode * const root = openRoot(context->pathBuffer);
+  FsNode * const root = openBaseNode(context->pathBuffer);
   if (root == nullptr)
   {
-    owner.log("fill: %s: target directory not found", context->pathBuffer);
+    owner.log("fill: %s: root node not found", context->pathBuffer);
     return E_ENTRY;
   }
 
   const FsFieldDescriptor descriptors[] = {
       //Name descriptor
       {
-          entryName,
-          static_cast<length_t>(strlen(entryName) + 1),
+          nodeName,
+          static_cast<length_t>(strlen(nodeName) + 1),
           FS_NODE_NAME
       },
       //Payload descriptor
@@ -201,7 +201,7 @@ result FillEntry::run(unsigned int count, const char * const *arguments,
     return res;
   }
 
-  destinationNode = openEntry(context->pathBuffer);
+  destinationNode = openNode(context->pathBuffer);
   if (destinationNode == nullptr)
   {
     owner.log("fill: %s: node not found", context->pathBuffer);
@@ -232,7 +232,7 @@ result TouchEntry::processArguments(unsigned int count,
 
   if (help)
   {
-    owner.log("Usage: touch ENTRY");
+    owner.log("Usage: touch ENTRY...");
     owner.log("  --help  print help message");
     return E_BUSY;
   }
@@ -254,8 +254,8 @@ result TouchEntry::run(unsigned int count, const char * const *arguments,
     if (targets[i] == nullptr)
       break;
 
-    const char * const entryName = Shell::extractName(targets[i]);
-    if (entryName == nullptr)
+    const char * const nodeName = Shell::extractName(targets[i]);
+    if (nodeName == nullptr)
     {
       owner.log("touch: %s: incorrect name", targets[i]);
       res = E_VALUE;
@@ -264,7 +264,7 @@ result TouchEntry::run(unsigned int count, const char * const *arguments,
 
     Shell::joinPaths(context->pathBuffer, context->currentDir, targets[i]);
 
-    FsNode * const destinationNode = openEntry(context->pathBuffer);
+    FsNode * const destinationNode = openNode(context->pathBuffer);
     if (destinationNode != nullptr)
     {
       fsNodeFree(destinationNode);
@@ -273,10 +273,10 @@ result TouchEntry::run(unsigned int count, const char * const *arguments,
       break;
     }
 
-    FsNode * const root = openRoot(context->pathBuffer);
+    FsNode * const root = openBaseNode(context->pathBuffer);
     if (root == nullptr)
     {
-      owner.log("touch: %s: target root node not found", context->pathBuffer);
+      owner.log("touch: %s: root node not found", context->pathBuffer);
       res = E_ENTRY;
       break;
     }
@@ -284,8 +284,8 @@ result TouchEntry::run(unsigned int count, const char * const *arguments,
     const FsFieldDescriptor descriptors[] = {
         //Name descriptor
         {
-            entryName,
-            static_cast<length_t>(strlen(entryName) + 1),
+            nodeName,
+            static_cast<length_t>(strlen(nodeName) + 1),
             FS_NODE_NAME
         },
         //Payload descriptor

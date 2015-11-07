@@ -18,6 +18,16 @@ Shell::ShellCommand::ShellCommand(Shell &shell) :
 
 }
 //------------------------------------------------------------------------------
+FsNode *Shell::ShellCommand::openBaseNode(const char *path) const
+{
+  return followPath(path, false);
+}
+//------------------------------------------------------------------------------
+FsNode *Shell::ShellCommand::openNode(const char *path) const
+{
+  return followPath(path, true);
+}
+//------------------------------------------------------------------------------
 FsNode *Shell::ShellCommand::followPath(const char *path, bool leaf) const
 {
   FsNode *node = nullptr;
@@ -31,7 +41,6 @@ FsNode *Shell::ShellCommand::followPath(const char *path, bool leaf) const
 const char *Shell::ShellCommand::followNextPart(FsNode **node,
     const char *path, bool leaf) const
 {
-  char currentName[CONFIG_FILENAME_LENGTH];
   char nextPart[CONFIG_FILENAME_LENGTH];
 
   path = getChunk(nextPart, path);
@@ -45,69 +54,50 @@ const char *Shell::ShellCommand::followNextPart(FsNode **node,
     //Path contains forbidden directories
     path = nullptr;
   }
-  else
+  else if (*node == nullptr)
   {
-    if (*node == nullptr)
+    if (nextPart[0] == '/')
     {
-      if (nextPart[0] == '/')
-      {
-        *node = reinterpret_cast<FsNode *>(fsHandleRoot(owner.handle()));
+      *node = reinterpret_cast<FsNode *>(fsHandleRoot(owner.handle()));
 
-        if (*node == nullptr)
-          return nullptr;
-      }
-      else
-        return nullptr;
+      if (*node == nullptr)
+        path = nullptr;
     }
     else
     {
-      FsNode *child = reinterpret_cast<FsNode *>(fsNodeHead(*node));
-      enum result res;
+      path = nullptr;
+    }
+  }
+  else if (leaf || strlen(path))
+  {
+    FsNode *child = reinterpret_cast<FsNode *>(fsNodeHead(*node));
+    fsNodeFree(*node);
 
-      fsNodeFree(*node);
-      if (child == nullptr)
-        return nullptr;
+    while (child)
+    {
+      char nodeName[CONFIG_FILENAME_LENGTH];
+      const result res = fsNodeRead(child, FS_NODE_NAME, 0, nodeName,
+          sizeof(nodeName), nullptr);
 
-      do
+      if (res == E_OK)
       {
-        res = fsNodeRead(child, FS_NODE_NAME, 0, currentName,
-            sizeof(currentName), nullptr);
-
-        if (res != E_OK)
-        {
-          fsNodeFree(child);
-          return nullptr;
-        }
-
-        if (!strcmp(nextPart, currentName))
+        if (!strcmp(nextPart, nodeName))
           break;
       }
-      while ((res = fsNodeNext(child)) == E_OK);
 
-      //Check whether the node is found
-      if (res != E_OK)
+      if (res != E_OK || fsNodeNext(child) != E_OK)
       {
         fsNodeFree(child);
-        path = nullptr;
-      }
-      else
-      {
-        //TODO Change algorithm
-        const bool descendants =
-            fsNodeLength(child, FS_NODE_DATA, nullptr) == E_INVALID;
-
-        if (!leaf && !descendants)
-        {
-          //Reached the end, previous node is the target node
-          fsNodeFree(child);
-          path = "\0";
-        }
-        else
-        {
-          *node = child;
-        }
+        child = nullptr;
+        break;
       }
     }
+
+    //Check whether the node is found
+    if (child != nullptr)
+      *node = child;
+    else
+      path = nullptr;
   }
 
   return path;
@@ -140,16 +130,6 @@ const char *Shell::ShellCommand::getChunk(char *dst, const char *src)
   *dst = '\0';
 
   return src;
-}
-//------------------------------------------------------------------------------
-FsNode *Shell::ShellCommand::openEntry(const char *path) const
-{
-  return followPath(path, true);
-}
-//------------------------------------------------------------------------------
-FsNode *Shell::ShellCommand::openRoot(const char *path) const
-{
-  return followPath(path, false);
 }
 //------------------------------------------------------------------------------
 const char *Shell::extractName(const char *path)

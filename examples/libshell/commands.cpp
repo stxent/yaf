@@ -70,15 +70,15 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
 {
   result res;
 
-  const char * const entryName = Shell::extractName(destinationPath);
-  if (entryName == nullptr)
+  const char * const nodeName = Shell::extractName(destinationPath);
+  if (nodeName == nullptr)
   {
     owner.log("%s: %s: incorrect name", name(), destinationPath);
     return E_VALUE;
   }
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, sourcePath);
-  FsNode * const sourceNode = openEntry(context->pathBuffer);
+  FsNode * const sourceNode = openNode(context->pathBuffer);
   if (sourceNode == nullptr)
   {
     owner.log("%s: %s: node not found", name(), context->pathBuffer);
@@ -86,7 +86,8 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   }
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, destinationPath);
-  FsNode *destinationNode = openEntry(context->pathBuffer);
+
+  FsNode *destinationNode = openNode(context->pathBuffer);
   if (destinationNode != nullptr)
   {
     if (overwrite)
@@ -111,7 +112,7 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
     }
   }
 
-  FsNode * const root = openRoot(context->pathBuffer);
+  FsNode * const root = openBaseNode(context->pathBuffer);
   if (root == nullptr)
   {
     fsNodeFree(sourceNode);
@@ -123,8 +124,8 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   const FsFieldDescriptor descriptors[] = {
       //Name descriptor
       {
-          entryName,
-          static_cast<length_t>(strlen(entryName) + 1),
+          nodeName,
+          static_cast<length_t>(strlen(nodeName) + 1),
           FS_NODE_NAME
       },
       //Payload descriptor
@@ -144,7 +145,7 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
     return res;
   }
 
-  destinationNode = openEntry(context->pathBuffer);
+  destinationNode = openNode(context->pathBuffer);
   if (destinationNode == nullptr)
   {
     fsNodeFree(sourceNode);
@@ -180,7 +181,10 @@ result ChangeDirectory::processArguments(unsigned int count,
   }
 
   if (*path == nullptr)
+  {
+    owner.log("cd: not enough arguments");
     return E_ENTRY;
+  }
 
   return E_OK;
 }
@@ -191,7 +195,13 @@ result DataProcessing::removeNode(Shell::ShellContext *context, FsNode *node,
   FsNode *root;
   result res;
 
-  if ((root = openRoot(path)) == nullptr)
+  if ((res = fsNodeLength(node, FS_NODE_DATA, nullptr)) != E_OK)
+  {
+    owner.log("%s: %s: data-less node ignored", name(), context->pathBuffer);
+    return res;
+  }
+
+  if ((root = openBaseNode(path)) == nullptr)
   {
     owner.log("%s: %s: root node not found", name(), context->pathBuffer);
     return E_ENTRY;
@@ -216,11 +226,10 @@ result ChangeDirectory::run(unsigned int count, const char * const *arguments,
     return res; //FIXME E_BUSY
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, path);
-
-  FsNode * const node = openEntry(context->pathBuffer);
+  FsNode * const node = openNode(context->pathBuffer);
   if (node == nullptr)
   {
-    owner.log("cd: %s: no such node", context->pathBuffer);
+    owner.log("cd: %s: node not found", context->pathBuffer);
     return E_ENTRY;
   }
 
@@ -228,7 +237,7 @@ result ChangeDirectory::run(unsigned int count, const char * const *arguments,
   FsNode * const descendant = reinterpret_cast<FsNode *>(fsNodeHead(node));
   if (descendant == nullptr)
   {
-    owner.log("cd: %s: entry is empty", context->pathBuffer);
+    owner.log("cd: %s: node is empty", context->pathBuffer);
     fsNodeFree(node);
     return E_ENTRY;
   }
@@ -236,7 +245,6 @@ result ChangeDirectory::run(unsigned int count, const char * const *arguments,
 
   //Check access rights
   access_t access;
-
   res = fsNodeRead(node, FS_NODE_ACCESS, 0, &access, sizeof(access), nullptr);
   fsNodeFree(node);
 
@@ -541,16 +549,16 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
   if (help)
   {
     owner.log("Usage: ls [OPTION]... [DIRECTORY]...");
-    owner.log("  -i                    show index of each entry");
+    owner.log("  -i                    show index of each node");
     owner.log("  -l                    show detailed information");
     owner.log("  --help                print help message");
     owner.log("  --filter NAME         filter entries by NAME substring");
-    owner.log("  --verify-count COUNT  compare entry count with COUNT");
+    owner.log("  --verify-count COUNT  compare node count with COUNT");
     return E_OK;
   }
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, path);
-  FsNode * const root = openEntry(context->pathBuffer);
+  FsNode * const root = openNode(context->pathBuffer);
   if (root == nullptr)
   {
     owner.log("ls: %s: node not found", context->pathBuffer);
@@ -561,7 +569,7 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
   fsNodeFree(root);
   if (child == nullptr)
   {
-    owner.log("ls: %s: entry is empty", context->pathBuffer);
+    owner.log("ls: %s: node is empty", context->pathBuffer);
     return E_ENTRY;
   }
 
@@ -637,7 +645,6 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
         const unsigned long printableIndexPart =
             static_cast<unsigned long>(nodeId & 0xFFFF);
 
-        //Index number of the entry added
         owner.log("%8lX%04lX %s %10lu %s %s", printableClusterPart,
             printableIndexPart, printableNodeAccess, printableNodeSize,
             printableNodeTime, nodeName);
@@ -703,15 +710,16 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments,
     return E_VALUE;
   }
 
-  const char * const entryName = Shell::extractName(target);
-  if (entryName == nullptr)
+  const char * const nodeName = Shell::extractName(target);
+  if (nodeName == nullptr)
   {
     owner.log("mkdir: %s: incorrect name", target);
     return E_VALUE;
   }
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, target);
-  FsNode * const destinationNode = openEntry(context->pathBuffer);
+
+  FsNode * const destinationNode = openNode(context->pathBuffer);
   if (destinationNode != nullptr)
   {
     fsNodeFree(destinationNode);
@@ -719,18 +727,18 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments,
     return E_EXIST;
   }
 
-  FsNode * const root = openRoot(context->pathBuffer);
+  FsNode * const root = openBaseNode(context->pathBuffer);
   if (root == nullptr)
   {
-    owner.log("mkdir: %s: target root node not found", context->pathBuffer);
+    owner.log("mkdir: %s: root node not found", context->pathBuffer);
     return E_ENTRY;
   }
 
   const FsFieldDescriptor descriptors[] = {
       //Name descriptor
       {
-          entryName,
-          static_cast<length_t>(strlen(entryName) + 1),
+          nodeName,
+          static_cast<length_t>(strlen(nodeName) + 1),
           FS_NODE_NAME
       }
   };
@@ -775,7 +783,7 @@ result RemoveDirectory::run(unsigned int count, const char * const *arguments,
 
   Shell::joinPaths(context->pathBuffer, context->currentDir, target);
 
-  FsNode * const node = openEntry(context->pathBuffer);
+  FsNode * const node = openNode(context->pathBuffer);
   if (node == nullptr)
   {
     owner.log("rmdir: %s: node not found", context->pathBuffer);
@@ -790,10 +798,10 @@ result RemoveDirectory::run(unsigned int count, const char * const *arguments,
     return E_ENTRY;
   }
 
-  FsNode * const root = openRoot(context->pathBuffer);
+  FsNode * const root = openBaseNode(context->pathBuffer);
   if (root == nullptr)
   {
-    owner.log("rmdir: %s: target root node not found", context->pathBuffer);
+    owner.log("rmdir: %s: root node not found", context->pathBuffer);
     fsNodeFree(node);
     return E_ENTRY;
   }
@@ -860,11 +868,10 @@ result RemoveEntry::run(unsigned int count, const char * const *arguments,
 
     Shell::joinPaths(context->pathBuffer, context->currentDir, targets[i]);
 
-    FsNode * const node = openEntry(context->pathBuffer);
-
+    FsNode * const node = openNode(context->pathBuffer);
     if (node == nullptr)
     {
-      owner.log("rm: %s: no such entry", context->pathBuffer);
+      owner.log("rm: %s: node not found", context->pathBuffer);
       res = E_ENTRY;
       break;
     }
@@ -872,16 +879,15 @@ result RemoveEntry::run(unsigned int count, const char * const *arguments,
     if ((res = fsNodeLength(node, FS_NODE_DATA, nullptr)) != E_OK)
     {
       fsNodeFree(node);
-      owner.log("rm: %s: data-less entry ignored", context->pathBuffer);
+      owner.log("rm: %s: data-less node ignored", context->pathBuffer);
       break;
     }
 
-    FsNode * const root = openRoot(context->pathBuffer);
-
+    FsNode * const root = openBaseNode(context->pathBuffer);
     if (root == nullptr)
     {
       fsNodeFree(node);
-      owner.log("rm: %s: root entry not found", context->pathBuffer);
+      owner.log("rm: %s: root node not found", context->pathBuffer);
       res = E_ENTRY;
       break;
     }

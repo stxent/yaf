@@ -57,8 +57,7 @@ result AbstractComputationCommand::compute(unsigned int count,
 
   do
   {
-    const unsigned int index = count
-        - static_cast<unsigned int>(path - arguments);
+    const unsigned int index = count - (path - arguments);
     char expectedValue[MAX_LENGTH];
     bool checkValue;
 
@@ -68,14 +67,14 @@ result AbstractComputationCommand::compute(unsigned int count,
       break;
     }
 
-    const char * const fileName = *path++;
+    const char * const nodeName = *path++;
 
     //Find destination node
-    Shell::joinPaths(context->pathBuffer, context->currentDir, fileName);
-    FsNode * const node = openEntry(context->pathBuffer);
+    Shell::joinPaths(context->pathBuffer, context->currentDir, nodeName);
+    FsNode * const node = openNode(context->pathBuffer);
     if (node == nullptr)
     {
-      owner.log("%s: %s: no such node", name(), context->pathBuffer);
+      owner.log("%s: %s: node not found", name(), context->pathBuffer);
       break;
     }
 
@@ -106,7 +105,7 @@ result AbstractComputationCommand::processArguments(unsigned int count,
   if (help)
   {
     owner.log("Usage: %s [OPTION]... FILES", name());
-    owner.log("  --check VALUE  check computation result with VALUE");
+    owner.log("  --check VALUE  compare result with VALUE");
     owner.log("  --help         print help message");
     return E_BUSY;
   }

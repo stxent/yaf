@@ -108,9 +108,6 @@ static enum result mmiInit(void *object, const void *configBase)
   if (!path)
     return E_ERROR;
 
-  if (semInit(&dev->semaphore, 1) != E_OK)
-    return E_ERROR;
-
   dev->position = 0;
   dev->offset = 0;
   dev->size = 0;
@@ -119,11 +116,17 @@ static enum result mmiInit(void *object, const void *configBase)
   if (!dev->file)
     return E_ERROR;
   if (fstat(dev->file, &(dev->info)) == -1 || dev->info.st_size == 0)
+  {
+    close(dev->file);
     return E_ERROR;
+  }
 
   dev->data = mmap(0, dev->info.st_size, PROT_WRITE, MAP_SHARED, dev->file, 0);
   if (dev->data == MAP_FAILED)
+  {
+    close(dev->file);
     return E_ERROR;
+  }
 
   dev->size = dev->info.st_size;
 
@@ -137,6 +140,13 @@ static enum result mmiInit(void *object, const void *configBase)
   getSizeString(dev->size, sizeString);
   DEBUG_PRINT(0, "mmaped_io: opened file: %s, size: %s\n", path, sizeString);
 #endif
+
+  if (semInit(&dev->semaphore, 1) != E_OK)
+  {
+    munmap(dev->data, dev->info.st_size);
+    close(dev->file);
+    return E_ERROR;
+  }
 
   return E_OK;
 }

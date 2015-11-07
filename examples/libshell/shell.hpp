@@ -94,13 +94,15 @@ public:
     ShellCommand(Shell &);
 
     //Helper functions
-    FsNode *followPath(const char *, bool) const;
-    const char *followNextPart(FsNode **, const char *, bool) const;
-    static const char *getChunk(char *dst, const char *src);
-    FsNode *openEntry(const char *) const;
-    FsNode *openRoot(const char *) const;
+    FsNode *openBaseNode(const char *) const;
+    FsNode *openNode(const char *) const;
 
     Shell &owner;
+
+  private:
+    static const char *getChunk(char *dst, const char *src);
+    FsNode *followPath(const char *, bool) const;
+    const char *followNextPart(FsNode **, const char *, bool) const;
   };
 
   Shell(struct Interface *console, struct FsHandle *root);
