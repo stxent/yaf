@@ -294,7 +294,7 @@ Shell *Application::initShell(Interface *console, FsHandle *handle)
 
   shell->append(CommandBuilder<CatEntry>());
   shell->append(CommandBuilder<ComputationCommand<ChecksumCrc32>>());
-  shell->append(CommandBuilder<FillEntry>());
+  shell->append(CommandBuilder<EchoData>());
   shell->append(CommandBuilder<TouchEntry>());
 
   shell->append(CommandBuilder<ComputationCommand<Md5Hash>>());

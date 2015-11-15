@@ -791,7 +791,7 @@ result RemoveDirectory::run(unsigned int count, const char * const *arguments,
   }
 
   //Check whether the node contains data or other entries
-  if (fsNodeLength(node, FS_NODE_DATA, nullptr) != E_INVALID)
+  if (fsNodeLength(node, FS_NODE_DATA, nullptr) == E_OK)
   {
     owner.log("rmdir: %s: node contains data", context->pathBuffer);
     fsNodeFree(node);

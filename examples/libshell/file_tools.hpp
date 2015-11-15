@@ -72,17 +72,17 @@ private:
   uint32_t sum;
 };
 //------------------------------------------------------------------------------
-class FillEntry : public Shell::ShellCommand
+class EchoData : public Shell::ShellCommand
 {
 public:
-  FillEntry(Shell &parent) :
+  EchoData(Shell &parent) :
       ShellCommand(parent)
   {
   }
 
   virtual const char *name() const
   {
-    return "fill";
+    return "echo";
   }
 
   virtual result run(unsigned int, const char * const *, Shell::ShellContext *);

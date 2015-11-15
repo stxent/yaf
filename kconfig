@@ -30,6 +30,7 @@ menu "Filesystem options"
 
 config OVERRIDE_LENGTH
 	bool "Override default filename length"
+	default n
 
 config FILENAME_LENGTH
 	int "Maximum filename length"
@@ -45,26 +46,31 @@ config FAT_SECTOR
 
 config FAT_POOLS
 	bool "Object pools"
+	default n
 	help
 	  Build driver with statically allocated buffers.
 
 config FAT_THREADS
 	bool "Multithreading"
+	default n
 	help
 	  Enable multithreading.
 
 config FAT_TIME
 	bool "Time functions"
+	default n
 	help
 	  Build driver with time functions enabled.
 
 config FAT_UNICODE
 	bool "Unicode support"
+	default y
 	help
 	  Enable support for Unicode characters.
 
 config FAT_WRITE
 	bool "Write support"
+	default y
 	help
 	  Enable write functions.
 
@@ -92,6 +98,13 @@ config OPTIMIZATIONS
 	default "size" if OPTIMIZATIONS_SIZE
 	default "full" if OPTIMIZATIONS_FULL
 
+config FPU
+	bool "FPU"
+	default y
+	help
+	  This enables Floating Point Unit.
+	depends on TARGET_CORTEX_M4
+
 endmenu
 
 menu "Debug options"
@@ -99,6 +112,7 @@ menu "Debug options"
 
 config DEBUG
 	bool "Debug messages"
+	default n
 
 config DEBUG_LEVEL
 	int "Debug level"
@@ -107,10 +121,12 @@ config DEBUG_LEVEL
 
 config SHELL
 	bool "Build shell example"
+	default y
 	depends on LIBSHELL
 
 config MMI_STATUS
 	bool "Interface status"
+	default n
 	depends on SHELL
 
 endmenu
@@ -119,6 +135,7 @@ menu "Examples"
 
 config LIBSHELL
 	bool "Build shell library"
+	default y
 
 config SHELL_BUFFER
 	int "Buffer size"

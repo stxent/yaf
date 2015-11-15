@@ -50,7 +50,7 @@ result CatEntry::print(FsNode *node, bool hex) const
         &read);
     if (res != E_OK || read != chunkLength)
     {
-      owner.log("cat: read error at %u", name(), position);
+      owner.log("cat: read error at %u", position);
       if (res == E_OK)
         res = E_ERROR;
       break;
@@ -188,7 +188,7 @@ void ChecksumCrc32::update(const uint8_t *buffer, uint32_t bufferLength)
   sum = crcUpdate(engine, sum, buffer, bufferLength);
 }
 //------------------------------------------------------------------------------
-result FillEntry::fill(FsNode *node, const char *pattern,
+result EchoData::fill(FsNode *node, const char *pattern,
     unsigned int number) const
 {
   const unsigned int patternLength = strlen(pattern);
@@ -214,7 +214,7 @@ result FillEntry::fill(FsNode *node, const char *pattern,
         &written);
     if (res != E_OK || written != length)
     {
-      owner.log("%s: write error at %u", name(), nodePosition);
+      owner.log("echo: write error at %u", nodePosition);
       if (res == E_OK)
         res = E_ERROR;
       break;
@@ -225,7 +225,7 @@ result FillEntry::fill(FsNode *node, const char *pattern,
   return res;
 }
 //------------------------------------------------------------------------------
-result FillEntry::processArguments(unsigned int count,
+result EchoData::processArguments(unsigned int count,
     const char * const *arguments, const char **target, const char **pattern,
     unsigned int *number) const
 {
@@ -267,13 +267,13 @@ result FillEntry::processArguments(unsigned int count,
 
   if (argumentError)
   {
-    owner.log("fill: argument processing error");
+    owner.log("echo: argument processing error");
     return E_VALUE;
   }
 
   if (help)
   {
-    owner.log("Usage: fill [OPTION]... ENTRY");
+    owner.log("Usage: echo [OPTION]... ENTRY");
     owner.log("  --help  print help message");
     owner.log("  -n      number of iterations");
     owner.log("  -p      string pattern");
@@ -283,7 +283,7 @@ result FillEntry::processArguments(unsigned int count,
   return *target == nullptr ? E_ENTRY : E_OK;
 }
 //------------------------------------------------------------------------------
-result FillEntry::run(unsigned int count, const char * const *arguments,
+result EchoData::run(unsigned int count, const char * const *arguments,
     Shell::ShellContext *context)
 {
   const char *pattern = "0";
@@ -298,7 +298,7 @@ result FillEntry::run(unsigned int count, const char * const *arguments,
   const char * const nodeName = Shell::extractName(target);
   if (nodeName == nullptr)
   {
-    owner.log("fill: %s: incorrect name", target);
+    owner.log("echo: %s: incorrect name", target);
     return E_VALUE;
   }
 
@@ -308,14 +308,14 @@ result FillEntry::run(unsigned int count, const char * const *arguments,
   if (destinationNode != nullptr)
   {
     fsNodeFree(destinationNode);
-    owner.log("fill: %s: node already exists", context->pathBuffer);
+    owner.log("echo: %s: node already exists", context->pathBuffer);
     return E_EXIST;
   }
 
   FsNode * const root = openBaseNode(context->pathBuffer);
   if (root == nullptr)
   {
-    owner.log("fill: %s: root node not found", context->pathBuffer);
+    owner.log("echo: %s: root node not found", context->pathBuffer);
     return E_ENTRY;
   }
 
@@ -338,14 +338,14 @@ result FillEntry::run(unsigned int count, const char * const *arguments,
   fsNodeFree(root);
   if (res != E_OK)
   {
-    owner.log("fill: %s: creation failed", context->pathBuffer);
+    owner.log("echo: %s: creation failed", context->pathBuffer);
     return res;
   }
 
   destinationNode = openNode(context->pathBuffer);
   if (destinationNode == nullptr)
   {
-    owner.log("fill: %s: node not found", context->pathBuffer);
+    owner.log("echo: %s: node not found", context->pathBuffer);
     return E_ENTRY;
   }
 
