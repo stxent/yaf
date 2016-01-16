@@ -1054,19 +1054,10 @@ static enum result clearCluster(struct CommandContext *context,
 static void clearDirtyFlag(struct FatNode *node)
 {
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
-  struct ListNode *current = listFirst(&handle->openedFiles);
-  struct FatNode *descriptor;
+  struct ListNode * const listNode = listFind(&handle->openedFiles, &node);
 
-  while (current)
-  {
-    listData(&handle->openedFiles, current, &descriptor);
-    if (descriptor == node)
-    {
-      listErase(&handle->openedFiles, current);
-      break;
-    }
-    current = listNext(current);
-  }
+  if (listNode)
+    listErase(&handle->openedFiles, listNode);
 
   node->flags &= ~FAT_FLAG_DIRTY;
 }

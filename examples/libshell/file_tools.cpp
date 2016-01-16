@@ -65,7 +65,7 @@ result CatEntry::print(FsNode *node, bool hex) const
       {
         const unsigned int offset = row * HEX_OUTPUT_WIDTH;
         const unsigned int currentRowWidth = read - offset > HEX_OUTPUT_WIDTH ?
-            HEX_OUTPUT_WIDTH : read - offset;
+            HEX_OUTPUT_WIDTH : static_cast<unsigned int>(read - offset);
         char output[HEX_OUTPUT_WIDTH * 3];
         char *outputPosition = output;
 
@@ -87,7 +87,7 @@ result CatEntry::print(FsNode *node, bool hex) const
       {
         const unsigned int offset = row * RAW_OUTPUT_WIDTH;
         const unsigned int currentRowWidth = read - offset > RAW_OUTPUT_WIDTH ?
-            RAW_OUTPUT_WIDTH : read - offset;
+            RAW_OUTPUT_WIDTH : static_cast<unsigned int>(read - offset);
         char output[RAW_OUTPUT_WIDTH + 1];
 
         memcpy(output, buffer + offset, currentRowWidth);
@@ -103,7 +103,8 @@ result CatEntry::print(FsNode *node, bool hex) const
 }
 //------------------------------------------------------------------------------
 result CatEntry::processArguments(unsigned int count,
-    const char * const *arguments, const char **target, bool *hex) const
+    const char * const *arguments, const char **target, bool *hex,
+    const char **output) const
 {
   bool help = false;
 
@@ -119,6 +120,15 @@ result CatEntry::processArguments(unsigned int count,
       *hex = true;
       continue;
     }
+    if (!strcmp(arguments[i], "-o"))
+    {
+      if (++i >= count)
+      {
+        *output = arguments[i];
+        break;
+      }
+      continue;
+    }
     if (*target == nullptr)
     {
       *target = arguments[i];
@@ -130,6 +140,7 @@ result CatEntry::processArguments(unsigned int count,
     owner.log("Usage: cat ENTRY...");
     owner.log("  --help  print help message");
     owner.log("  --hex   print in hexadecimal format");
+    owner.log("  -o      output file");
     return E_BUSY;
   }
 
@@ -139,11 +150,12 @@ result CatEntry::processArguments(unsigned int count,
 result CatEntry::run(unsigned int count, const char * const *arguments,
     Shell::ShellContext *context)
 {
+  const char *output = nullptr;
   const char *target = nullptr;
   bool hex = false;
   result res;
 
-  res = processArguments(count, arguments, &target, &hex);
+  res = processArguments(count, arguments, &target, &hex, &output);
   if (res != E_OK)
     return res;
 
@@ -175,7 +187,7 @@ ChecksumCrc32::~ChecksumCrc32()
 //------------------------------------------------------------------------------
 void ChecksumCrc32::finalize(char *digest)
 {
-  sprintf(digest, "%08x", sum);
+  sprintf(digest, "%08x", static_cast<unsigned int>(sum));
 }
 //------------------------------------------------------------------------------
 void ChecksumCrc32::reset()

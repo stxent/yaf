@@ -39,7 +39,7 @@ private:
 
   result print(FsNode *, bool) const;
   result processArguments(unsigned int, const char * const *,
-      const char **, bool *) const;
+      const char **, bool *, const char **) const;
 };
 //------------------------------------------------------------------------------
 class ChecksumCrc32 : public ComputationAlgorithm
