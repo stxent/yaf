@@ -16,7 +16,7 @@ static time64_t clkTime(void *);
 /*----------------------------------------------------------------------------*/
 struct UnixTime
 {
-  struct RtClock parent;
+  struct RtClock base;
 };
 /*----------------------------------------------------------------------------*/
 static const struct RtClockClass clkTable = {

@@ -2224,16 +2224,16 @@ static void fatNodeDeinit(void *object)
 }
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_WRITE
-static enum result fatNodeCreate(void *object,
+static enum result fatNodeCreate(void *rootObject,
     const struct FsFieldDescriptor *descriptors, uint8_t number)
 {
-  const struct FatNode * const parent = object;
-  struct FatHandle * const handle = (struct FatHandle *)parent->handle;
+  const struct FatNode * const root = rootObject;
+  struct FatHandle * const handle = (struct FatHandle *)root->handle;
   struct CommandContext *context;
 
-  if (!(parent->flags & FAT_FLAG_DIR))
+  if (!(root->flags & FAT_FLAG_DIR))
     return E_VALUE;
-  if (parent->flags & FAT_FLAG_RO)
+  if (root->flags & FAT_FLAG_RO)
     return E_ACCESS;
 
   time64_t nodeTime = 0;
@@ -2306,7 +2306,7 @@ static enum result fatNodeCreate(void *object,
          * because the directory entry will be created on the next step.
          */
         unlockHandle(handle);
-        res = setupDirCluster(context, handle, parent->payloadCluster,
+        res = setupDirCluster(context, handle, root->payloadCluster,
             nodePayloadCluster, nodeTime);
         lockHandle(handle);
 
@@ -2318,7 +2318,7 @@ static enum result fatNodeCreate(void *object,
     /* Create an entry in the parent directory */
     if (res == E_OK)
     {
-      res = createNode(context, parent, directory, nameDesc->data, nodeAccess,
+      res = createNode(context, root, directory, nameDesc->data, nodeAccess,
           nodePayloadCluster, nodeTime);
 
       if (res != E_OK && directory)
@@ -2334,7 +2334,7 @@ static enum result fatNodeCreate(void *object,
   return res;
 }
 #else
-static enum result fatNodeCreate(void *object __attribute__((unused)),
+static enum result fatNodeCreate(void *rootObject __attribute__((unused)),
     const struct FsFieldDescriptor *descriptors __attribute__((unused)),
     uint8_t count __attribute__((unused)))
 {
@@ -2344,21 +2344,21 @@ static enum result fatNodeCreate(void *object __attribute__((unused)),
 /*----------------------------------------------------------------------------*/
 static void *fatNodeHead(void *object)
 {
-  struct FatNode * const parent = object;
-  struct FatHandle * const handle = (struct FatHandle *)parent->handle;
+  struct FatNode * const root = object;
+  struct FatHandle * const handle = (struct FatHandle *)root->handle;
   struct CommandContext *context;
   struct FatNode *node;
   enum result res;
 
-  if (!(parent->flags & FAT_FLAG_DIR))
+  if (!(root->flags & FAT_FLAG_DIR))
     return 0; /* Current node is not directory */
-  if (parent->currentCluster == RESERVED_CLUSTER)
+  if (root->currentCluster == RESERVED_CLUSTER)
     return 0; /* Iterator reached the end of the parent directory */
 
   if (!(node = allocateNode(handle)))
     return 0;
 
-  node->parentCluster = parent->payloadCluster;
+  node->parentCluster = root->payloadCluster;
   node->parentIndex = 0;
 
   if ((context = allocateContext(handle)))
@@ -2658,15 +2658,15 @@ static enum result fatNodeRead(void *object, enum fsFieldType type,
 }
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_WRITE
-static enum result fatNodeRemove(void *parentObject, void *object)
+static enum result fatNodeRemove(void *rootObject, void *object)
 {
-  struct FatNode * const parent = parentObject;
+  struct FatNode * const root = rootObject;
   struct FatNode * const node = object;
-  struct FatHandle * const handle = (struct FatHandle *)parent->handle;
+  struct FatHandle * const handle = (struct FatHandle *)root->handle;
   struct CommandContext *context;
   enum result res;
 
-  if ((parent->flags & FAT_FLAG_RO) || (node->flags & FAT_FLAG_RO))
+  if ((root->flags & FAT_FLAG_RO) || (node->flags & FAT_FLAG_RO))
     return E_ACCESS;
 
   if (!(context = allocateContext(handle)))
@@ -2686,7 +2686,7 @@ static enum result fatNodeRemove(void *parentObject, void *object)
   return res;
 }
 #else
-static enum result fatNodeRemove(void *parentObject __attribute__((unused)),
+static enum result fatNodeRemove(void *rootObject __attribute__((unused)),
     void *object __attribute__((unused)))
 {
   return E_INVALID;

@@ -98,7 +98,7 @@ enum
 /*----------------------------------------------------------------------------*/
 struct FatHandle
 {
-  struct FsHandle parent;
+  struct FsHandle base;
 
   struct FsHandle *head;
   struct Interface *interface;
@@ -152,7 +152,7 @@ struct FatNodeConfig
 /*----------------------------------------------------------------------------*/
 struct FatNode
 {
-  struct FsNode parent;
+  struct FsNode base;
 
   struct FsHandle *handle;
 

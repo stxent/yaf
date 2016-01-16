@@ -35,7 +35,7 @@ static uint32_t mmiWrite(void *, const uint8_t *, uint32_t);
 /*----------------------------------------------------------------------------*/
 struct Mmi
 {
-  struct Interface parent;
+  struct Interface base;
 
   struct Semaphore semaphore;
   uint64_t position;

@@ -17,7 +17,7 @@ static uint32_t consoleWrite(void *, const uint8_t *, uint32_t);
 /*----------------------------------------------------------------------------*/
 struct Console
 {
-  struct Interface parent;
+  struct Interface base;
 };
 /*----------------------------------------------------------------------------*/
 static const struct InterfaceClass consoleTable = {
