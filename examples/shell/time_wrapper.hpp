@@ -8,11 +8,6 @@
 #define SHELL_TIME_WRAPPER_HPP_
 //------------------------------------------------------------------------------
 #include "libshell/timestamps.hpp"
-
-extern "C"
-{
-#include <realtime.h>
-}
 //------------------------------------------------------------------------------
 class UnixTimeProvider : public TimeProvider
 {

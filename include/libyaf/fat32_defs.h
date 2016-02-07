@@ -10,13 +10,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <bits.h>
-#include <fs.h>
-#include <unicode.h>
 #include <containers/list.h>
 #include <containers/queue.h>
+#include <fs.h>
+#include <unicode.h>
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_THREADS
-#include <os/mutex.h>
+#include <libosw/mutex.h>
 #endif
 
 #ifdef CONFIG_FAT_TIME

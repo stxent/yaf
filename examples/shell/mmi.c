@@ -11,8 +11,8 @@
 #include <sys/stat.h>
 
 #include <memory.h>
+#include <libosw/semaphore.h>
 #include <libyaf/debug.h>
-#include <os/semaphore.h>
 #include "shell/mmi.h"
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_SECTOR
@@ -174,7 +174,7 @@ static enum result mmiGet(void *object, enum ifOption option, void *data)
 
   switch (option)
   {
-    case IF_ADDRESS:
+    case IF_POSITION:
       *(uint64_t *)data = dev->position;
       return E_OK;
 
@@ -195,7 +195,7 @@ static enum result mmiSet(void *object, enum ifOption option,
 
   switch (option)
   {
-    case IF_ADDRESS:
+    case IF_POSITION:
       newPos = *(const uint64_t *)data;
       if (newPos + dev->offset >= (uint64_t)dev->info.st_size)
       {
@@ -284,7 +284,7 @@ enum result mmiReadTable(void *object, uint32_t sector, uint8_t index,
   dev->offset = 0;
 
   /* TODO Lock interface during table read */
-  if (ifSet(object, IF_ADDRESS, &position) != E_OK)
+  if (ifSet(object, IF_POSITION, &position) != E_OK)
     return E_INTERFACE;
   if (ifRead(object, buffer, sizeof(buffer)) != sizeof(buffer))
     return E_INTERFACE;

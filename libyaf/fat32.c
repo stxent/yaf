@@ -786,12 +786,12 @@ exit:
 static enum result readBuffer(struct FatHandle *handle, uint32_t sector,
     uint8_t *buffer, uint32_t count)
 {
-  const uint64_t address = (uint64_t)sector << SECTOR_EXP;
+  const uint64_t position = (uint64_t)sector << SECTOR_EXP;
   const uint32_t length = count << SECTOR_EXP;
   enum result res;
 
   ifSet(handle->interface, IF_ACQUIRE, 0);
-  res = ifSet(handle->interface, IF_ADDRESS, &address);
+  res = ifSet(handle->interface, IF_POSITION, &position);
   if (res == E_OK)
   {
     if (ifRead(handle->interface, buffer, length) != length)
@@ -808,15 +808,14 @@ static enum result readSector(struct CommandContext *context,
   if (context->sector == sector)
     return E_OK;
 
-  const uint64_t address = (uint64_t)sector << SECTOR_EXP;
-  const uint32_t length = SECTOR_SIZE;
+  const uint64_t position = (uint64_t)sector << SECTOR_EXP;
   enum result res;
 
   ifSet(handle->interface, IF_ACQUIRE, 0);
-  res = ifSet(handle->interface, IF_ADDRESS, &address);
+  res = ifSet(handle->interface, IF_POSITION, &position);
   if (res == E_OK)
   {
-    if (ifRead(handle->interface, context->buffer, length) == length)
+    if (ifRead(handle->interface, context->buffer, SECTOR_SIZE) == SECTOR_SIZE)
       context->sector = sector;
     else
       res = E_INTERFACE;
@@ -1969,11 +1968,11 @@ static enum result updateTable(struct CommandContext *context,
 static enum result writeBuffer(struct FatHandle *handle,
     uint32_t sector, const uint8_t *buffer, uint32_t count)
 {
-  const uint64_t address = (uint64_t)sector << SECTOR_EXP;
+  const uint64_t position = (uint64_t)sector << SECTOR_EXP;
   const uint32_t length = count << SECTOR_EXP;
   enum result res;
 
-  if ((res = ifSet(handle->interface, IF_ADDRESS, &address)) != E_OK)
+  if ((res = ifSet(handle->interface, IF_POSITION, &position)) != E_OK)
     return res;
   if (ifWrite(handle->interface, buffer, length) != length)
     return E_INTERFACE;
@@ -1986,13 +1985,12 @@ static enum result writeBuffer(struct FatHandle *handle,
 static enum result writeSector(struct CommandContext *context,
     struct FatHandle *handle, uint32_t sector)
 {
-  const uint64_t address = (uint64_t)sector << SECTOR_EXP;
-  const uint32_t length = SECTOR_SIZE;
+  const uint64_t position = (uint64_t)sector << SECTOR_EXP;
   enum result res;
 
-  if ((res = ifSet(handle->interface, IF_ADDRESS, &address)) != E_OK)
+  if ((res = ifSet(handle->interface, IF_POSITION, &position)) != E_OK)
     return res;
-  if (ifWrite(handle->interface, context->buffer, length) != length)
+  if (ifWrite(handle->interface, context->buffer, SECTOR_SIZE) != SECTOR_SIZE)
     return E_INTERFACE;
   context->sector = sector;
 

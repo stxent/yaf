@@ -12,9 +12,9 @@
 
 extern "C"
 {
-#include <os/mutex.h>
-#include <os/semaphore.h>
-#include <os/thread.h>
+#include <libosw/mutex.h>
+#include <libosw/semaphore.h>
+#include <libosw/thread.h>
 }
 //------------------------------------------------------------------------------
 class WorkerThread;

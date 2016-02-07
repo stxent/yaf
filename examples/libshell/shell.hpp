@@ -14,7 +14,7 @@ extern "C"
 {
 #include <fs.h>
 #include <interface.h>
-#include <os/mutex.h>
+#include <libosw/mutex.h>
 }
 //------------------------------------------------------------------------------
 class Shell;

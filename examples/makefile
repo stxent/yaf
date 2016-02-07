@@ -19,9 +19,6 @@ ifneq ($(BIN_EXAMPLES) $(LIB_EXAMPLES),)
 endif
 ifneq ($(BIN_EXAMPLES),)
   LDLIBS += -lshell
-
-  CSOURCES_SHARED := $(shell find os -name *.c)
-  CSOURCES += $(CSOURCES_SHARED)
 endif
 
 define make-example
@@ -29,7 +26,6 @@ define make-example
   CSOURCES += $$($(1)_CSOURCES)
   $(1)_CXXSOURCES := $(shell find $(EXAMPLES_DIR)/$(1) -name *.cpp)
   CXXSOURCES += $$($(1)_CXXSOURCES)
-  $(1)_OBJECTS += $(CSOURCES_SHARED:%.c=$(OUTPUT_DIR)/%.o)
   $(1)_OBJECTS += $$($(1)_CSOURCES:%.c=$(OUTPUT_DIR)/%.o) $$($(1)_CXXSOURCES:%.cpp=$(OUTPUT_DIR)/%.o)
 endef
 

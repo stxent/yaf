@@ -89,7 +89,10 @@ choice
 		bool "Size"
 
 	config OPTIMIZATIONS_FULL
-	  bool "Full"
+		bool "Full"
+
+	config OPTIMIZATIONS_DEBUG
+		bool "Debug"
 endchoice
 
 config OPTIMIZATIONS
@@ -97,6 +100,7 @@ config OPTIMIZATIONS
 	default "none" if OPTIMIZATIONS_DISABLED
 	default "size" if OPTIMIZATIONS_SIZE
 	default "full" if OPTIMIZATIONS_FULL
+	default "debug" if OPTIMIZATIONS_DEBUG
 
 config FPU
 	bool "FPU"
