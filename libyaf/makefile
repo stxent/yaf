@@ -9,7 +9,7 @@ ifeq ($(CONFIG_OVERRIDE_LENGTH),y)
   PROJECT_FLAGS += CONFIG_FILENAME_LENGTH
 endif
 
-LIBRARY_SOURCES := $(shell find libyaf -name *.c)
+LIBRARY_SOURCES := $(wildcard */*.c)
 LIBRARY_OBJECTS = $(LIBRARY_SOURCES:%.c=$(OUTPUT_DIR)/%.o)
 CSOURCES += $(LIBRARY_SOURCES)
 

@@ -22,9 +22,9 @@ ifneq ($(BIN_EXAMPLES),)
 endif
 
 define make-example
-  $(1)_CSOURCES := $(shell find $(EXAMPLES_DIR)/$(1) -name *.c)
+  $(1)_CSOURCES := $(wildcard $(EXAMPLES_DIR)/$(1)/*.c)
   CSOURCES += $$($(1)_CSOURCES)
-  $(1)_CXXSOURCES := $(shell find $(EXAMPLES_DIR)/$(1) -name *.cpp)
+  $(1)_CXXSOURCES := $(wildcard $(EXAMPLES_DIR)/$(1)/*.cpp)
   CXXSOURCES += $$($(1)_CXXSOURCES)
   $(1)_OBJECTS += $$($(1)_CSOURCES:%.c=$(OUTPUT_DIR)/%.o) $$($(1)_CXXSOURCES:%.cpp=$(OUTPUT_DIR)/%.o)
 endef

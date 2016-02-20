@@ -5,6 +5,7 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>
 #include "shell/console.h"
 /*----------------------------------------------------------------------------*/
 static enum result consoleInit(void *, const void *);
@@ -12,8 +13,8 @@ static void consoleDeinit(void *);
 static enum result consoleCallback(void *, void (*)(void *), void *);
 static enum result consoleGet(void *, enum ifOption, void *);
 static enum result consoleSet(void *, enum ifOption, const void *);
-static uint32_t consoleRead(void *, uint8_t *, uint32_t);
-static uint32_t consoleWrite(void *, const uint8_t *, uint32_t);
+static size_t consoleRead(void *, void *, size_t);
+static size_t consoleWrite(void *, const void *, size_t);
 /*----------------------------------------------------------------------------*/
 struct Console
 {
@@ -66,17 +67,16 @@ static enum result consoleSet(void *object __attribute__((unused)),
   return E_ERROR;
 }
 //------------------------------------------------------------------------------
-static uint32_t consoleRead(void *object __attribute__((unused)),
-    uint8_t *buffer __attribute__((unused)),
-    uint32_t length __attribute__((unused)))
+static size_t consoleRead(void *object __attribute__((unused)),
+    void *buffer __attribute__((unused)),
+    size_t length __attribute__((unused)))
 {
   return 0;
 }
 //------------------------------------------------------------------------------
-static uint32_t consoleWrite(void *object __attribute__((unused)),
-    const uint8_t *buffer, uint32_t length)
+static size_t consoleWrite(void *object __attribute__((unused)),
+    const void *buffer, size_t length)
 {
-  printf((const char *)buffer);
-
+  printf(buffer);
   return length;
 }

@@ -20,7 +20,7 @@ extern "C"
 #define CONFIG_SHELL_BUFFER 512
 #endif
 //------------------------------------------------------------------------------
-result CatEntry::print(FsNode *node, bool hex) const
+result CatEntry::print(FsNode *node, bool hex, bool quiet) const
 {
   //TODO Style for lambdas
   auto hexify = [](unsigned char value) {
@@ -55,6 +55,10 @@ result CatEntry::print(FsNode *node, bool hex) const
         res = E_ERROR;
       break;
     }
+    position += read;
+
+    if (quiet)
+      continue;
 
     if (hex)
     {
@@ -95,15 +99,13 @@ result CatEntry::print(FsNode *node, bool hex) const
         owner.log(output);
       }
     }
-
-    position += read;
   }
 
   return res;
 }
 //------------------------------------------------------------------------------
 result CatEntry::processArguments(unsigned int count,
-    const char * const *arguments, const char **target, bool *hex,
+    const char * const *arguments, const char **target, bool *hex, bool *quiet,
     const char **output) const
 {
   bool help = false;
@@ -129,6 +131,11 @@ result CatEntry::processArguments(unsigned int count,
       }
       continue;
     }
+    if (!strcmp(arguments[i], "-q"))
+    {
+      *quiet = true;
+      continue;
+    }
     if (*target == nullptr)
     {
       *target = arguments[i];
@@ -141,6 +148,7 @@ result CatEntry::processArguments(unsigned int count,
     owner.log("  --help  print help message");
     owner.log("  --hex   print in hexadecimal format");
     owner.log("  -o      output file");
+    owner.log("  -q      quiet mode");
     return E_BUSY;
   }
 
@@ -153,9 +161,10 @@ result CatEntry::run(unsigned int count, const char * const *arguments,
   const char *output = nullptr;
   const char *target = nullptr;
   bool hex = false;
+  bool quiet = false;
   result res;
 
-  res = processArguments(count, arguments, &target, &hex, &output);
+  res = processArguments(count, arguments, &target, &hex, &quiet, &output);
   if (res != E_OK)
     return res;
 
@@ -167,7 +176,7 @@ result CatEntry::run(unsigned int count, const char * const *arguments,
     return E_ENTRY;
   }
 
-  res = print(node, hex);
+  res = print(node, hex, quiet);
   fsNodeFree(node);
 
   return res;

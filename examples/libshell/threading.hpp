@@ -24,8 +24,8 @@ class ThreadSwarm : public Shell::ShellCommand
   friend class WorkerThread;
 
 public:
-  ThreadSwarm(Shell &owner);
-  ~ThreadSwarm();
+  ThreadSwarm(Shell &parent);
+  virtual ~ThreadSwarm();
 
   virtual const char *name() const
   {
@@ -58,7 +58,7 @@ class WorkerThread
 
 public:
   WorkerThread(ThreadSwarm &parent);
-  ~WorkerThread();
+  virtual ~WorkerThread();
 
   void process(unsigned int, const char * const *, Shell::ShellContext *);
   void start();

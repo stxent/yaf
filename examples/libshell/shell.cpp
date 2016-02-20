@@ -306,8 +306,7 @@ void Shell::log(const char *format, ...)
   if (length)
   {
     memcpy(logBuffer + length, "\n", 2);
-    ifWrite(consoleInterface, reinterpret_cast<const uint8_t *>(logBuffer),
-        length + 2);
+    ifWrite(consoleInterface, logBuffer, length + 2);
   }
   mutexUnlock(&logMutex);
 }

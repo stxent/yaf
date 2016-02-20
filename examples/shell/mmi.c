@@ -30,8 +30,8 @@ static void mmiDeinit(void *);
 static enum result mmiCallback(void *, void (*)(void *), void *);
 static enum result mmiGet(void *, enum ifOption, void *);
 static enum result mmiSet(void *, enum ifOption, const void *);
-static uint32_t mmiRead(void *, uint8_t *, uint32_t);
-static uint32_t mmiWrite(void *, const uint8_t *, uint32_t);
+static size_t mmiRead(void *, void *, size_t);
+static size_t mmiWrite(void *, const void *, size_t);
 /*----------------------------------------------------------------------------*/
 struct Mmi
 {
@@ -219,7 +219,7 @@ static enum result mmiSet(void *object, enum ifOption option,
   }
 }
 /*----------------------------------------------------------------------------*/
-static uint32_t mmiRead(void *object, uint8_t *buffer, uint32_t length)
+static size_t mmiRead(void *object, void *buffer, size_t length)
 {
   struct Mmi * const dev = object;
 
@@ -237,7 +237,7 @@ static uint32_t mmiRead(void *object, uint8_t *buffer, uint32_t length)
   return length;
 }
 /*----------------------------------------------------------------------------*/
-static uint32_t mmiWrite(void *object, const uint8_t *buffer, uint32_t length)
+static size_t mmiWrite(void *object, const void *buffer, size_t length)
 {
   struct Mmi * const dev = object;
 
