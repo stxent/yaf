@@ -13,9 +13,9 @@ extern const struct InterfaceClass * const Mmi;
 /*----------------------------------------------------------------------------*/
 struct MbrDescriptor
 {
-  uint8_t type;
   uint32_t offset;
   uint32_t size;
+  uint8_t type;
 };
 /*----------------------------------------------------------------------------*/
 enum result mmiSetPartition(void *, struct MbrDescriptor *);

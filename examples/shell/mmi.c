@@ -83,16 +83,15 @@ void mmiGetStatus(void *object, uint64_t *results)
 #ifdef CONFIG_DEBUG
 static void getSizeString(uint64_t size, char *str)
 {
-  const char *suffix[] = {"KiB", "MiB", "GiB", "TiB"};
-  const unsigned short suffixCount = 4;
-  double remainder;
+  static const char *suffix[] = {"KiB", "MiB", "GiB", "TiB"};
+  static const unsigned short suffixCount = 4;
   unsigned short selectedSuffix = 0;
+  float remainder = (float)size / 1024.0f;
 
-  remainder = (double)size / 1024.0;
-  while (remainder >= 1024.0)
+  while (remainder >= 1024.0f)
   {
     ++selectedSuffix;
-    remainder /= 1024.0;
+    remainder /= 1024.0f;
     if (selectedSuffix == suffixCount - 1)
       break;
   }
@@ -199,8 +198,8 @@ static enum result mmiSet(void *object, enum ifOption option,
       newPos = *(const uint64_t *)data;
       if (newPos + dev->offset >= (uint64_t)dev->info.st_size)
       {
-        DEBUG_PRINT(0, "mmaped_io: address 0x%012lX out of bounds\n",
-            (unsigned long)(newPos + dev->offset));
+        DEBUG_PRINT(0, "mmaped_io: address 0x%012llX out of bounds\n",
+            (unsigned long long)(newPos + dev->offset));
         return E_ERROR;
       }
       dev->position = newPos;
@@ -231,8 +230,8 @@ static size_t mmiRead(void *object, void *buffer, size_t length)
   dev->bytesRead += length;
 #endif
 
-  DEBUG_PRINT(3, "mmaped_io: read data at 0x%012lX, length %u\n",
-      (unsigned long)dev->position, length);
+  DEBUG_PRINT(3, "mmaped_io: read data at 0x%012llX, length %zu\n",
+      (unsigned long long)dev->position, length);
 
   return length;
 }
@@ -249,8 +248,8 @@ static size_t mmiWrite(void *object, const void *buffer, size_t length)
   dev->bytesWritten += length;
 #endif
 
-  DEBUG_PRINT(3, "mmaped_io: write data at 0x%012lX, length %u\n",
-      (unsigned long)dev->position, length);
+  DEBUG_PRINT(3, "mmaped_io: write data at 0x%012llX, length %zu\n",
+      (unsigned long long)dev->position, length);
 
   return length;
 }
@@ -266,9 +265,9 @@ enum result mmiSetPartition(void *object, struct MbrDescriptor *desc)
   dev->size = desc->size << MMI_SECTOR_EXP;
   dev->offset = desc->offset << MMI_SECTOR_EXP;
 
-  DEBUG_PRINT(0, "mmaped_io: partition type 0x%02X, size %u sectors, "
-      "offset %u sectors\n",
-      desc->type, (unsigned int)desc->size, (unsigned int)desc->offset);
+  DEBUG_PRINT(0, "mmaped_io: partition type 0x%02X, size %"PRIu32" sectors, "
+      "offset %"PRIu32" sectors\n",
+      desc->type, desc->size, desc->offset);
 
   return E_OK;
 }

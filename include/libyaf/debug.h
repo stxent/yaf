@@ -8,6 +8,7 @@
 #define LIBYAF_DEBUG_H_
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_DEBUG
+#include <inttypes.h>
 #include <stdio.h>
 
 #ifndef CONFIG_DEBUG_LEVEL

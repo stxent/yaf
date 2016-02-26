@@ -26,11 +26,11 @@ struct Fat32Config
    * Optional: number of node descriptors in node pool. This option is used
    * only when support for object pools is enabled.
    */
-  uint16_t nodes;
+  size_t nodes;
   /**
    * Optional: number of threads that can use the same handle simultaneously.
    * This option is used only when support for multiple threads is enabled. */
-  uint16_t threads;
+  size_t threads;
 };
 /*----------------------------------------------------------------------------*/
 #endif /* LIBYAF_FAT32_H_ */

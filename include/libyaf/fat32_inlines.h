@@ -27,7 +27,7 @@ static inline struct DirEntryImage *getEntry(struct CommandContext *context,
   return (struct DirEntryImage *)(context->buffer + ENTRY_OFFSET(index));
 }
 /*----------------------------------------------------------------------------*/
-/* Calculate first sector number of the cluster */
+/* Calculate the number of the first sector for a cluster */
 static inline uint32_t getSector(const struct FatHandle *handle,
     uint32_t cluster)
 {
@@ -41,13 +41,13 @@ static inline uint32_t makeClusterNumber(const struct DirEntryImage *entry)
 }
 /*----------------------------------------------------------------------------*/
 /* File or directory entries per directory cluster */
-static inline uint16_t nodeCount(const struct FatHandle *handle)
+static inline unsigned int nodeCount(const struct FatHandle *handle)
 {
   return 1 << ENTRY_EXP << handle->clusterSize;
 }
 /*----------------------------------------------------------------------------*/
 /* Calculate current sector in data cluster for read or write operations */
-static inline uint8_t sectorInCluster(const struct FatHandle *handle,
+static inline unsigned int sectorInCluster(const struct FatHandle *handle,
     uint32_t offset)
 {
   return (offset >> SECTOR_EXP) & ((1 << handle->clusterSize) - 1);
