@@ -4,11 +4,11 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef SHELL_UNIX_TIME_H_
-#define SHELL_UNIX_TIME_H_
+#ifndef YAF_SHELL_UNIX_TIME_H_
+#define YAF_SHELL_UNIX_TIME_H_
 /*----------------------------------------------------------------------------*/
-#include <realtime.h>
+#include <xcore/realtime.h>
 /*----------------------------------------------------------------------------*/
 extern const struct RtClockClass * const UnixTime;
 /*----------------------------------------------------------------------------*/
-#endif /* SHELL_UNIX_TIME_H_ */
+#endif /* YAF_SHELL_UNIX_TIME_H_ */

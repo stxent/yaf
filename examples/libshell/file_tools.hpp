@@ -4,15 +4,15 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef LIBSHELL_FILE_TOOLS_HPP_
-#define LIBSHELL_FILE_TOOLS_HPP_
+#ifndef YAF_LIBSHELL_FILE_TOOLS_HPP_
+#define YAF_LIBSHELL_FILE_TOOLS_HPP_
 //------------------------------------------------------------------------------
 #include "libshell/crypto.hpp"
 #include "libshell/shell.hpp"
 
 extern "C"
 {
-#include <crc.h>
+#include <xcore/crc.h>
 }
 //------------------------------------------------------------------------------
 class CatEntry : public Shell::ShellCommand
@@ -113,4 +113,4 @@ private:
       const char **) const;
 };
 //------------------------------------------------------------------------------
-#endif //LIBSHELL_FILE_TOOLS_HPP_
+#endif //YAF_LIBSHELL_FILE_TOOLS_HPP_

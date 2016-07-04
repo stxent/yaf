@@ -4,17 +4,17 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef LIBSHELL_SHELL_HPP_
-#define LIBSHELL_SHELL_HPP_
+#ifndef YAF_LIBSHELL_SHELL_HPP_
+#define YAF_LIBSHELL_SHELL_HPP_
 //------------------------------------------------------------------------------
 #include <cstdarg>
 #include <vector>
 
 extern "C"
 {
-#include <fs.h>
-#include <interface.h>
-#include <libosw/mutex.h>
+#include <xcore/fs.h>
+#include <xcore/interface.h>
+#include <osw/mutex.h>
 }
 //------------------------------------------------------------------------------
 class Shell;
@@ -117,7 +117,7 @@ public:
 
   template<class T> void append(CommandBuilder<T> builder)
   {
-    T *command = builder.create(*this);
+    T * const command = builder.create(*this);
 
     registeredCommands.push_back(command);
   }
@@ -150,4 +150,4 @@ private:
   Mutex logMutex;
 };
 //------------------------------------------------------------------------------
-#endif //LIBSHELL_SHELL_HPP_
+#endif //YAF_LIBSHELL_SHELL_HPP_

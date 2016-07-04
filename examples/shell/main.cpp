@@ -20,7 +20,7 @@
 
 extern "C"
 {
-#include "libyaf/fat32.h"
+#include <yaf/fat32.h>
 #include "shell/console.h"
 #include "shell/mmi.h"
 }

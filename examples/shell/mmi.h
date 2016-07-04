@@ -4,10 +4,10 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef SHELL_MMI_H_
-#define SHELL_MMI_H_
+#ifndef YAF_SHELL_MMI_H_
+#define YAF_SHELL_MMI_H_
 /*----------------------------------------------------------------------------*/
-#include <interface.h>
+#include <xcore/interface.h>
 /*----------------------------------------------------------------------------*/
 extern const struct InterfaceClass * const Mmi;
 /*----------------------------------------------------------------------------*/
@@ -25,4 +25,4 @@ enum result mmiReadTable(void *, uint32_t, uint8_t, struct MbrDescriptor *);
 void mmiGetStatus(void *, uint64_t *);
 #endif
 /*----------------------------------------------------------------------------*/
-#endif /* SHELL_MMI_H_ */
+#endif /* YAF_SHELL_MMI_H_ */

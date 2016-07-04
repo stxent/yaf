@@ -1,15 +1,15 @@
 /*
- * libyaf/fat32.h
+ * yaf/fat32.h
  * Copyright (C) 2012 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef LIBYAF_FAT32_H_
-#define LIBYAF_FAT32_H_
+#ifndef YAF_FAT32_H_
+#define YAF_FAT32_H_
 /*----------------------------------------------------------------------------*/
-#include <fs.h>
-#include <interface.h>
-#include <realtime.h>
+#include <xcore/fs.h>
+#include <xcore/interface.h>
+#include <xcore/realtime.h>
 /*----------------------------------------------------------------------------*/
 extern const struct FsHandleClass * const FatHandle;
 /*----------------------------------------------------------------------------*/
@@ -33,4 +33,4 @@ struct Fat32Config
   size_t threads;
 };
 /*----------------------------------------------------------------------------*/
-#endif /* LIBYAF_FAT32_H_ */
+#endif /* YAF_FAT32_H_ */

@@ -8,12 +8,12 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <bits.h>
 #include "libshell/file_tools.hpp"
 
 extern "C"
 {
-#include <crc/crc32.h>
+#include <xcore/bits.h>
+#include <xcore/crc/crc32.h>
 }
 //------------------------------------------------------------------------------
 #ifndef CONFIG_SHELL_BUFFER

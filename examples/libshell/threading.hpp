@@ -4,17 +4,17 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef LIBSHELL_THREADING_HPP_
-#define LIBSHELL_THREADING_HPP_
+#ifndef YAF_LIBSHELL_THREADING_HPP_
+#define YAF_LIBSHELL_THREADING_HPP_
 //------------------------------------------------------------------------------
 #include <queue>
 #include "libshell/shell.hpp"
 
 extern "C"
 {
-#include <libosw/mutex.h>
-#include <libosw/semaphore.h>
-#include <libosw/thread.h>
+#include <osw/mutex.h>
+#include <osw/semaphore.h>
+#include <osw/thread.h>
 }
 //------------------------------------------------------------------------------
 class WorkerThread;
@@ -85,4 +85,4 @@ private:
   const char * const *firstArgument;
 };
 //------------------------------------------------------------------------------
-#endif //LIBSHELL_THREADING_HPP_
+#endif //YAF_LIBSHELL_THREADING_HPP_

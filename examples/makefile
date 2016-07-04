@@ -33,9 +33,11 @@ $(foreach entry,$(BIN_EXAMPLES) $(LIB_EXAMPLES),$(eval $(call make-example,$(ent
 
 .SECONDEXPANSION:
 $(BIN_EXAMPLE_FILES): $(LIBRARY_FILE) $(LIB_EXAMPLE_FILES) $$($$(notdir $$@)_OBJECTS)
+	@echo "$(CXX): $@"
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) $(LDLIBS) -o $@
+	$(Q)$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) $(LDLIBS) -o $@
 
 $(LIB_EXAMPLE_FILES): $$($$(patsubst $(OUTPUT_DIR)/%.a,%,$$@)_OBJECTS)
+	@echo "$(AR): $@"
 	@mkdir -p $(@D)
-	$(AR) -r $@ $^
+	$(Q)$(AR) -c -r $@ $^

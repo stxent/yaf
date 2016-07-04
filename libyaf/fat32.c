@@ -7,12 +7,12 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <bits.h>
-#include <memory.h>
-#include <libyaf/debug.h>
-#include <libyaf/fat32.h>
-#include <libyaf/fat32_defs.h>
-#include <libyaf/fat32_inlines.h>
+#include <xcore/bits.h>
+#include <xcore/memory.h>
+#include <yaf/debug.h>
+#include <yaf/fat32.h>
+#include <yaf/fat32_defs.h>
+#include <yaf/fat32_inlines.h>
 /*----------------------------------------------------------------------------*/
 enum cleanup
 {
@@ -2551,6 +2551,7 @@ static enum result fatNodeRead(void *object, enum fsFieldType type,
         break;
 
       bytesRead = fileReadData(context, node, position, buffer, length);
+
       if (!bytesRead)
         res = E_EMPTY;
       break;
@@ -2730,6 +2731,7 @@ static enum result fatNodeWrite(void *object, enum fsFieldType type,
         break;
 
       bytesWritten = fileWriteData(context, node, position, buffer, length);
+
       if (!bytesWritten)
         res = E_EMPTY;
       break;

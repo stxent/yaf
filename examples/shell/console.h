@@ -4,11 +4,11 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef SHELL_CONSOLE_H_
-#define SHELL_CONSOLE_H_
+#ifndef YAF_SHELL_CONSOLE_H_
+#define YAF_SHELL_CONSOLE_H_
 /*----------------------------------------------------------------------------*/
-#include <interface.h>
+#include <xcore/interface.h>
 /*----------------------------------------------------------------------------*/
 extern const struct InterfaceClass * const Console;
 /*----------------------------------------------------------------------------*/
-#endif /* SHELL_CONSOLE_H_ */
+#endif /* YAF_SHELL_CONSOLE_H_ */

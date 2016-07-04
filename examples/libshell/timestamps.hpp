@@ -4,15 +4,15 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef LIBSHELL_TIMESTAMPS_HPP_
-#define LIBSHELL_TIMESTAMPS_HPP_
+#ifndef YAF_LIBSHELL_TIMESTAMPS_HPP_
+#define YAF_LIBSHELL_TIMESTAMPS_HPP_
 //------------------------------------------------------------------------------
 #include <cstring>
 #include "libshell/shell.hpp"
 
 extern "C"
 {
-#include <realtime.h>
+#include <xcore/realtime.h>
 }
 //------------------------------------------------------------------------------
 class TimeProvider
@@ -85,4 +85,4 @@ public:
   }
 };
 //------------------------------------------------------------------------------
-#endif //LIBSHELL_TIMESTAMPS_HPP_
+#endif //YAF_LIBSHELL_TIMESTAMPS_HPP_

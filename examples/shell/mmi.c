@@ -10,9 +10,9 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-#include <memory.h>
-#include <libosw/semaphore.h>
-#include <libyaf/debug.h>
+#include <osw/semaphore.h>
+#include <xcore/memory.h>
+#include <yaf/debug.h>
 #include "shell/mmi.h"
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_SECTOR
@@ -190,20 +190,22 @@ static enum result mmiSet(void *object, enum ifOption option,
     const void *data)
 {
   struct Mmi * const dev = object;
-  uint64_t newPos;
 
   switch (option)
   {
     case IF_POSITION:
-      newPos = *(const uint64_t *)data;
-      if (newPos + dev->offset >= (uint64_t)dev->info.st_size)
+    {
+      const uint64_t newPosition = *(const uint64_t *)data;
+
+      if (newPosition + dev->offset >= (uint64_t)dev->info.st_size)
       {
-        DEBUG_PRINT(0, "mmaped_io: address 0x%012llX out of bounds\n",
-            (unsigned long long)(newPos + dev->offset));
+        DEBUG_PRINT(0, "mmaped_io: address 0x%012"PRIX64" out of bounds\n",
+            newPosition + dev->offset);
         return E_ERROR;
       }
-      dev->position = newPos;
+      dev->position = newPosition;
       return E_OK;
+    }
 
     case IF_ACQUIRE:
       semWait(&dev->semaphore);
@@ -230,8 +232,8 @@ static size_t mmiRead(void *object, void *buffer, size_t length)
   dev->bytesRead += length;
 #endif
 
-  DEBUG_PRINT(3, "mmaped_io: read data at 0x%012llX, length %zu\n",
-      (unsigned long long)dev->position, length);
+  DEBUG_PRINT(3, "mmaped_io: read data from 0x%012"PRIX64", length %zu\n",
+      dev->position, length);
 
   return length;
 }
@@ -248,8 +250,8 @@ static size_t mmiWrite(void *object, const void *buffer, size_t length)
   dev->bytesWritten += length;
 #endif
 
-  DEBUG_PRINT(3, "mmaped_io: write data at 0x%012llX, length %zu\n",
-      (unsigned long long)dev->position, length);
+  DEBUG_PRINT(3, "mmaped_io: write data to 0x%012"PRIX64", length %zu\n",
+      dev->position, length);
 
   return length;
 }
@@ -266,8 +268,7 @@ enum result mmiSetPartition(void *object, struct MbrDescriptor *desc)
   dev->offset = desc->offset << MMI_SECTOR_EXP;
 
   DEBUG_PRINT(0, "mmaped_io: partition type 0x%02X, size %"PRIu32" sectors, "
-      "offset %"PRIu32" sectors\n",
-      desc->type, desc->size, desc->offset);
+      "offset %"PRIu32" sectors\n", desc->type, desc->size, desc->offset);
 
   return E_OK;
 }

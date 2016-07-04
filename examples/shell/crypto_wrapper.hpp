@@ -4,8 +4,8 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef SHELL_CRYPTO_WRAPPER_HPP_
-#define SHELL_CRYPTO_WRAPPER_HPP_
+#ifndef YAF_SHELL_CRYPTO_WRAPPER_HPP_
+#define YAF_SHELL_CRYPTO_WRAPPER_HPP_
 //------------------------------------------------------------------------------
 #include <openssl/md5.h>
 #include "libshell/crypto.hpp"
@@ -31,4 +31,4 @@ private:
   MD5_CTX context;
 };
 //------------------------------------------------------------------------------
-#endif //SHELL_CRYPTO_WRAPPER_HPP_
+#endif //YAF_SHELL_CRYPTO_WRAPPER_HPP_

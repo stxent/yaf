@@ -41,16 +41,28 @@ else ifneq ($(MAKECMDGOALS),menuconfig)
   $(error Target architecture is undefined)
 endif
 
-ifeq ($(CONFIG_OPTIMIZATIONS),"full")
-  OPT_FLAGS += -O3 -DNDEBUG
-else ifeq ($(CONFIG_OPTIMIZATIONS),"size")
-  OPT_FLAGS += -Os -DNDEBUG
-else ifeq ($(CONFIG_OPTIMIZATIONS),"none")
-  OPT_FLAGS += -O0 -g3
-else ifeq ($(CONFIG_OPTIMIZATIONS),"debug")
+ifeq ($(CONFIG_LTO),y)
+  OPT_FLAGS += -flto -ffat-lto-objects
+endif
+
+ifeq ($(CONFIG_OPTIMIZATIONS_SIZE),y)
+  OPT_FLAGS += -Os
+else ifeq ($(CONFIG_OPTIMIZATIONS_FULL),y)
+  OPT_FLAGS += -O3
+else ifeq ($(CONFIG_OPTIMIZATIONS_DEBUG),y)
   OPT_FLAGS += -Og -g3
 else
-  OPT_FLAGS += $(CONFIG_OPTIMIZATIONS)
+  OPT_FLAGS += -O0 -g3
+endif
+
+ifneq ($(CONFIG_ASSERTIONS),y)
+  OPT_FLAGS += -DNDEBUG
+endif
+
+ifeq ($(VERBOSE),)
+  Q := @
+else
+  Q :=
 endif
 
 #Configure common paths and libraries
@@ -100,16 +112,18 @@ CXXOBJECTS = $(CXXSOURCES:%.cpp=$(OUTPUT_DIR)/%.o)
 all: $(TARGETS)
 
 $(OUTPUT_DIR)/%.o: %.c $(OPTION_FILE)
+	@echo "$(CC): $@"
 	@mkdir -p $(@D)
-	$(CC) -c $(CFLAGS) $(INCLUDE_PATH) -MMD -MF $(@:%.o=%.d) -MT $@ $< -o $@
+	$(Q)$(CC) -c $(CFLAGS) $(INCLUDE_PATH) -MMD -MF $(@:%.o=%.d) -MT $@ $< -o $@
 
 $(OUTPUT_DIR)/%.o: %.cpp $(OPTION_FILE)
+	@echo "$(CXX): $@"
 	@mkdir -p $(@D)
-	$(CXX) -c $(CXXFLAGS) $(INCLUDE_PATH) -MMD -MF $(@:%.o=%.d) -MT $@ $< -o $@
+	$(Q)$(CXX) -c $(CXXFLAGS) $(INCLUDE_PATH) -MMD -MF $(@:%.o=%.d) -MT $@ $< -o $@
 
 $(OPTION_FILE): $(CONFIG_FILE)
 	@mkdir -p $(@D)
-	echo '$(OPTION_STRING)' > $@
+	$(Q)echo '$(OPTION_STRING)' > $@
 
 clean:
 	rm -f $(COBJECTS:%.o=%.d) $(COBJECTS)

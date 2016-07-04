@@ -1,11 +1,11 @@
 /*
- * libyaf/debug.h
+ * yaf/debug.h
  * Copyright (C) 2015 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef LIBYAF_DEBUG_H_
-#define LIBYAF_DEBUG_H_
+#ifndef YAF_DEBUG_H_
+#define YAF_DEBUG_H_
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_DEBUG
 #include <inttypes.h>
@@ -22,4 +22,4 @@
     do {} while (0)
 #endif
 /*----------------------------------------------------------------------------*/
-#endif /* LIBYAF_DEBUG_H_ */
+#endif /* YAF_DEBUG_H_ */

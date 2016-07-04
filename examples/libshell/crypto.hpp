@@ -4,8 +4,8 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef LIBSHELL_CRYPTO_HPP_
-#define LIBSHELL_CRYPTO_HPP_
+#ifndef YAF_LIBSHELL_CRYPTO_HPP_
+#define YAF_LIBSHELL_CRYPTO_HPP_
 //------------------------------------------------------------------------------
 #include <cassert>
 #include "libshell/shell.hpp"
@@ -78,4 +78,4 @@ public:
   }
 };
 //------------------------------------------------------------------------------
-#endif //LIBSHELL_CRYPTO_HPP_
+#endif //YAF_LIBSHELL_CRYPTO_HPP_

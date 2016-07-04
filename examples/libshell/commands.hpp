@@ -4,8 +4,8 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef LIBSHELL_COMMANDS_HPP_
-#define LIBSHELL_COMMANDS_HPP_
+#ifndef YAF_LIBSHELL_COMMANDS_HPP_
+#define YAF_LIBSHELL_COMMANDS_HPP_
 //------------------------------------------------------------------------------
 #include "libshell/shell.hpp"
 //------------------------------------------------------------------------------
@@ -211,4 +211,4 @@ public:
   virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
 };
 //------------------------------------------------------------------------------
-#endif //LIBSHELL_COMMANDS_HPP_
+#endif //YAF_LIBSHELL_COMMANDS_HPP_

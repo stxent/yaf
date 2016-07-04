@@ -7,12 +7,12 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include <bits.h>
 #include "libshell/commands.hpp"
 
 extern "C"
 {
-#include <realtime.h>
+#include <xcore/bits.h>
+#include <xcore/realtime.h>
 }
 //------------------------------------------------------------------------------
 #ifndef CONFIG_SHELL_BUFFER

@@ -1,13 +1,13 @@
 /*
- * libyaf/fat32_inlines.h
+ * yaf/fat32_inlines.h
  * Copyright (C) 2014 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef LIBYAF_FAT32_INLINES_H_
-#define LIBYAF_FAT32_INLINES_H_
+#ifndef YAF_FAT32_INLINES_H_
+#define YAF_FAT32_INLINES_H_
 /*----------------------------------------------------------------------------*/
-#include <libyaf/fat32_defs.h>
+#include <yaf/fat32_defs.h>
 /*----------------------------------------------------------------------------*/
 static inline bool clusterFree(uint32_t cluster)
 {
@@ -112,4 +112,4 @@ static inline void unlockPools(struct FatHandle *handle __attribute__((unused)))
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#endif /* LIBYAF_FAT32_INLINES_H_ */
+#endif /* YAF_FAT32_INLINES_H_ */

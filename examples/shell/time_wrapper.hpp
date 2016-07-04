@@ -4,8 +4,8 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef SHELL_TIME_WRAPPER_HPP_
-#define SHELL_TIME_WRAPPER_HPP_
+#ifndef YAF_SHELL_TIME_WRAPPER_HPP_
+#define YAF_SHELL_TIME_WRAPPER_HPP_
 //------------------------------------------------------------------------------
 #include "libshell/timestamps.hpp"
 //------------------------------------------------------------------------------
@@ -27,4 +27,4 @@ private:
   RtClock *clock;
 };
 //------------------------------------------------------------------------------
-#endif //SHELL_TIME_WRAPPER_HPP_
+#endif //YAF_SHELL_TIME_WRAPPER_HPP_

@@ -1,26 +1,26 @@
 /*
- * libyaf/fat32_defs.h
+ * yaf/fat32_defs.h
  * Copyright (C) 2012 xent
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#ifndef LIBYAF_FAT32_DEFS_H_
-#define LIBYAF_FAT32_DEFS_H_
+#ifndef YAF_FAT32_DEFS_H_
+#define YAF_FAT32_DEFS_H_
 /*----------------------------------------------------------------------------*/
 #include <stdbool.h>
 #include <stdint.h>
-#include <bits.h>
-#include <containers/list.h>
-#include <containers/queue.h>
-#include <fs.h>
-#include <unicode.h>
+#include <xcore/bits.h>
+#include <xcore/containers/list.h>
+#include <xcore/containers/queue.h>
+#include <xcore/fs.h>
+#include <xcore/unicode.h>
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_THREADS
-#include <libosw/mutex.h>
+#include <osw/mutex.h>
 #endif
 
 #ifdef CONFIG_FAT_TIME
-#include <realtime.h>
+#include <xcore/realtime.h>
 #endif
 /*----------------------------------------------------------------------------*/
 /*
@@ -272,4 +272,4 @@ struct InfoSectorImage
   uint16_t bootSignature;
 } __attribute__((packed));
 /*----------------------------------------------------------------------------*/
-#endif /* LIBYAF_FAT32_DEFS_H_ */
+#endif /* YAF_FAT32_DEFS_H_ */
