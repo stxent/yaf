@@ -182,7 +182,7 @@ static enum result mmiGet(void *object, enum ifOption option, void *data)
       return E_OK;
 
     default:
-      return E_ERROR;
+      return E_INVALID;
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -197,14 +197,17 @@ static enum result mmiSet(void *object, enum ifOption option,
     {
       const uint64_t newPosition = *(const uint64_t *)data;
 
-      if (newPosition + dev->offset >= (uint64_t)dev->info.st_size)
+      if (newPosition + dev->offset < (uint64_t)dev->info.st_size)
+      {
+        dev->position = newPosition;
+        return E_OK;
+      }
+      else
       {
         DEBUG_PRINT(0, "mmaped_io: address 0x%012"PRIX64" out of bounds\n",
             newPosition + dev->offset);
-        return E_ERROR;
+        return E_ADDRESS;
       }
-      dev->position = newPosition;
-      return E_OK;
     }
 
     case IF_ACQUIRE:
@@ -216,7 +219,7 @@ static enum result mmiSet(void *object, enum ifOption option,
       return E_OK;
 
     default:
-      return E_ERROR;
+      return E_INVALID;
   }
 }
 /*----------------------------------------------------------------------------*/

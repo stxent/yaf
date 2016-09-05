@@ -279,7 +279,7 @@ FsHandle *Application::initHandle(Interface *interface)
 //------------------------------------------------------------------------------
 Shell *Application::initShell(Interface *console, FsHandle *handle)
 {
-  Shell *shell = new Shell(console, handle);
+  Shell * const shell = new Shell(console, handle);
 
   shell->append(CommandBuilder<ChangeDirectory>());
   shell->append(CommandBuilder<CopyEntry>());

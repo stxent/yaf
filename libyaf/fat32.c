@@ -2096,12 +2096,9 @@ static enum result fatHandleInit(void *object, const void *configBase)
 #endif
 
   if ((res = mountStorage(handle)) != E_OK)
-  {
     freeBuffers(handle, FREE_ALL);
-    return res;
-  }
 
-  return E_OK;
+  return res;
 }
 /*----------------------------------------------------------------------------*/
 static void fatHandleDeinit(void *object)
@@ -2188,7 +2185,7 @@ static enum result fatNodeInit(void *object, const void *configBase)
 
   node->flags = 0;
 
-  DEBUG_PRINT(2, "fat32: node allocated, address %p\n", (void *)object);
+  DEBUG_PRINT(2, "fat32: node allocated, address %p\n", object);
 
   return E_OK;
 }
@@ -2221,7 +2218,7 @@ static void fatNodeDeinit(void *object)
 #endif
   }
 
-  DEBUG_PRINT(2, "fat32: node freed, address %p\n", (void *)object);
+  DEBUG_PRINT(2, "fat32: node freed, address %p\n", object);
 }
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FAT_WRITE

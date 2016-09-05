@@ -37,8 +37,6 @@ private:
 //------------------------------------------------------------------------------
 class Shell
 {
-  friend class ShellCommand;
-
 public:
   enum
   {
