@@ -793,11 +793,13 @@ static enum result readBuffer(struct FatHandle *handle, uint32_t sector,
   enum result res;
 
   ifSet(handle->interface, IF_ACQUIRE, 0);
-  res = ifSet(handle->interface, IF_POSITION, &position);
-  if (res == E_OK)
+  if ((res = ifSet(handle->interface, IF_POSITION, &position)) == E_OK)
   {
     if (ifRead(handle->interface, buffer, length) != length)
-      res = E_INTERFACE;
+    {
+      res = ifGet(handle->interface, IF_STATUS, 0);
+      assert(res != E_OK && res != E_INVALID);
+    }
   }
   ifSet(handle->interface, IF_RELEASE, 0);
 
@@ -814,13 +816,17 @@ static enum result readSector(struct CommandContext *context,
   enum result res;
 
   ifSet(handle->interface, IF_ACQUIRE, 0);
-  res = ifSet(handle->interface, IF_POSITION, &position);
-  if (res == E_OK)
+  if ((res = ifSet(handle->interface, IF_POSITION, &position)) == E_OK)
   {
     if (ifRead(handle->interface, context->buffer, SECTOR_SIZE) == SECTOR_SIZE)
+    {
       context->sector = sector;
+    }
     else
-      res = E_INTERFACE;
+    {
+      res = ifGet(handle->interface, IF_STATUS, 0);
+      assert(res != E_OK && res != E_INVALID);
+    }
   }
   ifSet(handle->interface, IF_RELEASE, 0);
 
@@ -1976,10 +1982,16 @@ static enum result writeBuffer(struct FatHandle *handle,
   const uint32_t length = count << SECTOR_EXP;
   enum result res;
 
-  if ((res = ifSet(handle->interface, IF_POSITION, &position)) != E_OK)
-    return res;
-  if (ifWrite(handle->interface, buffer, length) != length)
-    return E_INTERFACE;
+  ifSet(handle->interface, IF_ACQUIRE, 0);
+  if ((res = ifSet(handle->interface, IF_POSITION, &position)) == E_OK)
+  {
+    if (ifWrite(handle->interface, buffer, length) != length)
+    {
+      res = ifGet(handle->interface, IF_STATUS, 0);
+      assert(res != E_OK && res != E_INVALID);
+    }
+  }
+  ifSet(handle->interface, IF_RELEASE, 0);
 
   return E_OK;
 }
@@ -1992,11 +2004,20 @@ static enum result writeSector(struct CommandContext *context,
   const uint64_t position = (uint64_t)sector << SECTOR_EXP;
   enum result res;
 
-  if ((res = ifSet(handle->interface, IF_POSITION, &position)) != E_OK)
-    return res;
-  if (ifWrite(handle->interface, context->buffer, SECTOR_SIZE) != SECTOR_SIZE)
-    return E_INTERFACE;
-  context->sector = sector;
+  ifSet(handle->interface, IF_ACQUIRE, 0);
+  if ((res = ifSet(handle->interface, IF_POSITION, &position)) == E_OK)
+  {
+    if (ifWrite(handle->interface, context->buffer, SECTOR_SIZE) == SECTOR_SIZE)
+    {
+      context->sector = sector;
+    }
+    else
+    {
+      res = ifGet(handle->interface, IF_STATUS, 0);
+      assert(res != E_OK && res != E_INVALID);
+    }
+  }
+  ifSet(handle->interface, IF_RELEASE, 0);
 
   return E_OK;
 }
