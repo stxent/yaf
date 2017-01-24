@@ -35,15 +35,15 @@ public:
   }
 
 protected:
-  result compute(unsigned int, const char * const *,
-      Shell::ShellContext *, ComputationAlgorithm *) const;
-
-private:
   enum
   {
     MAX_LENGTH = 64
   };
 
+  result compute(unsigned int, const char * const *,
+      Shell::ShellContext *, ComputationAlgorithm *) const;
+
+private:
   const char * const *getNextEntry(unsigned int, const char * const *, bool *,
       char *) const;
   result processArguments(unsigned int, const char * const *) const;

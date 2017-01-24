@@ -182,18 +182,6 @@ result CatEntry::run(unsigned int count, const char * const *arguments,
   return res;
 }
 //------------------------------------------------------------------------------
-ChecksumCrc32::ChecksumCrc32() :
-    sum(INITIAL_CRC)
-{
-  engine = reinterpret_cast<CrcEngine *>(init(Crc32, nullptr));
-  assert(engine != nullptr);
-}
-//------------------------------------------------------------------------------
-ChecksumCrc32::~ChecksumCrc32()
-{
-  deinit(engine);
-}
-//------------------------------------------------------------------------------
 void ChecksumCrc32::finalize(char *digest)
 {
   sprintf(digest, "%08x", static_cast<unsigned int>(sum));
@@ -206,7 +194,7 @@ void ChecksumCrc32::reset()
 //------------------------------------------------------------------------------
 void ChecksumCrc32::update(const uint8_t *buffer, uint32_t bufferLength)
 {
-  sum = crcUpdate(engine, sum, buffer, bufferLength);
+  sum = crc32Update(sum, buffer, bufferLength);
 }
 //------------------------------------------------------------------------------
 result EchoData::fill(FsNode *node, const char *pattern,

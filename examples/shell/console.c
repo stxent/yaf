@@ -77,6 +77,6 @@ static size_t consoleRead(void *object __attribute__((unused)),
 static size_t consoleWrite(void *object __attribute__((unused)),
     const void *buffer, size_t length)
 {
-  printf(buffer);
+  printf("%s", buffer);
   return length;
 }

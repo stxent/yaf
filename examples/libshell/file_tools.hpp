@@ -9,11 +9,6 @@
 //------------------------------------------------------------------------------
 #include "libshell/crypto.hpp"
 #include "libshell/shell.hpp"
-
-extern "C"
-{
-#include <xcore/crc.h>
-}
 //------------------------------------------------------------------------------
 class CatEntry : public Shell::ShellCommand
 {
@@ -45,8 +40,10 @@ private:
 class ChecksumCrc32 : public ComputationAlgorithm
 {
 public:
-  ChecksumCrc32();
-  virtual ~ChecksumCrc32();
+  ChecksumCrc32() :
+      sum(INITIAL_CRC)
+  {
+  }
 
   static unsigned int length()
   {
@@ -68,7 +65,6 @@ private:
     INITIAL_CRC = 0x00000000UL
   };
 
-  CrcEngine *engine;
   uint32_t sum;
 };
 //------------------------------------------------------------------------------
