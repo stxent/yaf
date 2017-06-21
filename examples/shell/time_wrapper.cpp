@@ -4,9 +4,6 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#define _POSIX_C_SOURCE 200809L
-#define _BSD_SOURCE
-
 #include <cassert>
 #include <ctime>
 #include "shell/time_wrapper.hpp"

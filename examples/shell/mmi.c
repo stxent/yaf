@@ -25,11 +25,11 @@
 static void getSizeString(uint64_t, char *);
 #endif
 /*----------------------------------------------------------------------------*/
-static enum result mmiInit(void *, const void *);
+static enum Result mmiInit(void *, const void *);
 static void mmiDeinit(void *);
-static enum result mmiCallback(void *, void (*)(void *), void *);
-static enum result mmiGet(void *, enum ifOption, void *);
-static enum result mmiSet(void *, enum ifOption, const void *);
+static enum Result mmiSetCallback(void *, void (*)(void *), void *);
+static enum Result mmiGetParam(void *, enum IfParameter, void *);
+static enum Result mmiSetParam(void *, enum IfParameter, const void *);
 static size_t mmiRead(void *, void *, size_t);
 static size_t mmiWrite(void *, const void *, size_t);
 /*----------------------------------------------------------------------------*/
@@ -59,9 +59,9 @@ static const struct InterfaceClass mmiTable = {
     .init = mmiInit,
     .deinit = mmiDeinit,
 
-    .callback = mmiCallback,
-    .get = mmiGet,
-    .set = mmiSet,
+    .setCallback = mmiSetCallback,
+    .getParam = mmiGetParam,
+    .setParam = mmiSetParam,
     .read = mmiRead,
     .write = mmiWrite
 };
@@ -99,7 +99,7 @@ static void getSizeString(uint64_t size, char *str)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-static enum result mmiInit(void *object, const void *configBase)
+static enum Result mmiInit(void *object, const void *configBase)
 {
   const char * const path = configBase;
   struct Mmi * const dev = object;
@@ -159,7 +159,7 @@ static void mmiDeinit(void *object)
   semDeinit(&dev->semaphore);
 }
 /*----------------------------------------------------------------------------*/
-static enum result mmiCallback(void *object __attribute__((unused)),
+static enum Result mmiSetCallback(void *object __attribute__((unused)),
     void (*callback)(void *) __attribute__((unused)),
     void *argument __attribute__((unused)))
 {
@@ -167,11 +167,12 @@ static enum result mmiCallback(void *object __attribute__((unused)),
   return E_ERROR;
 }
 /*----------------------------------------------------------------------------*/
-static enum result mmiGet(void *object, enum ifOption option, void *data)
+static enum Result mmiGetParam(void *object, enum IfParameter parameter,
+    void *data)
 {
   struct Mmi * const dev = object;
 
-  switch (option)
+  switch (parameter)
   {
     case IF_POSITION:
       *(uint64_t *)data = dev->position;
@@ -186,12 +187,12 @@ static enum result mmiGet(void *object, enum ifOption option, void *data)
   }
 }
 /*----------------------------------------------------------------------------*/
-static enum result mmiSet(void *object, enum ifOption option,
+static enum Result mmiSetParam(void *object, enum IfParameter parameter,
     const void *data)
 {
   struct Mmi * const dev = object;
 
-  switch (option)
+  switch (parameter)
   {
     case IF_POSITION:
     {
@@ -259,7 +260,7 @@ static size_t mmiWrite(void *object, const void *buffer, size_t length)
   return length;
 }
 /*----------------------------------------------------------------------------*/
-enum result mmiSetPartition(void *object, struct MbrDescriptor *desc)
+enum Result mmiSetPartition(void *object, struct MbrDescriptor *desc)
 {
   const char validTypes[] = {0x0B, 0x0C, 0x1B, 0x1C, 0x00};
   struct Mmi * const dev = object;
@@ -276,7 +277,7 @@ enum result mmiSetPartition(void *object, struct MbrDescriptor *desc)
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-enum result mmiReadTable(void *object, uint32_t sector, uint8_t index,
+enum Result mmiReadTable(void *object, uint32_t sector, uint8_t index,
     struct MbrDescriptor *desc)
 {
   struct Mmi * const dev = object;
@@ -287,7 +288,7 @@ enum result mmiReadTable(void *object, uint32_t sector, uint8_t index,
   dev->offset = 0;
 
   /* TODO Lock interface during table read */
-  if (ifSet(object, IF_POSITION, &position) != E_OK)
+  if (ifSetParam(object, IF_POSITION, &position) != E_OK)
     return E_INTERFACE;
   if (ifRead(object, buffer, sizeof(buffer)) != sizeof(buffer))
     return E_INTERFACE;

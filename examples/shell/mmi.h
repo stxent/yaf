@@ -18,8 +18,8 @@ struct MbrDescriptor
   uint8_t type;
 };
 /*----------------------------------------------------------------------------*/
-enum result mmiSetPartition(void *, struct MbrDescriptor *);
-enum result mmiReadTable(void *, uint32_t, uint8_t, struct MbrDescriptor *);
+enum Result mmiSetPartition(void *, struct MbrDescriptor *);
+enum Result mmiReadTable(void *, uint32_t, uint8_t, struct MbrDescriptor *);
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_MMI_STATUS
 void mmiGetStatus(void *, uint64_t *);

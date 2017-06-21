@@ -18,11 +18,11 @@ public:
   }
 
 protected:
-  result copyContent(FsNode *, FsNode *, unsigned int, unsigned int,
+  Result copyContent(FsNode *, FsNode *, unsigned int, unsigned int,
       unsigned int, unsigned int) const;
-  result prepareNodes(Shell::ShellContext *, FsNode **, FsNode **, const char *,
+  Result prepareNodes(Shell::ShellContext *, FsNode **, FsNode **, const char *,
       const char *, bool);
-  result removeNode(Shell::ShellContext *, FsNode *, char *);
+  Result removeNode(Shell::ShellContext *, FsNode *, char *);
 };
 //------------------------------------------------------------------------------
 class ChangeDirectory : public Shell::ShellCommand
@@ -38,10 +38,10 @@ public:
     return "cd";
   }
 
-  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
 
 private:
-  result processArguments(unsigned int, const char * const *,
+  Result processArguments(unsigned int, const char * const *,
       const char **) const;
 };
 //------------------------------------------------------------------------------
@@ -58,10 +58,10 @@ public:
     return "cp";
   }
 
-  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
 
 private:
-  result processArguments(unsigned int, const char * const *, const char **,
+  Result processArguments(unsigned int, const char * const *, const char **,
       const char **) const;
 };
 //------------------------------------------------------------------------------
@@ -78,7 +78,7 @@ public:
     return "dd";
   }
 
-  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
 
 private:
   struct Arguments
@@ -91,7 +91,7 @@ private:
     const char *out;
   };
 
-  result processArguments(unsigned int, const char * const *,
+  Result processArguments(unsigned int, const char * const *,
       Arguments *) const;
 };
 //------------------------------------------------------------------------------
@@ -108,7 +108,7 @@ public:
     return "exit";
   }
 
-  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
 };
 //------------------------------------------------------------------------------
 class ListCommands : public Shell::ShellCommand
@@ -124,7 +124,7 @@ public:
     return "help";
   }
 
-  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
 };
 //------------------------------------------------------------------------------
 class ListEntries : public Shell::ShellCommand
@@ -140,7 +140,7 @@ public:
     return "ls";
   }
 
-  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
 };
 //------------------------------------------------------------------------------
 class MakeDirectory : public Shell::ShellCommand
@@ -156,7 +156,7 @@ public:
     return "mkdir";
   }
 
-  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
 };
 //------------------------------------------------------------------------------
 class RemoveDirectory : public Shell::ShellCommand
@@ -172,7 +172,7 @@ public:
     return "rmdir";
   }
 
-  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
 };
 //------------------------------------------------------------------------------
 class RemoveEntry : public Shell::ShellCommand
@@ -188,10 +188,10 @@ public:
     return "rm";
   }
 
-  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
 
 private:
-  result processArguments(unsigned int, const char * const *, bool *,
+  Result processArguments(unsigned int, const char * const *, bool *,
       const char **) const;
 };
 //------------------------------------------------------------------------------
@@ -208,7 +208,7 @@ public:
     return "sync";
   }
 
-  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
 };
 //------------------------------------------------------------------------------
 #endif //YAF_LIBSHELL_COMMANDS_HPP_

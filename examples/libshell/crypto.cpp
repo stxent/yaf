@@ -45,12 +45,12 @@ const char * const *AbstractComputationCommand::getNextEntry(unsigned int count,
   return nullptr;
 }
 //------------------------------------------------------------------------------
-result AbstractComputationCommand::compute(unsigned int count,
+Result AbstractComputationCommand::compute(unsigned int count,
     const char * const *arguments, Shell::ShellContext *context,
     ComputationAlgorithm *algorithm) const
 {
   const char * const *path = arguments;
-  result res;
+  Result res;
 
   if ((res = processArguments(count, arguments)) != E_OK)
     return res;
@@ -88,7 +88,7 @@ result AbstractComputationCommand::compute(unsigned int count,
   return res;
 }
 //------------------------------------------------------------------------------
-result AbstractComputationCommand::processArguments(unsigned int count,
+Result AbstractComputationCommand::processArguments(unsigned int count,
     const char * const *arguments) const
 {
   bool help = false;
@@ -105,7 +105,7 @@ result AbstractComputationCommand::processArguments(unsigned int count,
   if (help)
   {
     owner.log("Usage: %s [OPTION]... FILES", name());
-    owner.log("  --check VALUE  compare result with VALUE");
+    owner.log("  --check VALUE  compare Result with VALUE");
     owner.log("  --help         print help message");
     return E_BUSY;
   }
@@ -113,7 +113,7 @@ result AbstractComputationCommand::processArguments(unsigned int count,
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result AbstractComputationCommand::processEntry(FsNode *node,
+Result AbstractComputationCommand::processEntry(FsNode *node,
     Shell::ShellContext *context, ComputationAlgorithm *algorithm,
     const char *expectedValue) const
 {
@@ -122,7 +122,7 @@ result AbstractComputationCommand::processEntry(FsNode *node,
   length_t chunk;
   uint8_t buffer[CONFIG_SHELL_BUFFER];
   char computedValue[MAX_LENGTH];
-  result res = E_OK;
+  Result res = E_OK;
 
   algorithm->reset();
 

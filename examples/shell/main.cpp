@@ -47,14 +47,14 @@ private:
   FsHandle *fsHandle;
   Shell *appShell;
 
-  map<string, result> resultBeautifier;
+  map<string, Result> resultBeautifier;
 
   Interface *initConsole();
   Interface *initInterface(const char *);
   FsHandle *initHandle(Interface *);
   Shell *initShell(Interface *, FsHandle *);
 
-  string nameByValue(result) const;
+  string nameByValue(Result) const;
   int runShell();
   int runScript(const char *);
 };
@@ -67,22 +67,22 @@ Application::Application(const char *file, const char *script) :
   fsHandle = initHandle(fsInterface);
   appShell = initShell(consoleInterface, fsHandle);
 
-  resultBeautifier.insert(pair<string, result>("E_OK", E_OK));
-  resultBeautifier.insert(pair<string, result>("E_ERROR", E_ERROR));
-  resultBeautifier.insert(pair<string, result>("E_MEMORY", E_MEMORY));
-  resultBeautifier.insert(pair<string, result>("E_ACCESS", E_ACCESS));
-  resultBeautifier.insert(pair<string, result>("E_ADDRESS", E_ADDRESS));
-  resultBeautifier.insert(pair<string, result>("E_BUSY", E_BUSY));
-  resultBeautifier.insert(pair<string, result>("E_DEVICE", E_DEVICE));
-  resultBeautifier.insert(pair<string, result>("E_IDLE", E_IDLE));
-  resultBeautifier.insert(pair<string, result>("E_INTERFACE", E_INTERFACE));
-  resultBeautifier.insert(pair<string, result>("E_INVALID", E_INVALID));
-  resultBeautifier.insert(pair<string, result>("E_TIMEOUT", E_TIMEOUT));
-  resultBeautifier.insert(pair<string, result>("E_VALUE", E_VALUE));
-  resultBeautifier.insert(pair<string, result>("E_ENTRY", E_ENTRY));
-  resultBeautifier.insert(pair<string, result>("E_EXIST", E_EXIST));
-  resultBeautifier.insert(pair<string, result>("E_EMPTY", E_EMPTY));
-  resultBeautifier.insert(pair<string, result>("E_FULL", E_FULL));
+  resultBeautifier.insert(pair<string, Result>("E_OK", E_OK));
+  resultBeautifier.insert(pair<string, Result>("E_ERROR", E_ERROR));
+  resultBeautifier.insert(pair<string, Result>("E_MEMORY", E_MEMORY));
+  resultBeautifier.insert(pair<string, Result>("E_ACCESS", E_ACCESS));
+  resultBeautifier.insert(pair<string, Result>("E_ADDRESS", E_ADDRESS));
+  resultBeautifier.insert(pair<string, Result>("E_BUSY", E_BUSY));
+  resultBeautifier.insert(pair<string, Result>("E_DEVICE", E_DEVICE));
+  resultBeautifier.insert(pair<string, Result>("E_IDLE", E_IDLE));
+  resultBeautifier.insert(pair<string, Result>("E_INTERFACE", E_INTERFACE));
+  resultBeautifier.insert(pair<string, Result>("E_INVALID", E_INVALID));
+  resultBeautifier.insert(pair<string, Result>("E_TIMEOUT", E_TIMEOUT));
+  resultBeautifier.insert(pair<string, Result>("E_VALUE", E_VALUE));
+  resultBeautifier.insert(pair<string, Result>("E_ENTRY", E_ENTRY));
+  resultBeautifier.insert(pair<string, Result>("E_EXIST", E_EXIST));
+  resultBeautifier.insert(pair<string, Result>("E_EMPTY", E_EMPTY));
+  resultBeautifier.insert(pair<string, Result>("E_FULL", E_FULL));
 }
 //------------------------------------------------------------------------------
 Application::~Application()
@@ -105,7 +105,7 @@ int Application::run()
   }
 }
 //------------------------------------------------------------------------------
-string Application::nameByValue(result res) const
+string Application::nameByValue(Result res) const
 {
   for (auto entry : resultBeautifier)
   {
@@ -127,9 +127,9 @@ int Application::runShell()
     cout << appShell->path() << "> ";
     getline(cin, command);
 
-    const result res = appShell->execute(command.c_str());
+    const Result res = appShell->execute(command.c_str());
 
-    if (res == static_cast<result>(Shell::E_SHELL_EXIT))
+    if (res == static_cast<Result>(Shell::E_SHELL_EXIT))
     {
       exitFlag = EXIT_SUCCESS;
       terminate = true;
@@ -189,7 +189,7 @@ int Application::runScript(const char *script)
         break;
       }
 
-      const result commandResult =
+      const Result commandResult =
           appShell->execute(command.c_str() + delimiter + 1);
 
       if (commandResult != expectedResult->second)

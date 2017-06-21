@@ -85,7 +85,7 @@ public:
      * @param environment Pointer to a context object.
      * @return @b E_OK on success, @b E_ERROR on unrecoverable error.
      */
-    virtual result run(unsigned int count, const char * const *arguments,
+    virtual Result run(unsigned int count, const char * const *arguments,
         ShellContext *environment) = 0;
 
   protected:
@@ -106,7 +106,7 @@ public:
   Shell(struct Interface *console, struct FsHandle *root);
   ~Shell();
 
-  result execute(const char *);
+  Result execute(const char *);
   void log(const char *, ...);
 
   static const char *extractName(const char *);

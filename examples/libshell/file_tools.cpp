@@ -20,7 +20,7 @@ extern "C"
 #define CONFIG_SHELL_BUFFER 512
 #endif
 //------------------------------------------------------------------------------
-result CatEntry::print(FsNode *node, bool hex, bool quiet) const
+Result CatEntry::print(FsNode *node, bool hex, bool quiet) const
 {
   //TODO Style for lambdas
   auto hexify = [](unsigned char value) {
@@ -28,7 +28,7 @@ result CatEntry::print(FsNode *node, bool hex, bool quiet) const
   };
 
   length_t length;
-  result res;
+  Result res;
 
   if ((res = fsNodeLength(node, FS_NODE_DATA, &length)) != E_OK)
   {
@@ -104,7 +104,7 @@ result CatEntry::print(FsNode *node, bool hex, bool quiet) const
   return res;
 }
 //------------------------------------------------------------------------------
-result CatEntry::processArguments(unsigned int count,
+Result CatEntry::processArguments(unsigned int count,
     const char * const *arguments, const char **target, bool *hex, bool *quiet,
     const char **output) const
 {
@@ -155,14 +155,14 @@ result CatEntry::processArguments(unsigned int count,
   return *target == nullptr ? E_ENTRY : E_OK;
 }
 //------------------------------------------------------------------------------
-result CatEntry::run(unsigned int count, const char * const *arguments,
+Result CatEntry::run(unsigned int count, const char * const *arguments,
     Shell::ShellContext *context)
 {
   const char *output = nullptr;
   const char *target = nullptr;
   bool hex = false;
   bool quiet = false;
-  result res;
+  Result res;
 
   res = processArguments(count, arguments, &target, &hex, &quiet, &output);
   if (res != E_OK)
@@ -197,14 +197,14 @@ void ChecksumCrc32::update(const uint8_t *buffer, uint32_t bufferLength)
   sum = crc32Update(sum, buffer, bufferLength);
 }
 //------------------------------------------------------------------------------
-result EchoData::fill(FsNode *node, const char *pattern,
+Result EchoData::fill(FsNode *node, const char *pattern,
     unsigned int number) const
 {
   const unsigned int patternLength = strlen(pattern);
   char buffer[CONFIG_SHELL_BUFFER];
   unsigned int iteration = 0;
   length_t nodePosition = 0;
-  result res = E_OK;
+  Result res = E_OK;
 
   //Write file content
   while (iteration < number)
@@ -234,7 +234,7 @@ result EchoData::fill(FsNode *node, const char *pattern,
   return res;
 }
 //------------------------------------------------------------------------------
-result EchoData::processArguments(unsigned int count,
+Result EchoData::processArguments(unsigned int count,
     const char * const *arguments, const char **target, const char **pattern,
     unsigned int *number) const
 {
@@ -292,13 +292,13 @@ result EchoData::processArguments(unsigned int count,
   return *target == nullptr ? E_ENTRY : E_OK;
 }
 //------------------------------------------------------------------------------
-result EchoData::run(unsigned int count, const char * const *arguments,
+Result EchoData::run(unsigned int count, const char * const *arguments,
     Shell::ShellContext *context)
 {
   const char *pattern = "0";
   const char *target = nullptr;
   unsigned int number = CONFIG_SHELL_BUFFER;
-  result res;
+  Result res;
 
   res = processArguments(count, arguments, &target, &pattern, &number);
   if (res != E_OK)
@@ -364,7 +364,7 @@ result EchoData::run(unsigned int count, const char * const *arguments,
   return res;
 }
 //------------------------------------------------------------------------------
-result TouchEntry::processArguments(unsigned int count,
+Result TouchEntry::processArguments(unsigned int count,
     const char * const *arguments, const char **targets) const
 {
   unsigned int entries = 0;
@@ -390,11 +390,11 @@ result TouchEntry::processArguments(unsigned int count,
   return !entries ? E_ENTRY : E_OK;
 }
 //------------------------------------------------------------------------------
-result TouchEntry::run(unsigned int count, const char * const *arguments,
+Result TouchEntry::run(unsigned int count, const char * const *arguments,
     Shell::ShellContext *context)
 {
   const char *targets[Shell::ARGUMENT_COUNT - 1] = {nullptr};
-  result res;
+  Result res;
 
   if ((res = processArguments(count, arguments, targets)) != E_OK)
     return res;

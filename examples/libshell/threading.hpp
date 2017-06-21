@@ -32,7 +32,7 @@ public:
     return "swarm";
   }
 
-  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
 
 private:
   enum
@@ -40,12 +40,12 @@ private:
     THREAD_COUNT = 2
   };
 
-  void onCommandCompleted(WorkerThread *, result);
+  void onCommandCompleted(WorkerThread *, Result);
 
   Mutex queueLock;
   Semaphore queueSynchronizer;
   std::queue<WorkerThread *> pool;
-  std::queue<result> results;
+  std::queue<Result> results;
 };
 //------------------------------------------------------------------------------
 extern "C" void workerThreadWrapper(void *);

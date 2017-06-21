@@ -23,7 +23,7 @@ public:
     return "cat";
   }
 
-  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
 
 private:
   enum : unsigned int
@@ -32,8 +32,8 @@ private:
     RAW_OUTPUT_WIDTH = 32
   };
 
-  result print(FsNode *, bool, bool) const;
-  result processArguments(unsigned int, const char * const *,
+  Result print(FsNode *, bool, bool) const;
+  Result processArguments(unsigned int, const char * const *,
       const char **, bool *, bool *, const char **) const;
 };
 //------------------------------------------------------------------------------
@@ -81,11 +81,11 @@ public:
     return "echo";
   }
 
-  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
 
 private:
-  result fill(FsNode *, const char *, unsigned int) const;
-  result processArguments(unsigned int, const char * const *,
+  Result fill(FsNode *, const char *, unsigned int) const;
+  Result processArguments(unsigned int, const char * const *,
       const char **, const char **, unsigned int *) const;
 };
 //------------------------------------------------------------------------------
@@ -102,10 +102,10 @@ public:
     return "touch";
   }
 
-  virtual result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
 
 private:
-  result processArguments(unsigned int, const char * const *,
+  Result processArguments(unsigned int, const char * const *,
       const char **) const;
 };
 //------------------------------------------------------------------------------

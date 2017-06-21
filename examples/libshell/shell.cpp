@@ -76,7 +76,7 @@ const char *Shell::ShellCommand::followNextPart(FsNode **node,
     while (child)
     {
       char nodeName[CONFIG_FILENAME_LENGTH];
-      const result res = fsNodeRead(child, FS_NODE_NAME, 0, nodeName,
+      const Result res = fsNodeRead(child, FS_NODE_NAME, 0, nodeName,
           sizeof(nodeName), nullptr);
 
       if (res == E_OK)
@@ -189,7 +189,7 @@ Shell::Shell(Interface *console, FsHandle *root) :
   for (unsigned int pos = 0; pos < ARGUMENT_COUNT; ++pos)
     argumentPool[pos] = new char[ARGUMENT_LENGTH];
 
-  const result res = mutexInit(&logMutex);
+  const Result res = mutexInit(&logMutex);
 
   if (res != E_OK)
     exit(EXIT_FAILURE);
@@ -209,7 +209,7 @@ Shell::~Shell()
   mutexDeinit(&logMutex);
 }
 //------------------------------------------------------------------------------
-result Shell::execute(const char *input)
+Result Shell::execute(const char *input)
 {
   unsigned int line = 0, start = 0;
   bool braces = false, spaces = true;
@@ -281,7 +281,7 @@ result Shell::execute(const char *input)
     {
       if (!strcmp(entry->name(), argumentPool[0]))
       {
-        result res = entry->run(line - 1, argumentPool + 1, &context);
+        Result res = entry->run(line - 1, argumentPool + 1, &context);
         return res;
       }
     }

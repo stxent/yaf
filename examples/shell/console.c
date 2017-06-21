@@ -8,11 +8,11 @@
 #include <stdint.h>
 #include "shell/console.h"
 /*----------------------------------------------------------------------------*/
-static enum result consoleInit(void *, const void *);
+static enum Result consoleInit(void *, const void *);
 static void consoleDeinit(void *);
-static enum result consoleCallback(void *, void (*)(void *), void *);
-static enum result consoleGet(void *, enum ifOption, void *);
-static enum result consoleSet(void *, enum ifOption, const void *);
+static enum Result consoleSetCallback(void *, void (*)(void *), void *);
+static enum Result consoleGetParam(void *, enum IfParameter, void *);
+static enum Result consoleSetParam(void *, enum IfParameter, const void *);
 static size_t consoleRead(void *, void *, size_t);
 static size_t consoleWrite(void *, const void *, size_t);
 /*----------------------------------------------------------------------------*/
@@ -26,16 +26,16 @@ static const struct InterfaceClass consoleTable = {
     .init = consoleInit,
     .deinit = consoleDeinit,
 
-    .callback = consoleCallback,
-    .get = consoleGet,
-    .set = consoleSet,
+    .setCallback = consoleSetCallback,
+    .getParam = consoleGetParam,
+    .setParam = consoleSetParam,
     .read = consoleRead,
     .write = consoleWrite
 };
 /*----------------------------------------------------------------------------*/
 const struct InterfaceClass * const Console = &consoleTable;
 /*----------------------------------------------------------------------------*/
-static enum result consoleInit(void *object __attribute__((unused)),
+static enum Result consoleInit(void *object __attribute__((unused)),
     const void *configBase __attribute__((unused)))
 {
   return E_OK;
@@ -46,22 +46,22 @@ static void consoleDeinit(void *object __attribute__((unused)))
 
 }
 //------------------------------------------------------------------------------
-static enum result consoleCallback(void *object __attribute__((unused)),
+static enum Result consoleSetCallback(void *object __attribute__((unused)),
     void (*callback)(void *) __attribute__((unused)),
     void *argument __attribute__((unused)))
 {
   return E_ERROR;
 }
 //------------------------------------------------------------------------------
-static enum result consoleGet(void *object __attribute__((unused)),
-    enum ifOption option __attribute__((unused)),
+static enum Result consoleGetParam(void *object __attribute__((unused)),
+    enum IfParameter option __attribute__((unused)),
     void *data __attribute__((unused)))
 {
   return E_ERROR;
 }
 //------------------------------------------------------------------------------
-static enum result consoleSet(void *object __attribute__((unused)),
-    enum ifOption option __attribute__((unused)),
+static enum Result consoleSetParam(void *object __attribute__((unused)),
+    enum IfParameter option __attribute__((unused)),
     const void *data __attribute__((unused)))
 {
   return E_ERROR;
@@ -77,6 +77,6 @@ static size_t consoleRead(void *object __attribute__((unused)),
 static size_t consoleWrite(void *object __attribute__((unused)),
     const void *buffer, size_t length)
 {
-  printf("%s", buffer);
+  printf("%s", (const char *)buffer);
   return length;
 }

@@ -39,7 +39,7 @@ public:
     return "date";
   }
 
-  virtual result run(unsigned int, const char * const *, Shell::ShellContext *)
+  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *)
   {
     RtDateTime currentTime;
 
@@ -64,11 +64,11 @@ public:
     return "time";
   }
 
-  virtual result run(unsigned int count, const char * const *arguments,
+  virtual Result run(unsigned int count, const char * const *arguments,
       Shell::ShellContext *context)
   {
     uint64_t start, delta;
-    result res = E_VALUE;
+    Result res = E_VALUE;
 
     for (auto entry : owner.commands())
     {

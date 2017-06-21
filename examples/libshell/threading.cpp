@@ -24,7 +24,7 @@ WorkerThread::WorkerThread(ThreadSwarm &parent) :
     baseContext(nullptr),
     argumentCount(0), firstArgument(nullptr)
 {
-  result res;
+  Result res;
 
   res = semInit(&semaphore, 0);
 
@@ -68,7 +68,7 @@ void WorkerThread::handler()
       {
         memcpy(&environment, baseContext, sizeof(Shell::ShellContext));
 
-        const result res = entry->run(argumentCount - 1, firstArgument + 1,
+        const Result res = entry->run(argumentCount - 1, firstArgument + 1,
             &environment);
 
         owner.onCommandCompleted(this, res);
@@ -89,7 +89,7 @@ void WorkerThread::process(unsigned int count, const char * const *arguments,
 //------------------------------------------------------------------------------
 void WorkerThread::start()
 {
-  const result res = threadStart(&thread);
+  const Result res = threadStart(&thread);
 
   if (res != E_OK)
   {
@@ -107,7 +107,7 @@ void WorkerThread::terminate()
 ThreadSwarm::ThreadSwarm(Shell &parent) :
     ShellCommand(parent)
 {
-  result res;
+  Result res;
 
   res = mutexInit(&queueLock);
 
@@ -140,7 +140,7 @@ ThreadSwarm::~ThreadSwarm()
   mutexDeinit(&queueLock);
 }
 //------------------------------------------------------------------------------
-void ThreadSwarm::onCommandCompleted(WorkerThread *worker, result res)
+void ThreadSwarm::onCommandCompleted(WorkerThread *worker, Result res)
 {
   mutexLock(&queueLock);
 
@@ -151,7 +151,7 @@ void ThreadSwarm::onCommandCompleted(WorkerThread *worker, result res)
   semPost(&queueSynchronizer);
 }
 //------------------------------------------------------------------------------
-result ThreadSwarm::run(unsigned int count, const char * const *arguments,
+Result ThreadSwarm::run(unsigned int count, const char * const *arguments,
     Shell::ShellContext *context)
 {
   bool help = false;
@@ -173,7 +173,7 @@ result ThreadSwarm::run(unsigned int count, const char * const *arguments,
   }
 
   unsigned int index = 0;
-  result res = E_OK;
+  Result res = E_OK;
 
   while (index < count)
   {

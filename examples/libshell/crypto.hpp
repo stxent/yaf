@@ -40,14 +40,14 @@ protected:
     MAX_LENGTH = 64
   };
 
-  result compute(unsigned int, const char * const *,
+  Result compute(unsigned int, const char * const *,
       Shell::ShellContext *, ComputationAlgorithm *) const;
 
 private:
   const char * const *getNextEntry(unsigned int, const char * const *, bool *,
       char *) const;
-  result processArguments(unsigned int, const char * const *) const;
-  result processEntry(FsNode *, Shell::ShellContext *,
+  Result processArguments(unsigned int, const char * const *) const;
+  Result processEntry(FsNode *, Shell::ShellContext *,
       ComputationAlgorithm *, const char *) const;
 };
 //------------------------------------------------------------------------------
@@ -69,7 +69,7 @@ public:
     return T::name();
   }
 
-  virtual result run(unsigned int count, const char * const *arguments,
+  virtual Result run(unsigned int count, const char * const *arguments,
       Shell::ShellContext *context)
   {
     T algorithm;

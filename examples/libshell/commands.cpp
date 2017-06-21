@@ -19,7 +19,7 @@ extern "C"
 #define CONFIG_SHELL_BUFFER 512
 #endif
 //------------------------------------------------------------------------------
-result DataProcessing::copyContent(FsNode *sourceNode, FsNode *destinationNode,
+Result DataProcessing::copyContent(FsNode *sourceNode, FsNode *destinationNode,
     unsigned int blockSize, unsigned int blockCount, unsigned int seek,
     unsigned int skip) const
 {
@@ -28,7 +28,7 @@ result DataProcessing::copyContent(FsNode *sourceNode, FsNode *destinationNode,
       * seek;
   uint32_t blocks = 0;
   char buffer[CONFIG_SHELL_BUFFER];
-  result res = E_OK;
+  Result res = E_OK;
 
   //Copy file content
   while (!blockCount || blocks++ < blockCount)
@@ -64,11 +64,11 @@ result DataProcessing::copyContent(FsNode *sourceNode, FsNode *destinationNode,
   return res;
 }
 //------------------------------------------------------------------------------
-result DataProcessing::prepareNodes(Shell::ShellContext *context,
+Result DataProcessing::prepareNodes(Shell::ShellContext *context,
     FsNode **destination, FsNode **source, const char *destinationPath,
     const char *sourcePath, bool overwrite)
 {
-  result res;
+  Result res;
 
   const char * const nodeName = Shell::extractName(destinationPath);
   if (nodeName == nullptr)
@@ -158,7 +158,7 @@ result DataProcessing::prepareNodes(Shell::ShellContext *context,
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result ChangeDirectory::processArguments(unsigned int count,
+Result ChangeDirectory::processArguments(unsigned int count,
     const char * const *arguments, const char **path) const
 {
   bool help = false;
@@ -189,11 +189,11 @@ result ChangeDirectory::processArguments(unsigned int count,
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result DataProcessing::removeNode(Shell::ShellContext *context, FsNode *node,
+Result DataProcessing::removeNode(Shell::ShellContext *context, FsNode *node,
     char *path)
 {
   FsNode *root;
-  result res;
+  Result res;
 
   if ((res = fsNodeLength(node, FS_NODE_DATA, nullptr)) != E_OK)
   {
@@ -216,11 +216,11 @@ result DataProcessing::removeNode(Shell::ShellContext *context, FsNode *node,
   return res;
 }
 //------------------------------------------------------------------------------
-result ChangeDirectory::run(unsigned int count, const char * const *arguments,
+Result ChangeDirectory::run(unsigned int count, const char * const *arguments,
     Shell::ShellContext *context)
 {
   const char *path = nullptr;
-  result res;
+  Result res;
 
   if ((res = processArguments(count, arguments, &path)) != E_OK)
     return res; //FIXME E_BUSY
@@ -266,7 +266,7 @@ result ChangeDirectory::run(unsigned int count, const char * const *arguments,
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result CopyEntry::processArguments(unsigned int count,
+Result CopyEntry::processArguments(unsigned int count,
     const char * const *arguments, const char **destination,
     const char **source) const
 {
@@ -312,11 +312,11 @@ result CopyEntry::processArguments(unsigned int count,
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result CopyEntry::run(unsigned int count, const char * const *arguments,
+Result CopyEntry::run(unsigned int count, const char * const *arguments,
     Shell::ShellContext *context)
 {
   const char *destinationPath = nullptr, *sourcePath = nullptr;
-  result res;
+  Result res;
 
   res = processArguments(count, arguments, &destinationPath, &sourcePath);
   if (res != E_OK)
@@ -337,7 +337,7 @@ result CopyEntry::run(unsigned int count, const char * const *arguments,
   return res;
 }
 //------------------------------------------------------------------------------
-result DirectData::processArguments(unsigned int count,
+Result DirectData::processArguments(unsigned int count,
     const char * const *arguments, Arguments *output) const
 {
   bool argumentError = false;
@@ -451,11 +451,11 @@ result DirectData::processArguments(unsigned int count,
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result DirectData::run(unsigned int count, const char * const *arguments,
+Result DirectData::run(unsigned int count, const char * const *arguments,
     Shell::ShellContext *context)
 {
   Arguments parsed;
-  result res;
+  Result res;
 
   res = processArguments(count, arguments, &parsed);
   if (res != E_OK)
@@ -477,12 +477,12 @@ result DirectData::run(unsigned int count, const char * const *arguments,
   return res;
 }
 //------------------------------------------------------------------------------
-result ExitShell::run(unsigned int, const char * const *, Shell::ShellContext *)
+Result ExitShell::run(unsigned int, const char * const *, Shell::ShellContext *)
 {
-  return static_cast<result>(Shell::E_SHELL_EXIT);
+  return static_cast<Result>(Shell::E_SHELL_EXIT);
 }
 //------------------------------------------------------------------------------
-result ListCommands::run(unsigned int, const char * const *,
+Result ListCommands::run(unsigned int, const char * const *,
     Shell::ShellContext *)
 {
   for (auto entry : owner.commands())
@@ -491,7 +491,7 @@ result ListCommands::run(unsigned int, const char * const *,
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result ListEntries::run(unsigned int count, const char * const *arguments,
+Result ListEntries::run(unsigned int count, const char * const *arguments,
     Shell::ShellContext *context)
 {
   const char *filter = nullptr, *path = nullptr;
@@ -574,7 +574,7 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
   }
 
   int entries = 0;
-  result res;
+  Result res;
 
   do
   {
@@ -678,12 +678,12 @@ result ListEntries::run(unsigned int count, const char * const *arguments,
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result MakeDirectory::run(unsigned int count, const char * const *arguments,
+Result MakeDirectory::run(unsigned int count, const char * const *arguments,
     Shell::ShellContext *context)
 {
   const char *target = nullptr;
   bool help = false;
-  result res;
+  Result res;
 
   //TODO Add option -m
   for (unsigned int i = 0; i < count; ++i)
@@ -754,7 +754,7 @@ result MakeDirectory::run(unsigned int count, const char * const *arguments,
   return E_OK;
 }
 //------------------------------------------------------------------------------
-result RemoveDirectory::run(unsigned int count, const char * const *arguments,
+Result RemoveDirectory::run(unsigned int count, const char * const *arguments,
     Shell::ShellContext *context)
 {
   const char *target = nullptr;
@@ -806,7 +806,7 @@ result RemoveDirectory::run(unsigned int count, const char * const *arguments,
     return E_ENTRY;
   }
 
-  const result res = fsNodeRemove(root, node);
+  const Result res = fsNodeRemove(root, node);
 
   fsNodeFree(root);
   fsNodeFree(node);
@@ -819,7 +819,7 @@ result RemoveDirectory::run(unsigned int count, const char * const *arguments,
   return res;
 }
 //------------------------------------------------------------------------------
-result RemoveEntry::processArguments(unsigned int count,
+Result RemoveEntry::processArguments(unsigned int count,
     const char * const *arguments, bool *recursive, const char **targets) const
 {
   unsigned int entries = 0;
@@ -851,12 +851,12 @@ result RemoveEntry::processArguments(unsigned int count,
   return !entries ? E_ENTRY : E_OK;
 }
 //------------------------------------------------------------------------------
-result RemoveEntry::run(unsigned int count, const char * const *arguments,
+Result RemoveEntry::run(unsigned int count, const char * const *arguments,
     Shell::ShellContext *context)
 {
   const char *targets[Shell::ARGUMENT_COUNT - 1] = {nullptr};
   bool recursive = false;
-  result res;
+  Result res;
 
   if ((res = processArguments(count, arguments, &recursive, targets)) != E_OK)
     return res;
@@ -907,10 +907,10 @@ result RemoveEntry::run(unsigned int count, const char * const *arguments,
   return res;
 }
 //------------------------------------------------------------------------------
-result Synchronize::run(unsigned int, const char * const *,
+Result Synchronize::run(unsigned int, const char * const *,
     Shell::ShellContext *)
 {
-  result res = fsHandleSync(owner.handle());
+  Result res = fsHandleSync(owner.handle());
 
   return res;
 }
