@@ -12,12 +12,12 @@ extern "C"
 {
 #include "shell/unix_time.h"
 }
-//------------------------------------------------------------------------------
+
 UnixTimeProvider::~UnixTimeProvider()
 {
   deinit(clock);
 }
-//------------------------------------------------------------------------------
+
 uint64_t UnixTimeProvider::microtime()
 {
   struct timespec currentTime;
@@ -27,21 +27,20 @@ uint64_t UnixTimeProvider::microtime()
   else
     return 0;
 }
-//------------------------------------------------------------------------------
+
 RtClock *UnixTimeProvider::rtc()
 {
   return clock;
 }
-//------------------------------------------------------------------------------
+
 UnixTimeProvider *UnixTimeProvider::instance()
 {
   static UnixTimeProvider object;
-
   return &object;
 }
-//------------------------------------------------------------------------------
+
 UnixTimeProvider::UnixTimeProvider()
 {
-  clock = reinterpret_cast<RtClock *>(init(UnixTime, nullptr));
+  clock = static_cast<RtClock *>(init(UnixTime, nullptr));
   assert(clock != nullptr);
 }

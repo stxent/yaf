@@ -6,17 +6,17 @@
 
 #include <cstring>
 #include "libshell/crypto.hpp"
-//------------------------------------------------------------------------------
+
 #ifndef CONFIG_SHELL_BUFFER
 #define CONFIG_SHELL_BUFFER 512
 #endif
-//------------------------------------------------------------------------------
-const char * const *AbstractComputationCommand::getNextEntry(unsigned int count,
-    const char * const *arguments, bool *check, char *expectedValue) const
+
+const char * const *AbstractComputationCommand::getNextEntry(size_t count, const char * const *arguments, bool *check,
+    char *expectedValue) const
 {
   *check = false;
 
-  for (unsigned int i = 0; i < count; ++i)
+  for (size_t i = 0; i < count; ++i)
   {
     if (!strcmp(arguments[i], "--check"))
     {
@@ -44,9 +44,8 @@ const char * const *AbstractComputationCommand::getNextEntry(unsigned int count,
 
   return nullptr;
 }
-//------------------------------------------------------------------------------
-Result AbstractComputationCommand::compute(unsigned int count,
-    const char * const *arguments, Shell::ShellContext *context,
+
+Result AbstractComputationCommand::compute(const char * const *arguments, size_t count, Shell::ShellContext *context,
     ComputationAlgorithm *algorithm) const
 {
   const char * const *path = arguments;
@@ -57,7 +56,7 @@ Result AbstractComputationCommand::compute(unsigned int count,
 
   do
   {
-    const unsigned int index = count - (path - arguments);
+    const size_t index = count - (path - arguments);
     char expectedValue[MAX_LENGTH];
     bool checkValue;
 
@@ -71,29 +70,26 @@ Result AbstractComputationCommand::compute(unsigned int count,
 
     //Find destination node
     Shell::joinPaths(context->pathBuffer, context->currentDir, nodeName);
+
     FsNode * const node = openNode(context->pathBuffer);
     if (node == nullptr)
     {
       owner.log("%s: %s: node not found", name(), context->pathBuffer);
       break;
     }
-
-    res = processEntry(node, context, algorithm,
-        checkValue ? expectedValue : nullptr);
-
+    res = processEntry(node, context, algorithm, checkValue ? expectedValue : nullptr);
     fsNodeFree(node);
   }
   while (res == E_OK);
 
   return res;
 }
-//------------------------------------------------------------------------------
-Result AbstractComputationCommand::processArguments(unsigned int count,
-    const char * const *arguments) const
+
+Result AbstractComputationCommand::processArguments(size_t count, const char * const *arguments) const
 {
   bool help = false;
 
-  for (unsigned int i = 0; i < count; ++i)
+  for (size_t i = 0; i < count; ++i)
   {
     if (!strcmp(arguments[i], "--help"))
     {
@@ -112,14 +108,12 @@ Result AbstractComputationCommand::processArguments(unsigned int count,
 
   return E_OK;
 }
-//------------------------------------------------------------------------------
-Result AbstractComputationCommand::processEntry(FsNode *node,
-    Shell::ShellContext *context, ComputationAlgorithm *algorithm,
-    const char *expectedValue) const
+
+Result AbstractComputationCommand::processEntry(FsNode *node, Shell::ShellContext *context,
+    ComputationAlgorithm *algorithm, const char *expectedValue) const
 {
   length_t read = 0;
   length_t size;
-  length_t chunk;
   uint8_t buffer[CONFIG_SHELL_BUFFER];
   char computedValue[MAX_LENGTH];
   Result res = E_OK;
@@ -132,22 +126,22 @@ Result AbstractComputationCommand::processEntry(FsNode *node,
 
   while (read < size)
   {
-    res = fsNodeRead(node, FS_NODE_DATA, read, buffer, sizeof(buffer), &chunk);
+    length_t chunk;
 
+    res = fsNodeRead(node, FS_NODE_DATA, read, buffer, sizeof(buffer), &chunk);
     if (res != E_OK)
     {
       owner.log("%s: %s: read error at %u", name(), context->pathBuffer, read);
       res = E_INTERFACE;
       break;
     }
-
     if (!chunk)
     {
-      owner.log("%s: %s: invalid chunk length at %u", name(),
-          context->pathBuffer, read);
+      owner.log("%s: %s: invalid chunk length at %u", name(), context->pathBuffer, read);
       res = E_ERROR;
       break;
     }
+
     read += chunk;
     algorithm->update(buffer, chunk);
   }
@@ -158,8 +152,7 @@ Result AbstractComputationCommand::processEntry(FsNode *node,
   {
     if (expectedValue != nullptr && strcmp(computedValue, expectedValue) != 0)
     {
-      owner.log("%s: %s: comparison error, expected %s", name(),
-          context->pathBuffer, expectedValue);
+      owner.log("%s: %s: comparison error, expected %s", name(), context->pathBuffer, expectedValue);
       res = E_VALUE;
     }
     owner.log("%s\t%s", computedValue, context->pathBuffer);

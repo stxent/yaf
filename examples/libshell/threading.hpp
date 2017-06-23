@@ -6,7 +6,7 @@
 
 #ifndef YAF_LIBSHELL_THREADING_HPP_
 #define YAF_LIBSHELL_THREADING_HPP_
-//------------------------------------------------------------------------------
+
 #include <queue>
 #include "libshell/shell.hpp"
 
@@ -16,10 +16,10 @@ extern "C"
 #include <osw/semaphore.h>
 #include <osw/thread.h>
 }
-//------------------------------------------------------------------------------
+
 class WorkerThread;
-//------------------------------------------------------------------------------
-class ThreadSwarm : public Shell::ShellCommand
+
+class ThreadSwarm: public Shell::ShellCommand
 {
   friend class WorkerThread;
 
@@ -27,12 +27,12 @@ public:
   ThreadSwarm(Shell &parent);
   virtual ~ThreadSwarm();
 
-  virtual const char *name() const
+  virtual const char *name() const override
   {
     return "swarm";
   }
 
-  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(const char * const *, size_t, Shell::ShellContext *) override;
 
 private:
   enum
@@ -47,10 +47,10 @@ private:
   std::queue<WorkerThread *> pool;
   std::queue<Result> results;
 };
-//------------------------------------------------------------------------------
+
 extern "C" void workerThreadWrapper(void *);
 extern "C" void workerTerminateWrapper(void *);
-//------------------------------------------------------------------------------
+
 class WorkerThread
 {
   friend void ::workerThreadWrapper(void *);
@@ -60,7 +60,7 @@ public:
   WorkerThread(ThreadSwarm &parent);
   virtual ~WorkerThread();
 
-  void process(unsigned int, const char * const *, Shell::ShellContext *);
+  void process(const char * const *, size_t, Shell::ShellContext *);
   void start();
 
 private:
@@ -81,8 +81,8 @@ private:
 
   Shell::ShellContext environment;
   Shell::ShellContext *baseContext;
-  unsigned int argumentCount;
+  size_t argumentCount;
   const char * const *firstArgument;
 };
-//------------------------------------------------------------------------------
+
 #endif //YAF_LIBSHELL_THREADING_HPP_

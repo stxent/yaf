@@ -9,25 +9,21 @@
 #include <cstdlib>
 #include <cstring>
 #include "libshell/shell.hpp"
-//------------------------------------------------------------------------------
-using namespace std;
-//------------------------------------------------------------------------------
-Shell::ShellCommand::ShellCommand(Shell &shell) :
-    owner(shell)
-{
 
+Shell::ShellCommand::ShellCommand(Shell &shell) : owner{shell}
+{
 }
-//------------------------------------------------------------------------------
+
 FsNode *Shell::ShellCommand::openBaseNode(const char *path) const
 {
   return followPath(path, false);
 }
-//------------------------------------------------------------------------------
+
 FsNode *Shell::ShellCommand::openNode(const char *path) const
 {
   return followPath(path, true);
 }
-//------------------------------------------------------------------------------
+
 FsNode *Shell::ShellCommand::followPath(const char *path, bool leaf) const
 {
   FsNode *node = nullptr;
@@ -37,9 +33,8 @@ FsNode *Shell::ShellCommand::followPath(const char *path, bool leaf) const
 
   return path != nullptr ? node : nullptr;
 }
-//------------------------------------------------------------------------------
-const char *Shell::ShellCommand::followNextPart(FsNode **node,
-    const char *path, bool leaf) const
+
+const char *Shell::ShellCommand::followNextPart(FsNode **node, const char *path, bool leaf) const
 {
   char nextPart[CONFIG_FILENAME_LENGTH];
 
@@ -58,7 +53,7 @@ const char *Shell::ShellCommand::followNextPart(FsNode **node,
   {
     if (nextPart[0] == '/')
     {
-      *node = reinterpret_cast<FsNode *>(fsHandleRoot(owner.handle()));
+      *node = static_cast<FsNode *>(fsHandleRoot(owner.handle()));
 
       if (*node == nullptr)
         path = nullptr;
@@ -70,14 +65,13 @@ const char *Shell::ShellCommand::followNextPart(FsNode **node,
   }
   else if (leaf || strlen(path))
   {
-    FsNode *child = reinterpret_cast<FsNode *>(fsNodeHead(*node));
+    FsNode *child = static_cast<FsNode *>(fsNodeHead(*node));
     fsNodeFree(*node);
 
     while (child)
     {
       char nodeName[CONFIG_FILENAME_LENGTH];
-      const Result res = fsNodeRead(child, FS_NODE_NAME, 0, nodeName,
-          sizeof(nodeName), nullptr);
+      const Result res = fsNodeRead(child, FS_NODE_NAME, 0, nodeName, sizeof(nodeName), nullptr);
 
       if (res == E_OK)
       {
@@ -102,11 +96,11 @@ const char *Shell::ShellCommand::followNextPart(FsNode **node,
 
   return path;
 }
-//------------------------------------------------------------------------------
+
 //Output buffer length should be greater or equal to maximum name length
 const char *Shell::ShellCommand::getChunk(char *dst, const char *src)
 {
-  uint16_t counter = 0;
+  size_t counter = 0;
 
   if (!*src)
     return src;
@@ -131,10 +125,10 @@ const char *Shell::ShellCommand::getChunk(char *dst, const char *src)
 
   return src;
 }
-//------------------------------------------------------------------------------
+
 const char *Shell::extractName(const char *path)
 {
-  int length, pos;
+  int length, pos; //TODO
 
   for (length = 0, pos = strlen(path) - 1; pos >= 0; --pos, ++length)
   {
@@ -144,7 +138,7 @@ const char *Shell::extractName(const char *path)
 
   return length ? path : nullptr;
 }
-//------------------------------------------------------------------------------
+
 void Shell::joinPaths(char *buffer, const char *directory, const char *path)
 {
   if (!path || !strlen(path))
@@ -153,7 +147,7 @@ void Shell::joinPaths(char *buffer, const char *directory, const char *path)
   }
   else if (path[0] != '/')
   {
-    unsigned int directoryLength = strlen(directory);
+    const size_t directoryLength = strlen(directory);
 
     strcpy(buffer, directory);
     if (directoryLength > 1 && directory[directoryLength - 1] != '/')
@@ -163,7 +157,7 @@ void Shell::joinPaths(char *buffer, const char *directory, const char *path)
   else
     strcpy(buffer, path);
 }
-//------------------------------------------------------------------------------
+
 bool Shell::stripName(char *buffer)
 {
   const char * const position = Shell::extractName(buffer);
@@ -171,7 +165,7 @@ bool Shell::stripName(char *buffer)
   if (position == nullptr)
     return false;
 
-  unsigned int offset = position - buffer;
+  size_t offset = position - buffer;
 
   if (offset > 1)
     --offset;
@@ -179,14 +173,14 @@ bool Shell::stripName(char *buffer)
 
   return true;
 }
-//------------------------------------------------------------------------------
+
 Shell::Shell(Interface *console, FsHandle *root) :
     rootHandle(root), consoleInterface(console)
 {
   strcpy(context.currentDir, "/");
   strcpy(context.pathBuffer, "");
 
-  for (unsigned int pos = 0; pos < ARGUMENT_COUNT; ++pos)
+  for (size_t pos = 0; pos < ARGUMENT_COUNT; ++pos)
     argumentPool[pos] = new char[ARGUMENT_LENGTH];
 
   const Result res = mutexInit(&logMutex);
@@ -195,26 +189,26 @@ Shell::Shell(Interface *console, FsHandle *root) :
     exit(EXIT_FAILURE);
 
   //Log function should be called after mutex initialization
-  log("Shell opened, size %u", static_cast<unsigned int>(sizeof(Shell)));
+  log("Shell opened, size %zu", sizeof(Shell));
 }
-//------------------------------------------------------------------------------
+
 Shell::~Shell()
 {
   for (auto entry : registeredCommands)
     delete entry;
 
-  for (unsigned int pos = 0; pos < ARGUMENT_COUNT; ++pos)
+  for (size_t pos = 0; pos < ARGUMENT_COUNT; ++pos)
     delete[] argumentPool[pos];
 
   mutexDeinit(&logMutex);
 }
-//------------------------------------------------------------------------------
+
 Result Shell::execute(const char *input)
 {
-  unsigned int line = 0, start = 0;
+  size_t line = 0, start = 0;
   bool braces = false, spaces = true;
 
-  for (unsigned int pos = 0, length = strlen(input); pos < length; ++pos)
+  for (size_t pos = 0, length = strlen(input); pos < length; ++pos)
   {
     if (!braces && (input[pos] == ' ' || input[pos] == '\t'))
     {
@@ -281,31 +275,30 @@ Result Shell::execute(const char *input)
     {
       if (!strcmp(entry->name(), argumentPool[0]))
       {
-        Result res = entry->run(line - 1, argumentPool + 1, &context);
-        return res;
+        return entry->run(argumentPool + 1, line - 1, &context);
       }
     }
   }
 
   return E_OK;
 }
-//------------------------------------------------------------------------------
+
 void Shell::log(const char *format, ...)
 {
-  int length;
+  mutexLock(&logMutex);
   va_list arguments;
 
-  mutexLock(&logMutex);
-  va_start(arguments, format);
   //Version with sized buffer does not work on some platforms
-  length = vsprintf(logBuffer, format, arguments);
+  va_start(arguments, format);
+  const int length = vsprintf(logBuffer, format, arguments);
   va_end(arguments);
 
   assert(length >= 0 && length < static_cast<int>(sizeof(logBuffer)) - 1);
 
   if (length)
   {
-    memcpy(logBuffer + length, "\n", 2);
+    logBuffer[length] = '\n';
+    logBuffer[length + 1] = '\0';
     ifWrite(consoleInterface, logBuffer, length + 2);
   }
   mutexUnlock(&logMutex);

@@ -6,31 +6,23 @@
 
 #ifndef YAF_LIBSHELL_CRYPTO_HPP_
 #define YAF_LIBSHELL_CRYPTO_HPP_
-//------------------------------------------------------------------------------
+
 #include <cassert>
 #include "libshell/shell.hpp"
-//------------------------------------------------------------------------------
+
 class ComputationAlgorithm
 {
 public:
-  virtual ~ComputationAlgorithm()
-  {
-  }
-
+  virtual ~ComputationAlgorithm() = default;
   virtual void finalize(char *) = 0;
   virtual void reset() = 0;
-  virtual void update(const uint8_t *, uint32_t) = 0;
+  virtual void update(const void *, size_t) = 0;
 };
-//------------------------------------------------------------------------------
-class AbstractComputationCommand : public Shell::ShellCommand
+
+class AbstractComputationCommand: public Shell::ShellCommand
 {
 public:
-  AbstractComputationCommand(Shell &parent) :
-      ShellCommand(parent)
-  {
-  }
-
-  virtual ~AbstractComputationCommand()
+  AbstractComputationCommand(Shell &parent) : ShellCommand{parent}
   {
   }
 
@@ -40,42 +32,33 @@ protected:
     MAX_LENGTH = 64
   };
 
-  Result compute(unsigned int, const char * const *,
-      Shell::ShellContext *, ComputationAlgorithm *) const;
+  Result compute(const char * const *, size_t, Shell::ShellContext *, ComputationAlgorithm *) const;
 
 private:
-  const char * const *getNextEntry(unsigned int, const char * const *, bool *,
-      char *) const;
-  Result processArguments(unsigned int, const char * const *) const;
-  Result processEntry(FsNode *, Shell::ShellContext *,
-      ComputationAlgorithm *, const char *) const;
+  const char * const *getNextEntry(size_t, const char * const *, bool *, char *) const;
+  Result processArguments(size_t, const char * const *) const;
+  Result processEntry(FsNode *, Shell::ShellContext *, ComputationAlgorithm *, const char *) const;
 };
-//------------------------------------------------------------------------------
-template<class T> class ComputationCommand : public AbstractComputationCommand
+
+template<class T> class ComputationCommand: public AbstractComputationCommand
 {
 public:
-  ComputationCommand(Shell &parent) :
-      AbstractComputationCommand(parent)
+  ComputationCommand(Shell &parent) : AbstractComputationCommand{parent}
   {
-    assert(T::length() <= MAX_LENGTH);
+    static_assert(T::length() <= MAX_LENGTH, "Incorrect length");
   }
 
-  virtual ~ComputationCommand()
-  {
-  }
-
-  virtual const char *name() const
+  virtual const char *name() const override
   {
     return T::name();
   }
 
-  virtual Result run(unsigned int count, const char * const *arguments,
-      Shell::ShellContext *context)
+  virtual Result run(const char * const *arguments, size_t count, Shell::ShellContext *context) override
   {
     T algorithm;
 
-    return compute(count, arguments, context, &algorithm);
+    return compute(arguments, count, context, &algorithm);
   }
 };
-//------------------------------------------------------------------------------
+
 #endif //YAF_LIBSHELL_CRYPTO_HPP_

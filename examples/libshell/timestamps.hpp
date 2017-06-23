@@ -6,7 +6,8 @@
 
 #ifndef YAF_LIBSHELL_TIMESTAMPS_HPP_
 #define YAF_LIBSHELL_TIMESTAMPS_HPP_
-//------------------------------------------------------------------------------
+
+#include <cinttypes>
 #include <cstring>
 #include "libshell/shell.hpp"
 
@@ -14,32 +15,28 @@ extern "C"
 {
 #include <xcore/realtime.h>
 }
-//------------------------------------------------------------------------------
+
 class TimeProvider
 {
 public:
-  virtual ~TimeProvider()
-  {
-  }
-
+  virtual ~TimeProvider() = default;
   virtual uint64_t microtime() = 0;
   virtual RtClock *rtc() = 0;
 };
-//------------------------------------------------------------------------------
-template<class T> class CurrentDate : public Shell::ShellCommand
+
+template<class T> class CurrentDate: public Shell::ShellCommand
 {
 public:
-  CurrentDate(Shell &parent) :
-      ShellCommand(parent)
+  CurrentDate(Shell &parent) : ShellCommand{parent}
   {
   }
 
-  virtual const char *name() const
+  virtual const char *name() const override
   {
     return "date";
   }
 
-  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *)
+  virtual Result run(const char * const *, size_t, Shell::ShellContext *) override
   {
     RtDateTime currentTime;
 
@@ -50,22 +47,20 @@ public:
     return E_OK;
   }
 };
-//------------------------------------------------------------------------------
-template<class T> class MeasureTime : public Shell::ShellCommand
+
+template<class T> class MeasureTime: public Shell::ShellCommand
 {
 public:
-  MeasureTime(Shell &parent) :
-      ShellCommand(parent)
+  MeasureTime(Shell &parent) : ShellCommand{parent}
   {
   }
 
-  virtual const char *name() const
+  virtual const char *name() const override
   {
     return "time";
   }
 
-  virtual Result run(unsigned int count, const char * const *arguments,
-      Shell::ShellContext *context)
+  virtual Result run(const char * const *arguments, size_t count, Shell::ShellContext *context) override
   {
     uint64_t start, delta;
     Result res = E_VALUE;
@@ -75,14 +70,14 @@ public:
       if (!strcmp(entry->name(), arguments[0]))
       {
         start = T::instance()->microtime();
-        res = entry->run(count - 1, arguments + 1, context);
+        res = entry->run(arguments + 1, count - 1, context);
         delta = T::instance()->microtime() - start;
 
-        owner.log("Time passed: %lu us", static_cast<unsigned long>(delta));
+        owner.log("Time passed: %"PRIu64" us", delta);
       }
     }
     return res;
   }
 };
-//------------------------------------------------------------------------------
+
 #endif //YAF_LIBSHELL_TIMESTAMPS_HPP_

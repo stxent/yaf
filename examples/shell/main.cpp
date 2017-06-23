@@ -21,12 +21,12 @@
 extern "C"
 {
 #include <yaf/fat32.h>
+#include <vfs/vfs.h>
+#include <vfs/vfs_handle_node.h>
 #include "shell/console.h"
 #include "shell/mmi.h"
 }
-//------------------------------------------------------------------------------
-using namespace std;
-//------------------------------------------------------------------------------
+
 class Application
 {
 public:
@@ -47,18 +47,18 @@ private:
   FsHandle *fsHandle;
   Shell *appShell;
 
-  map<string, Result> resultBeautifier;
+  std::map<std::string, Result> resultBeautifier;
 
   Interface *initConsole();
   Interface *initInterface(const char *);
   FsHandle *initHandle(Interface *);
   Shell *initShell(Interface *, FsHandle *);
 
-  string nameByValue(Result) const;
+  std::string nameByValue(Result) const;
   int runShell();
   int runScript(const char *);
 };
-//------------------------------------------------------------------------------
+
 Application::Application(const char *file, const char *script) :
     scriptFile(script)
 {
@@ -67,24 +67,24 @@ Application::Application(const char *file, const char *script) :
   fsHandle = initHandle(fsInterface);
   appShell = initShell(consoleInterface, fsHandle);
 
-  resultBeautifier.insert(pair<string, Result>("E_OK", E_OK));
-  resultBeautifier.insert(pair<string, Result>("E_ERROR", E_ERROR));
-  resultBeautifier.insert(pair<string, Result>("E_MEMORY", E_MEMORY));
-  resultBeautifier.insert(pair<string, Result>("E_ACCESS", E_ACCESS));
-  resultBeautifier.insert(pair<string, Result>("E_ADDRESS", E_ADDRESS));
-  resultBeautifier.insert(pair<string, Result>("E_BUSY", E_BUSY));
-  resultBeautifier.insert(pair<string, Result>("E_DEVICE", E_DEVICE));
-  resultBeautifier.insert(pair<string, Result>("E_IDLE", E_IDLE));
-  resultBeautifier.insert(pair<string, Result>("E_INTERFACE", E_INTERFACE));
-  resultBeautifier.insert(pair<string, Result>("E_INVALID", E_INVALID));
-  resultBeautifier.insert(pair<string, Result>("E_TIMEOUT", E_TIMEOUT));
-  resultBeautifier.insert(pair<string, Result>("E_VALUE", E_VALUE));
-  resultBeautifier.insert(pair<string, Result>("E_ENTRY", E_ENTRY));
-  resultBeautifier.insert(pair<string, Result>("E_EXIST", E_EXIST));
-  resultBeautifier.insert(pair<string, Result>("E_EMPTY", E_EMPTY));
-  resultBeautifier.insert(pair<string, Result>("E_FULL", E_FULL));
+  resultBeautifier.insert(std::pair<std::string, Result>("E_OK", E_OK));
+  resultBeautifier.insert(std::pair<std::string, Result>("E_ERROR", E_ERROR));
+  resultBeautifier.insert(std::pair<std::string, Result>("E_MEMORY", E_MEMORY));
+  resultBeautifier.insert(std::pair<std::string, Result>("E_ACCESS", E_ACCESS));
+  resultBeautifier.insert(std::pair<std::string, Result>("E_ADDRESS", E_ADDRESS));
+  resultBeautifier.insert(std::pair<std::string, Result>("E_BUSY", E_BUSY));
+  resultBeautifier.insert(std::pair<std::string, Result>("E_DEVICE", E_DEVICE));
+  resultBeautifier.insert(std::pair<std::string, Result>("E_IDLE", E_IDLE));
+  resultBeautifier.insert(std::pair<std::string, Result>("E_INTERFACE", E_INTERFACE));
+  resultBeautifier.insert(std::pair<std::string, Result>("E_INVALID", E_INVALID));
+  resultBeautifier.insert(std::pair<std::string, Result>("E_TIMEOUT", E_TIMEOUT));
+  resultBeautifier.insert(std::pair<std::string, Result>("E_VALUE", E_VALUE));
+  resultBeautifier.insert(std::pair<std::string, Result>("E_ENTRY", E_ENTRY));
+  resultBeautifier.insert(std::pair<std::string, Result>("E_EXIST", E_EXIST));
+  resultBeautifier.insert(std::pair<std::string, Result>("E_EMPTY", E_EMPTY));
+  resultBeautifier.insert(std::pair<std::string, Result>("E_FULL", E_FULL));
 }
-//------------------------------------------------------------------------------
+
 Application::~Application()
 {
   delete appShell;
@@ -92,7 +92,7 @@ Application::~Application()
   deinit(fsInterface);
   deinit(consoleInterface);
 }
-//------------------------------------------------------------------------------
+
 int Application::run()
 {
   if (scriptFile != nullptr)
@@ -104,8 +104,8 @@ int Application::run()
     return runShell();
   }
 }
-//------------------------------------------------------------------------------
-string Application::nameByValue(Result res) const
+
+std::string Application::nameByValue(Result res) const
 {
   for (auto entry : resultBeautifier)
   {
@@ -115,17 +115,17 @@ string Application::nameByValue(Result res) const
 
   return "";
 }
-//------------------------------------------------------------------------------
+
 int Application::runShell()
 {
-  string command;
+  std::string command;
   int exitFlag = 0;
   bool terminate = false;
 
   while (!terminate)
   {
-    cout << appShell->path() << "> ";
-    getline(cin, command);
+    std::cout << appShell->path() << "> ";
+    getline(std::cin, command);
 
     const Result res = appShell->execute(command.c_str());
 
@@ -147,11 +147,11 @@ int Application::runShell()
       case E_EXIST:
       case E_INVALID:
       case E_VALUE:
-        cout << "Error: " << nameByValue(res) << endl;
+        std::cout << "Error: " << nameByValue(res) << std::endl;
         break;
 
       default:
-        cout << "Fatal error: " << nameByValue(res) << endl;
+        std::cout << "Fatal error: " << nameByValue(res) << std::endl;
         exitFlag = EXIT_FAILURE;
         terminate = true;
         break;
@@ -160,48 +160,46 @@ int Application::runShell()
 
   return exitFlag;
 }
-//------------------------------------------------------------------------------
+
 int Application::runScript(const char *script)
 {
-  ifstream source(script);
+  std::ifstream source(script);
 
   if (!source.is_open())
     return EXIT_FAILURE;
 
-  string command;
+  std::string command;
   int exitFlag = 0;
 
   while (!source.eof())
   {
     getline(source, command);
 
-    const string::size_type delimiter = command.find(':');
+    const std::string::size_type delimiter = command.find(':');
 
-    if (delimiter != string::npos && delimiter + 1 < command.length())
+    if (delimiter != std::string::npos && delimiter + 1 < command.length())
     {
-      const string resultString = command.substr(0, delimiter);
+      const std::string resultString = command.substr(0, delimiter);
       auto expectedResult = resultBeautifier.find(resultString);
 
       if (expectedResult == resultBeautifier.end())
       {
-        cout << "Undefined result value" << endl;
+        std::cout << "Undefined result value" << std::endl;
         exitFlag = EXIT_FAILURE;
         break;
       }
 
-      const Result commandResult =
-          appShell->execute(command.c_str() + delimiter + 1);
+      const Result commandResult = appShell->execute(command.c_str() + delimiter + 1);
 
       if (commandResult != expectedResult->second)
       {
-        cout << "Expected result: " << resultString << ", got: "
-            << nameByValue(commandResult) << endl;
+        std::cout << "Expected result: " << resultString << ", got: " << nameByValue(commandResult) << std::endl;
         exitFlag = EXIT_FAILURE;
         break;
       }
       else
       {
-        cout << "Result: " << nameByValue(commandResult) << endl;
+        std::cout << "Result: " << nameByValue(commandResult) << std::endl;
       }
     }
   }
@@ -209,27 +207,27 @@ int Application::runScript(const char *script)
   source.close();
   return exitFlag;
 }
-//------------------------------------------------------------------------------
+
 Interface *Application::initConsole()
 {
-  Interface * const interface = reinterpret_cast<Interface *>(init(Console, 0));
+  Interface * const interface = static_cast<Interface *>(init(Console, nullptr));
 
   if (interface == nullptr)
   {
-    cout << "Error creating console interface" << endl;
+    std::cout << "Error creating console interface" << std::endl;
     exit(EXIT_FAILURE);
   }
 
   return interface;
 }
-//------------------------------------------------------------------------------
+
 Interface *Application::initInterface(const char *file)
 {
-  Interface * const interface = reinterpret_cast<Interface *>(init(Mmi, file));
+  Interface * const interface = static_cast<Interface *>(init(Mmi, file));
 
   if (interface == nullptr)
   {
-    cout << "Error opening file" << endl;
+    std::cout << "Error opening file" << std::endl;
     exit(EXIT_FAILURE);
   }
 
@@ -239,18 +237,18 @@ Interface *Application::initInterface(const char *file)
   {
     if (mmiSetPartition(interface, &mbr) != E_OK)
     {
-      cout << "Error during partition setup" << endl;
+      std::cout << "Error during partition setup" << std::endl;
       exit(EXIT_FAILURE);
     }
   }
   else
   {
-    cout << "No partitions found, selected raw partition at 0" << endl;
+    std::cout << "No partitions found, selected raw partition at 0" << std::endl;
   }
 
   return interface;
 }
-//------------------------------------------------------------------------------
+
 FsHandle *Application::initHandle(Interface *interface)
 {
   FsHandle *handle;
@@ -266,17 +264,33 @@ FsHandle *Application::initHandle(Interface *interface)
   fsConf.clock = UnixTimeProvider::instance()->rtc();
 #endif
 
-  handle = reinterpret_cast<FsHandle *>(init(FatHandle, &fsConf));
+  FsHandle *fhandle = static_cast<FsHandle *>(init(FatHandle, &fsConf));
+  handle = static_cast<FsHandle *>(init(VfsHandle, nullptr));
+
+  const VfsHandleNodeConfig x3 = {fhandle, "media"};
+  struct VfsNode *y3 = static_cast<struct VfsNode *>(init(VfsHandleNode, &x3));
+
+  const FsFieldDescriptor d3[] = {
+      {
+          &y3,
+          sizeof(y3),
+          static_cast<FsFieldType>(VFS_NODE_OBJECT)
+      }
+  };
+
+  FsNode *hhhjh = static_cast<FsNode *>(fsHandleRoot(handle));
+  fsNodeCreate(hhhjh, d3, 1);
+  fsNodeFree(hhhjh);
 
   if (!handle)
   {
-    cout << "Error creating FAT32 handle" << endl;
+    std::cout << "Error creating FAT32 handle" << std::endl;
     exit(EXIT_FAILURE);
   }
 
   return handle;
 }
-//------------------------------------------------------------------------------
+
 Shell *Application::initShell(Interface *console, FsHandle *handle)
 {
   Shell * const shell = new Shell(console, handle);
@@ -309,7 +323,7 @@ Shell *Application::initShell(Interface *console, FsHandle *handle)
 
   return shell;
 }
-//------------------------------------------------------------------------------
+
 int main(int argc, char *argv[])
 {
   const char *image = nullptr;
@@ -327,7 +341,7 @@ int main(int argc, char *argv[])
     {
       if (i + 1 >= argc)
       {
-        cout << "Argument error" << endl;
+        std::cout << "Argument error" << std::endl;
         break;
       }
 
@@ -347,10 +361,10 @@ int main(int argc, char *argv[])
 
   if (help)
   {
-    cout << "Usage: shell [OPTION]... FILE" << endl;
-    cout << "  -f, --format       create file system on partition" << endl;
-    cout << "  -h, --help         print help message" << endl;
-    cout << "  -s, --script FILE  use script from FILE" << endl;
+    std::cout << "Usage: shell [OPTION]... FILE" << std::endl;
+    std::cout << "  -f, --format       create file system on partition" << std::endl;
+    std::cout << "  -h, --help         print help message" << std::endl;
+    std::cout << "  -s, --script FILE  use script from FILE" << std::endl;
     exit(0);
   }
 

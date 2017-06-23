@@ -5,6 +5,7 @@
  */
 
 #include <cassert>
+#include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -15,15 +16,15 @@ extern "C"
 #include <xcore/bits.h>
 #include <xcore/crc/crc32.h>
 }
-//------------------------------------------------------------------------------
+
 #ifndef CONFIG_SHELL_BUFFER
 #define CONFIG_SHELL_BUFFER 512
 #endif
-//------------------------------------------------------------------------------
+
 Result CatEntry::print(FsNode *node, bool hex, bool quiet) const
 {
   //TODO Style for lambdas
-  auto hexify = [](unsigned char value) {
+  auto hexify = [](uint8_t value) {
     return value < 10 ? '0' + value : 'A' + (value - 10);
   };
 
@@ -36,18 +37,16 @@ Result CatEntry::print(FsNode *node, bool hex, bool quiet) const
     return res;
   }
 
-  uint8_t buffer[CONFIG_SHELL_BUFFER];
   length_t position = 0;
+  uint8_t buffer[CONFIG_SHELL_BUFFER];
 
   //Read file content
   while (position < length)
   {
-    const length_t chunkLength = length - position > sizeof(buffer) ?
-        sizeof(buffer) : length - position;
+    const length_t chunkLength = length - position > sizeof(buffer) ? sizeof(buffer) : length - position;
     length_t read;
 
-    res = fsNodeRead(node, FS_NODE_DATA, position, buffer, chunkLength,
-        &read);
+    res = fsNodeRead(node, FS_NODE_DATA, position, buffer, chunkLength, &read);
     if (res != E_OK || read != chunkLength)
     {
       owner.log("cat: read error at %u", position);
@@ -62,18 +61,16 @@ Result CatEntry::print(FsNode *node, bool hex, bool quiet) const
 
     if (hex)
     {
-      const unsigned int rowNumber =
-          (read + HEX_OUTPUT_WIDTH - 1) / HEX_OUTPUT_WIDTH;
+      const size_t rowNumber = (read + HEX_OUTPUT_WIDTH - 1) / HEX_OUTPUT_WIDTH;
 
-      for (unsigned int row = 0; row < rowNumber; ++row)
+      for (size_t row = 0; row < rowNumber; ++row)
       {
-        const unsigned int offset = row * HEX_OUTPUT_WIDTH;
-        const unsigned int currentRowWidth = read - offset > HEX_OUTPUT_WIDTH ?
-            HEX_OUTPUT_WIDTH : static_cast<unsigned int>(read - offset);
+        const size_t offset = row * HEX_OUTPUT_WIDTH;
+        const size_t currentRowWidth = read - offset > HEX_OUTPUT_WIDTH ? HEX_OUTPUT_WIDTH : read - offset;
         char output[HEX_OUTPUT_WIDTH * 3];
         char *outputPosition = output;
 
-        for (unsigned int i = 0; i < currentRowWidth; ++i)
+        for (size_t i = 0; i < currentRowWidth; ++i)
         {
           *outputPosition++ = hexify(buffer[offset + i] >> 4);
           *outputPosition++ = hexify(buffer[offset + i] & 0x0F);
@@ -84,14 +81,12 @@ Result CatEntry::print(FsNode *node, bool hex, bool quiet) const
     }
     else
     {
-      const unsigned int rowNumber =
-          (read + RAW_OUTPUT_WIDTH - 1) / RAW_OUTPUT_WIDTH;
+      const size_t rowNumber = (read + RAW_OUTPUT_WIDTH - 1) / RAW_OUTPUT_WIDTH;
 
-      for (unsigned int row = 0; row < rowNumber; ++row)
+      for (size_t row = 0; row < rowNumber; ++row)
       {
-        const unsigned int offset = row * RAW_OUTPUT_WIDTH;
-        const unsigned int currentRowWidth = read - offset > RAW_OUTPUT_WIDTH ?
-            RAW_OUTPUT_WIDTH : static_cast<unsigned int>(read - offset);
+        const size_t offset = row * RAW_OUTPUT_WIDTH;
+        const size_t currentRowWidth = read - offset > RAW_OUTPUT_WIDTH ? RAW_OUTPUT_WIDTH : read - offset;
         char output[RAW_OUTPUT_WIDTH + 1];
 
         memcpy(output, buffer + offset, currentRowWidth);
@@ -103,14 +98,13 @@ Result CatEntry::print(FsNode *node, bool hex, bool quiet) const
 
   return res;
 }
-//------------------------------------------------------------------------------
-Result CatEntry::processArguments(unsigned int count,
-    const char * const *arguments, const char **target, bool *hex, bool *quiet,
-    const char **output) const
+
+Result CatEntry::processArguments(size_t count, const char * const *arguments, const char **target, bool *hex,
+    bool *quiet, const char **output) const
 {
   bool help = false;
 
-  for (unsigned int i = 0; i < count; ++i)
+  for (size_t i = 0; i < count; ++i)
   {
     if (!strcmp(arguments[i], "--help"))
     {
@@ -154,9 +148,8 @@ Result CatEntry::processArguments(unsigned int count,
 
   return *target == nullptr ? E_ENTRY : E_OK;
 }
-//------------------------------------------------------------------------------
-Result CatEntry::run(unsigned int count, const char * const *arguments,
-    Shell::ShellContext *context)
+
+Result CatEntry::run(const char * const *arguments, size_t count, Shell::ShellContext *context)
 {
   const char *output = nullptr;
   const char *target = nullptr;
@@ -181,28 +174,27 @@ Result CatEntry::run(unsigned int count, const char * const *arguments,
 
   return res;
 }
-//------------------------------------------------------------------------------
+
 void ChecksumCrc32::finalize(char *digest)
 {
-  sprintf(digest, "%08x", static_cast<unsigned int>(sum));
+  sprintf(digest, "%08"PRIX32, sum);
 }
-//------------------------------------------------------------------------------
+
 void ChecksumCrc32::reset()
 {
   sum = INITIAL_CRC;
 }
-//------------------------------------------------------------------------------
-void ChecksumCrc32::update(const uint8_t *buffer, uint32_t bufferLength)
+
+void ChecksumCrc32::update(const void *buffer, size_t bufferLength)
 {
   sum = crc32Update(sum, buffer, bufferLength);
 }
-//------------------------------------------------------------------------------
-Result EchoData::fill(FsNode *node, const char *pattern,
-    unsigned int number) const
+
+Result EchoData::fill(FsNode *node, const char *pattern, size_t number) const
 {
-  const unsigned int patternLength = strlen(pattern);
+  const size_t patternLength = strlen(pattern);
   char buffer[CONFIG_SHELL_BUFFER];
-  unsigned int iteration = 0;
+  size_t iteration = 0;
   length_t nodePosition = 0;
   Result res = E_OK;
 
@@ -212,15 +204,13 @@ Result EchoData::fill(FsNode *node, const char *pattern,
     length_t length = 0;
     length_t written;
 
-    for (; iteration < number && (length + patternLength) < sizeof(buffer);
-        ++iteration)
+    for (; iteration < number && (length + patternLength) < sizeof(buffer); ++iteration)
     {
       memcpy(buffer + length, pattern, patternLength);
       length += patternLength;
     }
 
-    res = fsNodeWrite(node, FS_NODE_DATA, nodePosition, buffer, length,
-        &written);
+    res = fsNodeWrite(node, FS_NODE_DATA, nodePosition, buffer, length, &written);
     if (res != E_OK || written != length)
     {
       owner.log("echo: write error at %u", nodePosition);
@@ -233,15 +223,14 @@ Result EchoData::fill(FsNode *node, const char *pattern,
 
   return res;
 }
-//------------------------------------------------------------------------------
-Result EchoData::processArguments(unsigned int count,
-    const char * const *arguments, const char **target, const char **pattern,
-    unsigned int *number) const
+
+Result EchoData::processArguments(size_t count, const char * const *arguments, const char **target,
+    const char **pattern, size_t *number) const
 {
   bool argumentError = false;
   bool help = false;
 
-  for (unsigned int i = 0; i < count; ++i)
+  for (size_t i = 0; i < count; ++i)
   {
     if (!strcmp(arguments[i], "--help"))
     {
@@ -291,13 +280,12 @@ Result EchoData::processArguments(unsigned int count,
 
   return *target == nullptr ? E_ENTRY : E_OK;
 }
-//------------------------------------------------------------------------------
-Result EchoData::run(unsigned int count, const char * const *arguments,
-    Shell::ShellContext *context)
+
+Result EchoData::run(const char * const *arguments, size_t count, Shell::ShellContext *context)
 {
   const char *pattern = "0";
   const char *target = nullptr;
-  unsigned int number = CONFIG_SHELL_BUFFER;
+  size_t number = CONFIG_SHELL_BUFFER;
   Result res;
 
   res = processArguments(count, arguments, &target, &pattern, &number);
@@ -363,14 +351,13 @@ Result EchoData::run(unsigned int count, const char * const *arguments,
 
   return res;
 }
-//------------------------------------------------------------------------------
-Result TouchEntry::processArguments(unsigned int count,
-    const char * const *arguments, const char **targets) const
+
+Result TouchEntry::processArguments(size_t count, const char * const *arguments, const char **targets) const
 {
-  unsigned int entries = 0;
+  size_t entries = 0;
   bool help = false;
 
-  for (unsigned int i = 0; i < count; ++i)
+  for (size_t i = 0; i < count; ++i)
   {
     if (!strcmp(arguments[i], "--help"))
     {
@@ -389,9 +376,8 @@ Result TouchEntry::processArguments(unsigned int count,
 
   return !entries ? E_ENTRY : E_OK;
 }
-//------------------------------------------------------------------------------
-Result TouchEntry::run(unsigned int count, const char * const *arguments,
-    Shell::ShellContext *context)
+
+Result TouchEntry::run(const char * const *arguments, size_t count, Shell::ShellContext *context)
 {
   const char *targets[Shell::ARGUMENT_COUNT - 1] = {nullptr};
   Result res;
@@ -399,7 +385,7 @@ Result TouchEntry::run(unsigned int count, const char * const *arguments,
   if ((res = processArguments(count, arguments, targets)) != E_OK)
     return res;
 
-  for (unsigned int i = 0; i < Shell::ARGUMENT_COUNT - 1; ++i)
+  for (size_t i = 0; i < Shell::ARGUMENT_COUNT - 1; ++i)
   {
     if (targets[i] == nullptr)
       break;

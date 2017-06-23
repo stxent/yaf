@@ -6,14 +6,14 @@
 
 #ifndef YAF_SHELL_CRYPTO_WRAPPER_HPP_
 #define YAF_SHELL_CRYPTO_WRAPPER_HPP_
-//------------------------------------------------------------------------------
+
 #include <openssl/md5.h>
 #include "libshell/crypto.hpp"
-//------------------------------------------------------------------------------
-class Md5Hash : public ComputationAlgorithm
+
+class Md5Hash: public ComputationAlgorithm
 {
 public:
-  static unsigned int length()
+  static constexpr size_t length()
   {
     return 32;
   }
@@ -25,10 +25,10 @@ public:
 
   virtual void finalize(char *);
   virtual void reset();
-  virtual void update(const uint8_t *, uint32_t);
+  virtual void update(const void *, size_t);
 
 private:
   MD5_CTX context;
 };
-//------------------------------------------------------------------------------
+
 #endif //YAF_SHELL_CRYPTO_WRAPPER_HPP_

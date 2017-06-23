@@ -6,7 +6,7 @@
 
 #ifndef YAF_LIBSHELL_SHELL_HPP_
 #define YAF_LIBSHELL_SHELL_HPP_
-//------------------------------------------------------------------------------
+
 #include <cstdarg>
 #include <vector>
 
@@ -16,17 +16,16 @@ extern "C"
 #include <xcore/interface.h>
 #include <osw/mutex.h>
 }
-//------------------------------------------------------------------------------
+
 class Shell;
-//------------------------------------------------------------------------------
-template<class T> class CommandBuilder
+
+template<class T>
+class CommandBuilder
 {
   friend class Shell;
 
 public:
-  CommandBuilder()
-  {
-  }
+  CommandBuilder() = default;
 
 private:
   static T *create(Shell &shell)
@@ -34,7 +33,7 @@ private:
     return new T(shell);
   }
 };
-//------------------------------------------------------------------------------
+
 class Shell
 {
 public:
@@ -68,9 +67,7 @@ public:
   class ShellCommand
   {
   public:
-    virtual ~ShellCommand()
-    {
-    }
+    virtual ~ShellCommand() = default;
 
     /**
      * Get name of the command.
@@ -85,8 +82,7 @@ public:
      * @param environment Pointer to a context object.
      * @return @b E_OK on success, @b E_ERROR on unrecoverable error.
      */
-    virtual Result run(unsigned int count, const char * const *arguments,
-        ShellContext *environment) = 0;
+    virtual Result run(const char * const *arguments, size_t count, ShellContext *environment) = 0;
 
   protected:
     ShellCommand(Shell &);
@@ -147,5 +143,5 @@ private:
   char logBuffer[LOG_LENGTH * 3 + 1];
   Mutex logMutex;
 };
-//------------------------------------------------------------------------------
+
 #endif //YAF_LIBSHELL_SHELL_HPP_

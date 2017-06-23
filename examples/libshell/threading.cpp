@@ -7,32 +7,30 @@
 #include <cstdlib>
 #include <cstring>
 #include "libshell/threading.hpp"
-//------------------------------------------------------------------------------
+
 void workerThreadWrapper(void *argument)
 {
   reinterpret_cast<WorkerThread *>(argument)->handler();
 }
-//------------------------------------------------------------------------------
+
 void workerTerminateWrapper(void *argument)
 {
   reinterpret_cast<WorkerThread *>(argument)->terminate();
 }
-//------------------------------------------------------------------------------
+
 WorkerThread::WorkerThread(ThreadSwarm &parent) :
-    owner(parent),
-    finalize(false),
-    baseContext(nullptr),
-    argumentCount(0), firstArgument(nullptr)
+    owner{parent},
+    finalize{false},
+    baseContext{nullptr},
+    argumentCount{0},
+    firstArgument{nullptr}
 {
   Result res;
 
   res = semInit(&semaphore, 0);
 
   if (res == E_OK)
-  {
-    res = threadInit(&thread, THREAD_SIZE, THREAD_PRIORITY,
-        workerThreadWrapper, this);
-  }
+    res = threadInit(&thread, THREAD_SIZE, THREAD_PRIORITY, workerThreadWrapper, this);
 
   if (res != E_OK)
   {
@@ -42,14 +40,14 @@ WorkerThread::WorkerThread(ThreadSwarm &parent) :
 
   threadOnTerminateCallback(&thread, workerTerminateWrapper, this);
 }
-//------------------------------------------------------------------------------
+
 WorkerThread::~WorkerThread()
 {
   threadTerminate(&thread);
   threadDeinit(&thread);
   semDeinit(&semaphore);
 }
-//------------------------------------------------------------------------------
+
 void WorkerThread::handler()
 {
   while (1)
@@ -68,8 +66,7 @@ void WorkerThread::handler()
       {
         memcpy(&environment, baseContext, sizeof(Shell::ShellContext));
 
-        const Result res = entry->run(argumentCount - 1, firstArgument + 1,
-            &environment);
+        const Result res = entry->run(firstArgument + 1, argumentCount - 1, &environment);
 
         owner.onCommandCompleted(this, res);
         break;
@@ -77,16 +74,15 @@ void WorkerThread::handler()
     }
   }
 }
-//------------------------------------------------------------------------------
-void WorkerThread::process(unsigned int count, const char * const *arguments,
-    Shell::ShellContext *context)
+
+void WorkerThread::process(const char * const *arguments, size_t count, Shell::ShellContext *context)
 {
   baseContext = context;
   argumentCount = count;
   firstArgument = arguments;
   semPost(&semaphore);
 }
-//------------------------------------------------------------------------------
+
 void WorkerThread::start()
 {
   const Result res = threadStart(&thread);
@@ -97,15 +93,14 @@ void WorkerThread::start()
     exit(EXIT_FAILURE);
   }
 }
-//------------------------------------------------------------------------------
+
 void WorkerThread::terminate()
 {
   finalize = true;
   semPost(&semaphore);
 }
-//------------------------------------------------------------------------------
-ThreadSwarm::ThreadSwarm(Shell &parent) :
-    ShellCommand(parent)
+
+ThreadSwarm::ThreadSwarm(Shell &parent) : ShellCommand{parent}
 {
   Result res;
 
@@ -120,14 +115,14 @@ ThreadSwarm::ThreadSwarm(Shell &parent) :
     exit(EXIT_FAILURE);
   }
 
-  for (unsigned int i = 0; i < THREAD_COUNT; ++i)
+  for (size_t i = 0; i < THREAD_COUNT; ++i)
   {
-    WorkerThread *thread = new WorkerThread(*this);
+    WorkerThread * const thread = new WorkerThread(*this);
     thread->start();
     pool.push(thread);
   }
 }
-//------------------------------------------------------------------------------
+
 ThreadSwarm::~ThreadSwarm()
 {
   while (!pool.empty())
@@ -139,7 +134,7 @@ ThreadSwarm::~ThreadSwarm()
   semDeinit(&queueSynchronizer);
   mutexDeinit(&queueLock);
 }
-//------------------------------------------------------------------------------
+
 void ThreadSwarm::onCommandCompleted(WorkerThread *worker, Result res)
 {
   mutexLock(&queueLock);
@@ -150,13 +145,12 @@ void ThreadSwarm::onCommandCompleted(WorkerThread *worker, Result res)
   mutexUnlock(&queueLock);
   semPost(&queueSynchronizer);
 }
-//------------------------------------------------------------------------------
-Result ThreadSwarm::run(unsigned int count, const char * const *arguments,
-    Shell::ShellContext *context)
+
+Result ThreadSwarm::run(const char * const *arguments, size_t count, Shell::ShellContext *context)
 {
   bool help = false;
 
-  for (unsigned int i = 0; i < count; ++i)
+  for (size_t i = 0; i < count; ++i)
   {
     if (!strcmp(arguments[i], "--help"))
     {
@@ -172,12 +166,12 @@ Result ThreadSwarm::run(unsigned int count, const char * const *arguments,
     return E_OK;
   }
 
-  unsigned int index = 0;
+  size_t index = 0;
   Result res = E_OK;
 
   while (index < count)
   {
-    const unsigned int first = index;
+    const size_t first = index;
 
     while (index < count && strcmp(arguments[index], "!"))
       ++index;
@@ -206,7 +200,7 @@ Result ThreadSwarm::run(unsigned int count, const char * const *arguments,
       pool.pop();
       mutexUnlock(&queueLock);
 
-      thread->process(index - first, arguments + first, context);
+      thread->process(arguments + first, index - first, context);
     }
 
     ++index;

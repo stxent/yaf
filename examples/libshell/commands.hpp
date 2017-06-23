@@ -6,209 +6,195 @@
 
 #ifndef YAF_LIBSHELL_COMMANDS_HPP_
 #define YAF_LIBSHELL_COMMANDS_HPP_
-//------------------------------------------------------------------------------
+
 #include "libshell/shell.hpp"
-//------------------------------------------------------------------------------
-class DataProcessing : public Shell::ShellCommand
+
+class DataProcessing: public Shell::ShellCommand
 {
 public:
-  DataProcessing(Shell &parent) :
-      ShellCommand(parent)
+  DataProcessing(Shell &parent) : ShellCommand{parent}
   {
   }
 
 protected:
-  Result copyContent(FsNode *, FsNode *, unsigned int, unsigned int,
-      unsigned int, unsigned int) const;
-  Result prepareNodes(Shell::ShellContext *, FsNode **, FsNode **, const char *,
-      const char *, bool);
+  Result copyContent(FsNode *, FsNode *, size_t, size_t, size_t, size_t) const;
+  Result prepareNodes(Shell::ShellContext *, FsNode **, FsNode **, const char *, const char *, bool);
   Result removeNode(Shell::ShellContext *, FsNode *, char *);
 };
-//------------------------------------------------------------------------------
-class ChangeDirectory : public Shell::ShellCommand
+
+class ChangeDirectory: public Shell::ShellCommand
 {
 public:
-  ChangeDirectory(Shell &parent) :
-      ShellCommand(parent)
+  ChangeDirectory(Shell &parent) : ShellCommand{parent}
   {
   }
 
-  virtual const char *name() const
+  virtual const char *name() const override
   {
     return "cd";
   }
 
-  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(const char * const *, size_t, Shell::ShellContext *) override;
 
 private:
-  Result processArguments(unsigned int, const char * const *,
-      const char **) const;
+  Result processArguments(size_t, const char * const *, const char **) const;
 };
-//------------------------------------------------------------------------------
-class CopyEntry : public DataProcessing
+
+class CopyEntry: public DataProcessing
 {
 public:
-  CopyEntry(Shell &parent) :
-      DataProcessing(parent)
+  CopyEntry(Shell &parent) : DataProcessing{parent}
   {
   }
 
-  virtual const char *name() const
+  virtual const char *name() const override
   {
     return "cp";
   }
 
-  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(const char * const *, size_t, Shell::ShellContext *) override;
 
 private:
-  Result processArguments(unsigned int, const char * const *, const char **,
-      const char **) const;
+  Result processArguments(size_t, const char * const *, const char **, const char **) const;
 };
-//------------------------------------------------------------------------------
-class DirectData : public DataProcessing
+
+class DirectData: public DataProcessing
 {
 public:
-  DirectData(Shell &parent) :
-      DataProcessing(parent)
+  DirectData(Shell &parent) : DataProcessing{parent}
   {
   }
 
-  virtual const char *name() const
+  virtual const char *name() const override
   {
     return "dd";
   }
 
-  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(const char * const *, size_t, Shell::ShellContext *) override;
 
 private:
   struct Arguments
   {
-    uint32_t block;
-    uint32_t count;
-    uint32_t seek;
-    uint32_t skip;
+    size_t block;
+    size_t count;
+    size_t seek;
+    size_t skip;
     const char *in;
     const char *out;
   };
 
-  Result processArguments(unsigned int, const char * const *,
-      Arguments *) const;
+  Result processArguments(size_t, const char * const *, Arguments *) const;
 };
-//------------------------------------------------------------------------------
-class ExitShell : public Shell::ShellCommand
+
+class ExitShell: public Shell::ShellCommand
 {
 public:
-  ExitShell(Shell &parent) :
-      ShellCommand(parent)
+  ExitShell(Shell &parent) : ShellCommand{parent}
   {
   }
 
-  virtual const char *name() const
+  virtual const char *name() const override
   {
     return "exit";
   }
 
-  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(const char * const *, size_t, Shell::ShellContext *) override
+  {
+    return static_cast<Result>(Shell::E_SHELL_EXIT);
+  }
 };
-//------------------------------------------------------------------------------
-class ListCommands : public Shell::ShellCommand
+
+class ListCommands: public Shell::ShellCommand
 {
 public:
-  ListCommands(Shell &parent) :
-      ShellCommand(parent)
+  ListCommands(Shell &parent) : ShellCommand{parent}
   {
   }
 
-  virtual const char *name() const
+  virtual const char *name() const override
   {
     return "help";
   }
 
-  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(const char * const *, size_t, Shell::ShellContext *) override;
 };
-//------------------------------------------------------------------------------
-class ListEntries : public Shell::ShellCommand
+
+class ListEntries: public Shell::ShellCommand
 {
 public:
-  ListEntries(Shell &parent) :
-      ShellCommand(parent)
+  ListEntries(Shell &parent) : ShellCommand{parent}
   {
   }
 
-  virtual const char *name() const
+  virtual const char *name() const override
   {
     return "ls";
   }
 
-  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(const char * const *, size_t, Shell::ShellContext *) override;
 };
-//------------------------------------------------------------------------------
-class MakeDirectory : public Shell::ShellCommand
+
+class MakeDirectory: public Shell::ShellCommand
 {
 public:
-  MakeDirectory(Shell &parent) :
-      ShellCommand(parent)
+  MakeDirectory(Shell &parent) : ShellCommand{parent}
   {
   }
 
-  virtual const char *name() const
+  virtual const char *name() const override
   {
     return "mkdir";
   }
 
-  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(const char * const *, size_t, Shell::ShellContext *) override;
 };
-//------------------------------------------------------------------------------
-class RemoveDirectory : public Shell::ShellCommand
+
+class RemoveDirectory: public Shell::ShellCommand
 {
 public:
-  RemoveDirectory(Shell &parent) :
-      ShellCommand(parent)
+  RemoveDirectory(Shell &parent) : ShellCommand{parent}
   {
   }
 
-  virtual const char *name() const
+  virtual const char *name() const override
   {
     return "rmdir";
   }
 
-  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(const char * const *, size_t, Shell::ShellContext *) override;
 };
-//------------------------------------------------------------------------------
-class RemoveEntry : public Shell::ShellCommand
+
+class RemoveEntry: public Shell::ShellCommand
 {
 public:
-  RemoveEntry(Shell &parent) :
-      ShellCommand(parent)
+  RemoveEntry(Shell &parent) : ShellCommand{parent}
   {
   }
 
-  virtual const char *name() const
+  virtual const char *name() const override
   {
     return "rm";
   }
 
-  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(const char * const *, size_t, Shell::ShellContext *) override;
 
 private:
-  Result processArguments(unsigned int, const char * const *, bool *,
-      const char **) const;
+  Result processArguments(size_t, const char * const *, bool *, const char **) const;
 };
-//------------------------------------------------------------------------------
-class Synchronize : public Shell::ShellCommand
+
+class Synchronize: public Shell::ShellCommand
 {
 public:
-  Synchronize(Shell &parent) :
-      ShellCommand(parent)
+  Synchronize(Shell &parent) : ShellCommand{parent}
   {
   }
 
-  virtual const char *name() const
+  virtual const char *name() const override
   {
     return "sync";
   }
 
-  virtual Result run(unsigned int, const char * const *, Shell::ShellContext *);
+  virtual Result run(const char * const *, size_t, Shell::ShellContext *) override;
 };
-//------------------------------------------------------------------------------
+
 #endif //YAF_LIBSHELL_COMMANDS_HPP_
