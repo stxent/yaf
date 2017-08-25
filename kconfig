@@ -6,7 +6,7 @@ choice
 		bool "x86"
 
 	config TARGET_X86_64
-		bool "x86-64"
+		bool "x86_64"
 
 	config TARGET_CORTEX_M0
 		bool "ARM Cortex-M0"
@@ -21,7 +21,7 @@ endchoice
 config PLATFORM
 	string
 	default x86         if TARGET_X86
-	default x86-64      if TARGET_X86_64
+	default x86_64      if TARGET_X86_64
 	default cortex-m0   if TARGET_CORTEX_M0
 	default cortex-m3   if TARGET_CORTEX_M3
 	default cortex-m4   if TARGET_CORTEX_M4
@@ -135,18 +135,5 @@ config MMI_STATUS
 	bool "Interface status"
 	default n
 	depends on SHELL
-
-endmenu
-
-menu "Examples"
-
-config LIBSHELL
-	bool "Build shell library"
-	default y
-
-config SHELL_BUFFER
-	int "Buffer size"
-	default 512
-	depends on LIBSHELL
 
 endmenu

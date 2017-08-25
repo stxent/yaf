@@ -5,7 +5,6 @@ PROJECT := yaf
 PROJECT_DIR := $(shell pwd)
 
 CONFIG_FILE ?= .config
-CROSS_COMPILE ?= arm-none-eabi-
 
 -include $(CONFIG_FILE)
 BUILD_FLAGS += PLATFORM
@@ -21,18 +20,16 @@ $(foreach entry,$(BUILD_FLAGS),$(eval $(call process-flag,$(entry))))
 ifneq ($(findstring x86,$(PLATFORM)),)
   AR := ar
   CC := gcc
-  CXX := g++
-  ifeq ($(CONFIG_TARGET),"x86")
+  ifeq ($(PLATFORM),x86)
     CPU_FLAGS += -m32
   else
     CPU_FLAGS += -m64
   endif
   CPU_FLAGS += -D_POSIX_C_SOURCE=200809L
-  LDLIBS += -lcrypto -lpthread -lrt -lstdc++
 else ifneq ($(findstring cortex-m,$(PLATFORM)),)
+  CROSS_COMPILE ?= arm-none-eabi-
   AR := $(CROSS_COMPILE)ar
   CC := $(CROSS_COMPILE)gcc
-  CXX := $(CROSS_COMPILE)g++
   CPU_FLAGS += -mcpu=$(PLATFORM) -mthumb
   CPU_FLAGS += -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections
   ifeq ($(CONFIG_FPU),y)
@@ -76,13 +73,9 @@ LDLIBS += -l$(PROJECT)
 #Configure compiler options
 CFLAGS += -std=c11 -Wall -Wextra -Winline -pedantic -Wshadow -Wcast-qual
 CFLAGS += $(OPT_FLAGS) $(CPU_FLAGS) @$(OPTION_FILE)
-CXXFLAGS += -std=c++11 -Wall -Wextra -Winline -pedantic -Wshadow -Wold-style-cast -Wcast-qual
-CXXFLAGS += -fno-exceptions -fno-rtti
-CXXFLAGS += $(OPT_FLAGS) $(CPU_FLAGS) @$(OPTION_FILE)
 
 #Other makefiles of the project
 include lib$(PROJECT)/makefile
-include examples/makefile
 
 #External libraries
 XCORE_PATH ?= $(PROJECT_DIR)/../xcore
@@ -103,7 +96,6 @@ endef
 $(foreach entry,$(PROJECT_FLAGS),$(eval $(call append-flag,$(entry))))
 
 COBJECTS = $(CSOURCES:%.c=$(OUTPUT_DIR)/%.o)
-CXXOBJECTS = $(CXXSOURCES:%.cpp=$(OUTPUT_DIR)/%.o)
 
 #Define default targets
 .PHONY: all clean menuconfig
@@ -117,18 +109,12 @@ $(OUTPUT_DIR)/%.o: %.c $(OPTION_FILE)
 	@mkdir -p $(@D)
 	$(Q)$(CC) -c $(CFLAGS) $(INCLUDE_PATH) -MMD -MF $(@:%.o=%.d) -MT $@ $< -o $@
 
-$(OUTPUT_DIR)/%.o: %.cpp $(OPTION_FILE)
-	@echo "$(CXX): $@"
-	@mkdir -p $(@D)
-	$(Q)$(CXX) -c $(CXXFLAGS) $(INCLUDE_PATH) -MMD -MF $(@:%.o=%.d) -MT $@ $< -o $@
-
 $(OPTION_FILE): $(CONFIG_FILE)
 	@mkdir -p $(@D)
 	$(Q)echo '$(OPTION_STRING)' > $@
 
 clean:
 	rm -f $(COBJECTS:%.o=%.d) $(COBJECTS)
-	rm -f $(CXXOBJECTS:%.o=%.d) $(CXXOBJECTS)
 	rm -f $(TARGETS)
 	rm -f $(OPTION_FILE)
 
@@ -137,5 +123,4 @@ menuconfig:
 
 ifneq ($(MAKECMDGOALS),clean)
   -include $(COBJECTS:%.o=%.d)
-  -include $(CXXOBJECTS:%.o=%.d)
 endif
