@@ -15,23 +15,27 @@
 #include <xcore/fs.h>
 #include <xcore/unicode.h>
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_THREADS
+#ifdef CONFIG_FLAG_THREADS
 #include <osw/mutex.h>
 #endif
 
-#ifdef CONFIG_FAT_TIME
+#ifdef CONFIG_FLAG_TIME
 #include <xcore/realtime.h>
 #endif
 /*----------------------------------------------------------------------------*/
-/*
- * Sector size may be 512, 1024, 2048 or 4096 bytes, default is 512.
- * Size is configured as an exponent of the value.
- */
-#ifdef CONFIG_FAT_SECTOR
-#define SECTOR_EXP              CONFIG_FAT_SECTOR
+/* Sector size may be 512, 1024, 2048 or 4096 bytes, default is 512. */
+#if CONFIG_SECTOR_SIZE == 512
+#define SECTOR_EXP 9
+#elif CONFIG_SECTOR_SIZE == 1024
+#define SECTOR_EXP 10
+#elif CONFIG_SECTOR_SIZE == 2048
+#define SECTOR_EXP 11
+#elif CONFIG_SECTOR_SIZE == 4096
+#define SECTOR_EXP 12
 #else
-#define SECTOR_EXP              9
+#error "Incorrect sector size"
 #endif
+
 /* Sector size in bytes */
 #define SECTOR_SIZE             (1 << SECTOR_EXP)
 /*----------------------------------------------------------------------------*/
@@ -46,17 +50,27 @@
 #define FLAG_DIR                BIT(4) /* Directory */
 #define FLAG_ARCHIVED           BIT(5)
 /*----------------------------------------------------------------------------*/
-#define LFN_ENTRY_LENGTH        13 /* Long file name entry length */
-#define LFN_LAST                BIT(6) /* Last LFN entry */
-#define LFN_DELETED             BIT(7) /* Deleted LFN entry */
-#define MASK_LFN                BIT_FIELD(0x0F, 0) /* Long file name chunk */
+/* Long file name entry length */
+#define LFN_ENTRY_LENGTH        13
+/* Last LFN entry */
+#define LFN_LAST                BIT(6)
+/* Deleted LFN entry */
+#define LFN_DELETED             BIT(7)
+/* Long file name chunk */
+#define MASK_LFN                BIT_FIELD(0x0F, 0)
 /*----------------------------------------------------------------------------*/
+/* End of cluster chain value */
 #define CLUSTER_EOC_VAL         0x0FFFFFF8UL
-#define E_FLAG_EMPTY            (char)0xE5 /* Directory entry free flag */
+/* Directory entry free flag */
+#define E_FLAG_EMPTY            (char)0xE5
+/* The maximum possible size for a file is 4 GiB minus 1 byte */
 #define FILE_SIZE_MAX           0xFFFFFFFFUL
+/* Maximum number of duplicate name entries when using the 8.3 convention */
 #define MAX_SIMILAR_NAMES       100
-#define RESERVED_CLUSTER        0 /* Reserved cluster number */
-#define RESERVED_SECTOR         0xFFFFFFFFUL /* Initial sector number */
+/* Reserved cluster number */
+#define RESERVED_CLUSTER        0
+/* Initial sector number */
+#define RESERVED_SECTOR         0xFFFFFFFFUL
 /*----------------------------------------------------------------------------*/
 /* Table entries per allocation table sector power */
 #define CELL_COUNT              (SECTOR_EXP - 2)
@@ -69,12 +83,12 @@
 /* Directory entry position in cluster */
 #define ENTRY_SECTOR(index)     ((index) >> ENTRY_EXP)
 /*----------------------------------------------------------------------------*/
-/* Length of both entry name and extension */
-#define NAME_LENGTH             sizeof(((struct DirEntryImage *)0)->filename)
-/* Length of the extension */
-#define EXTENSION_LENGTH        sizeof(((struct DirEntryImage *)0)->extension)
 /* Length of the entry name */
-#define BASENAME_LENGTH         sizeof(((struct DirEntryImage *)0)->name)
+#define BASENAME_LENGTH         8
+/* Length of the extension */
+#define EXTENSION_LENGTH        3
+/* Length of both entry name and extension */
+#define NAME_LENGTH             (BASENAME_LENGTH + EXTENSION_LENGTH)
 /*----------------------------------------------------------------------------*/
 struct CommandContext
 {
@@ -103,15 +117,15 @@ struct FatHandle
   struct FsHandle *head;
   struct Interface *interface;
 
-#ifdef CONFIG_FAT_TIME
+#ifdef CONFIG_FLAG_TIME
   struct RtClock *clock;
 #endif
 
-#ifdef CONFIG_FAT_POOLS
+#ifdef CONFIG_FLAG_POOLS
   struct Pool nodePool;
 #endif
 
-#ifdef CONFIG_FAT_THREADS
+#ifdef CONFIG_FLAG_THREADS
   struct Pool contextPool;
   struct Mutex consistencyMutex;
   struct Mutex memoryMutex;
@@ -119,7 +133,7 @@ struct FatHandle
   struct CommandContext *context;
 #endif
 
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
   struct List openedFiles;
 #endif
 
@@ -129,7 +143,7 @@ struct FatHandle
   uint32_t rootCluster;
   /* Starting point of the file allocation table */
   uint32_t tableSector;
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
   /* Number of clusters in the partition */
   uint32_t clusterCount;
   /* Last allocated cluster */
@@ -160,7 +174,7 @@ struct FatNode
   uint32_t parentCluster;
   /* Position in the parent cluster */
   uint16_t parentIndex;
-#ifdef CONFIG_FAT_UNICODE
+#ifdef CONFIG_FLAG_UNICODE
   /* First name entry position in the parent cluster */
   uint16_t nameIndex;
   /* Directory cluster of the first name entry */
@@ -188,12 +202,12 @@ struct DirEntryImage
 {
   union
   {
-    char filename[11];
+    char filename[NAME_LENGTH];
 
     struct
     {
-      char name[8];
-      char extension[3];
+      char name[BASENAME_LENGTH];
+      char extension[EXTENSION_LENGTH];
     } __attribute__((packed));
 
     /* Long file name entry fields */

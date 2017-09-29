@@ -7,13 +7,9 @@
 #ifndef YAF_DEBUG_H_
 #define YAF_DEBUG_H_
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_DEBUG
+#ifdef CONFIG_FLAG_DEBUG
 #include <inttypes.h>
 #include <stdio.h>
-
-#ifndef CONFIG_DEBUG_LEVEL
-#define CONFIG_DEBUG_LEVEL 0
-#endif
 
 #define DEBUG_PRINT(level, ...) \
     do { if ((level) <= CONFIG_DEBUG_LEVEL) printf(__VA_ARGS__); } while (0)

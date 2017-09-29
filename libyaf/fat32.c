@@ -49,18 +49,18 @@ static enum Result readBuffer(struct FatHandle *, uint32_t, uint8_t *,
 static enum Result readSector(struct CommandContext *, struct FatHandle *,
     uint32_t);
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_TIME
+#ifdef CONFIG_FLAG_TIME
 static enum Result rawTimestampToTime(time64_t *, uint16_t, uint16_t);
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_UNICODE
+#ifdef CONFIG_FLAG_UNICODE
 static void extractLongName(char16_t *, const struct DirEntryImage *);
 static uint8_t getChecksum(const char *, size_t);
 static enum Result readLongName(struct CommandContext *, char *, size_t,
     const struct FatNode *);
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static enum Result allocateCluster(struct CommandContext *, struct FatHandle *,
     uint32_t *);
 static enum Result clearCluster(struct CommandContext *, struct FatHandle *,
@@ -95,17 +95,17 @@ static enum Result writeSector(struct CommandContext *, struct FatHandle *,
     uint32_t);
 #endif
 /*----------------------------------------------------------------------------*/
-#if defined(CONFIG_FAT_TIME) && defined(CONFIG_FAT_WRITE)
+#if defined(CONFIG_FLAG_TIME) && defined(CONFIG_FLAG_WRITE)
 static uint16_t timeToRawDate(const struct RtDateTime *);
 static uint16_t timeToRawTime(const struct RtDateTime *);
 #endif
 /*----------------------------------------------------------------------------*/
-#if defined(CONFIG_FAT_UNICODE) || defined(CONFIG_FAT_WRITE)
+#if defined(CONFIG_FLAG_UNICODE) || defined(CONFIG_FLAG_WRITE)
 static enum Result allocateStaticNode(struct FatHandle *, struct FatNode *);
 static void freeStaticNode(struct FatNode *);
 #endif
 /*----------------------------------------------------------------------------*/
-#if defined(CONFIG_FAT_UNICODE) && defined(CONFIG_FAT_WRITE)
+#if defined(CONFIG_FLAG_UNICODE) && defined(CONFIG_FLAG_WRITE)
 static void fillLongName(struct DirEntryImage *, const char16_t *, size_t);
 static void fillLongNameEntry(struct DirEntryImage *, uint8_t, uint8_t,
     uint8_t);
@@ -201,12 +201,12 @@ static enum Result allocateBuffers(struct FatHandle *handle,
   size_t count;
   enum Result res;
 
-#if !defined(CONFIG_FAT_THREADS) && !defined(CONFIG_FAT_POOLS)
+#if !defined(CONFIG_FLAG_THREADS) && !defined(CONFIG_FLAG_POOLS)
   /* Suppress warning */
   (void)config;
 #endif
 
-#ifdef CONFIG_FAT_THREADS
+#ifdef CONFIG_FLAG_THREADS
   count = config->threads ? config->threads : DEFAULT_THREAD_COUNT;
 
   /* Create consistency and memory locks */
@@ -246,18 +246,18 @@ static enum Result allocateBuffers(struct FatHandle *handle,
   handle->context->sector = RESERVED_SECTOR;
 
   DEBUG_PRINT(1, "fat32: context pool:   %zu\n", sizeof(struct CommandContext));
-#endif /* CONFIG_FAT_THREADS */
+#endif /* CONFIG_FLAG_THREADS */
 
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
   res = listInit(&handle->openedFiles, sizeof(struct FatNode *));
   if (res != E_OK)
   {
     freeBuffers(handle, FREE_CONTEXT_POOL);
     return res;
   }
-#endif /* CONFIG_FAT_WRITE */
+#endif /* CONFIG_FLAG_WRITE */
 
-#ifdef CONFIG_FAT_POOLS
+#ifdef CONFIG_FLAG_POOLS
   /* Allocate and fill node pool */
   count = config->nodes ? config->nodes : DEFAULT_NODE_COUNT;
   res = allocatePool(&handle->nodePool, count, sizeof(struct FatNode), FatNode);
@@ -269,7 +269,7 @@ static enum Result allocateBuffers(struct FatHandle *handle,
 
   DEBUG_PRINT(1, "fat32: node pool:      %zu\n", (sizeof(struct FatNode)
       + count * (sizeof(struct FatNode *))));
-#endif /* CONFIG_FAT_POOLS */
+#endif /* CONFIG_FLAG_POOLS */
 
   return E_OK;
 }
@@ -278,7 +278,7 @@ static struct CommandContext *allocateContext(struct FatHandle *handle)
 {
   struct CommandContext *context = 0;
 
-#ifdef CONFIG_FAT_THREADS
+#ifdef CONFIG_FLAG_THREADS
   mutexLock(&handle->memoryMutex);
   if (!queueEmpty(&handle->contextPool.queue))
     queuePop(&handle->contextPool.queue, &context);
@@ -299,7 +299,7 @@ static void *allocateNode(struct FatHandle *handle)
   struct FatNode *node = 0;
 
   lockPools(handle);
-#ifdef CONFIG_FAT_POOLS
+#ifdef CONFIG_FLAG_POOLS
   if (!queueEmpty(&handle->nodePool.queue))
   {
     queuePop(&handle->nodePool.queue, &node);
@@ -435,7 +435,7 @@ static enum Result fetchNode(struct CommandContext *context,
 {
   const struct DirEntryImage *entry;
   enum Result res;
-#ifdef CONFIG_FAT_UNICODE
+#ifdef CONFIG_FLAG_UNICODE
   unsigned int chunks = 0; /* LFN chunks required */
   unsigned int found = 0; /* LFN chunks found */
   uint8_t checksum = 0;
@@ -446,7 +446,7 @@ static enum Result fetchNode(struct CommandContext *context,
     /* There is no need to reload sector in current context */
     entry = getEntry(context, node->parentIndex);
 
-#ifdef CONFIG_FAT_UNICODE
+#ifdef CONFIG_FLAG_UNICODE
     if (!(entry->ordinal & LFN_DELETED)
         && ((entry->flags & MASK_LFN) == MASK_LFN))
     {
@@ -487,7 +487,7 @@ static enum Result fetchNode(struct CommandContext *context,
   if (entry->flags & FLAG_RO)
     node->flags |= FAT_FLAG_RO;
 
-#ifdef CONFIG_FAT_UNICODE
+#ifdef CONFIG_FLAG_UNICODE
   if (!found || found != chunks
       || checksum != getChecksum(entry->filename, NAME_LENGTH))
   {
@@ -621,24 +621,24 @@ static void freeBuffers(struct FatHandle *handle, enum cleanup step)
   {
     case FREE_ALL:
     case FREE_NODE_POOL:
-#ifdef CONFIG_FAT_POOLS
+#ifdef CONFIG_FLAG_POOLS
       freePool(&handle->nodePool);
 #endif
       /* Falls through */
     case FREE_FILE_LIST:
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
       listDeinit(&handle->openedFiles);
 #endif
       /* Falls through */
     case FREE_CONTEXT_POOL:
-#ifdef CONFIG_FAT_THREADS
+#ifdef CONFIG_FLAG_THREADS
       freePool(&handle->contextPool);
 #else
       free(handle->context);
 #endif
       /* Falls through */
     case FREE_LOCKS:
-#ifdef CONFIG_FAT_THREADS
+#ifdef CONFIG_FLAG_THREADS
       mutexDeinit(&handle->memoryMutex);
       mutexDeinit(&handle->consistencyMutex);
 #endif
@@ -649,7 +649,7 @@ static void freeBuffers(struct FatHandle *handle, enum cleanup step)
   }
 }
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_THREADS
+#ifdef CONFIG_FLAG_THREADS
 static void freeContext(struct FatHandle *handle,
     const struct CommandContext *context)
 {
@@ -667,7 +667,7 @@ static void freeContext(struct FatHandle *handle __attribute__((unused)),
 /*----------------------------------------------------------------------------*/
 static void freeNode(struct FatNode *node)
 {
-#ifdef CONFIG_FAT_POOLS
+#ifdef CONFIG_FLAG_POOLS
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
 
   FatNode->deinit(node);
@@ -749,7 +749,7 @@ static enum Result mountStorage(struct FatHandle *handle)
   DEBUG_PRINT(0, "fat32: table sector:   %"PRIu32"\n", handle->tableSector);
   DEBUG_PRINT(0, "fat32: data sector:    %"PRIu32"\n", handle->dataSector);
 
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
   handle->tableCount = boot->tableCount;
   handle->tableSize = fromLittleEndian32(boot->tableSize);
   handle->clusterCount = ((fromLittleEndian32(boot->partitionSize)
@@ -836,7 +836,7 @@ static enum Result readSector(struct CommandContext *context,
   return res;
 }
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_TIME
+#ifdef CONFIG_FLAG_TIME
 static enum Result rawTimestampToTime(time64_t *converted, uint16_t date,
     uint16_t time)
 {
@@ -853,7 +853,7 @@ static enum Result rawTimestampToTime(time64_t *converted, uint16_t date,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_UNICODE
+#ifdef CONFIG_FLAG_UNICODE
 /* Extract 13 Unicode characters from long file name entry */
 static void extractLongName(char16_t *name, const struct DirEntryImage *entry)
 {
@@ -865,7 +865,7 @@ static void extractLongName(char16_t *name, const struct DirEntryImage *entry)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_UNICODE
+#ifdef CONFIG_FLAG_UNICODE
 /* Calculate entry name checksum for long file name entries support */
 static uint8_t getChecksum(const char *name, size_t length)
 {
@@ -878,7 +878,7 @@ static uint8_t getChecksum(const char *name, size_t length)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_UNICODE
+#ifdef CONFIG_FLAG_UNICODE
 static enum Result readLongName(struct CommandContext *context, char *name,
     size_t length, const struct FatNode *node)
 {
@@ -886,7 +886,7 @@ static enum Result readLongName(struct CommandContext *context, char *name,
   struct FatNode allocatedNode;
   enum Result res;
 
-  if (length > CONFIG_FILENAME_LENGTH)
+  if (length > CONFIG_NAME_LENGTH)
   {
     /* Size of the temporary buffer is greater than allowed by configuration */
     return E_VALUE;
@@ -956,7 +956,7 @@ static enum Result readLongName(struct CommandContext *context, char *name,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static enum Result allocateCluster(struct CommandContext *context,
     struct FatHandle *handle, uint32_t *cluster)
 {
@@ -1039,7 +1039,7 @@ static enum Result allocateCluster(struct CommandContext *context,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static enum Result clearCluster(struct CommandContext *context,
     struct FatHandle *handle, uint32_t cluster)
 {
@@ -1060,7 +1060,7 @@ static enum Result clearCluster(struct CommandContext *context,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static void clearDirtyFlag(struct FatNode *node)
 {
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
@@ -1073,7 +1073,7 @@ static void clearDirtyFlag(struct FatNode *node)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static enum Result createNode(struct CommandContext *context,
     const struct FatNode *root, bool directory, const char *nodeName,
     access_t nodeAccess, uint32_t nodePayloadCluster, time64_t nodeAccessTime)
@@ -1087,11 +1087,11 @@ static enum Result createNode(struct CommandContext *context,
   if (res != E_OK && res != E_VALUE)
     return res;
 
-#ifdef CONFIG_FAT_UNICODE
+#ifdef CONFIG_FLAG_UNICODE
   const size_t nameLength = uLengthToUtf16(nodeName) + 1;
   const bool longNameRequired = res == E_VALUE;
 
-  if (nameLength > CONFIG_FILENAME_LENGTH / 2)
+  if (nameLength > CONFIG_NAME_LENGTH / 2)
     return E_VALUE;
 
   char16_t nameBuffer[nameLength];
@@ -1101,7 +1101,7 @@ static enum Result createNode(struct CommandContext *context,
   if ((res = uniqueNamePropose(context, root, shortName)) != E_OK)
     return res;
 
-#ifdef CONFIG_FAT_UNICODE
+#ifdef CONFIG_FLAG_UNICODE
   if (longNameRequired)
   {
     uToUtf16(nameBuffer, nodeName, nameLength);
@@ -1120,7 +1120,7 @@ static enum Result createNode(struct CommandContext *context,
   /* Find suitable space within the directory */
   res = findGap(context, &node, root, chunks + 1);
 
-#ifdef CONFIG_FAT_UNICODE
+#ifdef CONFIG_FLAG_UNICODE
   if (chunks && res == E_OK)
   {
     /* Save start cluster and index values before filling the chain */
@@ -1183,7 +1183,7 @@ static enum Result createNode(struct CommandContext *context,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static void extractShortBasename(char *baseName, const char *shortName)
 {
   unsigned int index;
@@ -1198,7 +1198,7 @@ static void extractShortBasename(char *baseName, const char *shortName)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static uint32_t fileWriteData(struct CommandContext *context,
     struct FatNode *node, uint32_t position, const void *buffer,
     uint32_t length)
@@ -1324,7 +1324,7 @@ static uint32_t fileWriteData(struct CommandContext *context,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static void fillDirEntry(struct DirEntryImage *entry, bool directory,
     access_t access, uint32_t payloadCluster, time64_t accessTime)
 {
@@ -1343,7 +1343,7 @@ static void fillDirEntry(struct DirEntryImage *entry, bool directory,
   entry->clusterLow = toLittleEndian16((uint16_t)payloadCluster);
   entry->size = 0;
 
-#ifdef CONFIG_FAT_TIME
+#ifdef CONFIG_FLAG_TIME
   struct RtDateTime currentTime;
 
   rtMakeTime(&currentTime, accessTime);
@@ -1359,7 +1359,7 @@ static void fillDirEntry(struct DirEntryImage *entry, bool directory,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 /* Returns success when node has a valid short name */
 static enum Result fillShortName(char *shortName, const char *name,
     bool extension)
@@ -1434,7 +1434,7 @@ static enum Result fillShortName(char *shortName, const char *name,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 /* Allocate single node or node chain inside root node chain. */
 static enum Result findGap(struct CommandContext *context, struct FatNode *node,
     const struct FatNode *root, unsigned int chainLength)
@@ -1533,7 +1533,7 @@ static enum Result findGap(struct CommandContext *context, struct FatNode *node,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static enum Result freeChain(struct CommandContext *context,
     struct FatHandle *handle, uint32_t cluster)
 {
@@ -1591,7 +1591,7 @@ static enum Result freeChain(struct CommandContext *context,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static enum Result markFree(struct CommandContext *context,
     const struct FatNode *node)
 {
@@ -1603,7 +1603,7 @@ static enum Result markFree(struct CommandContext *context,
   if ((res = allocateStaticNode(handle, &allocatedNode)) != E_OK)
     return res;
 
-#ifdef CONFIG_FAT_UNICODE
+#ifdef CONFIG_FLAG_UNICODE
   allocatedNode.parentCluster = node->nameCluster;
   allocatedNode.parentIndex = node->nameIndex;
 #endif
@@ -1643,7 +1643,7 @@ static enum Result markFree(struct CommandContext *context,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static char processCharacter(char value)
 {
   static const char forbidden[] = {
@@ -1679,7 +1679,7 @@ static char processCharacter(char value)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static enum Result truncatePayload(struct CommandContext *context,
     struct FatNode *node)
 {
@@ -1732,7 +1732,7 @@ static enum Result truncatePayload(struct CommandContext *context,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static unsigned int uniqueNameConvert(char *shortName)
 {
   unsigned int begin = 0;
@@ -1774,7 +1774,7 @@ static unsigned int uniqueNameConvert(char *shortName)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static enum Result uniqueNamePropose(struct CommandContext *context,
     const struct FatNode *root, char *shortName)
 {
@@ -1872,7 +1872,7 @@ static enum Result uniqueNamePropose(struct CommandContext *context,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static enum Result setupDirCluster(struct CommandContext *context,
     struct FatHandle *handle, uint32_t parentCluster, uint32_t payloadCluster,
     time64_t accessTime)
@@ -1912,7 +1912,7 @@ static enum Result setupDirCluster(struct CommandContext *context,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static enum Result syncFile(struct CommandContext *context,
     struct FatNode *node)
 {
@@ -1938,7 +1938,7 @@ static enum Result syncFile(struct CommandContext *context,
   /* Update file size */
   entry->size = toLittleEndian32(node->payloadSize);
 
-#ifdef CONFIG_FAT_TIME
+#ifdef CONFIG_FLAG_TIME
   if (handle->clock)
   {
     struct RtDateTime currentTime;
@@ -1959,7 +1959,7 @@ static enum Result syncFile(struct CommandContext *context,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 /* Copy current sector into FAT sectors located at offset */
 static enum Result updateTable(struct CommandContext *context,
     struct FatHandle *handle, uint32_t offset)
@@ -1977,7 +1977,7 @@ static enum Result updateTable(struct CommandContext *context,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static enum Result writeBuffer(struct FatHandle *handle,
     uint32_t sector, const uint8_t *buffer, uint32_t count)
 {
@@ -2000,7 +2000,7 @@ static enum Result writeBuffer(struct FatHandle *handle,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static enum Result writeSector(struct CommandContext *context,
     struct FatHandle *handle, uint32_t sector)
 {
@@ -2026,21 +2026,21 @@ static enum Result writeSector(struct CommandContext *context,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#if defined(CONFIG_FAT_TIME) && defined(CONFIG_FAT_WRITE)
+#if defined(CONFIG_FLAG_TIME) && defined(CONFIG_FLAG_WRITE)
 static uint16_t timeToRawDate(const struct RtDateTime *value)
 {
   return value->day | (value->month << 5) | ((value->year - 1980) << 9);
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#if defined(CONFIG_FAT_TIME) && defined(CONFIG_FAT_WRITE)
+#if defined(CONFIG_FLAG_TIME) && defined(CONFIG_FLAG_WRITE)
 static uint16_t timeToRawTime(const struct RtDateTime *value)
 {
   return (value->second >> 1) | (value->minute << 5) | (value->hour << 11);
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#if defined(CONFIG_FAT_UNICODE) || defined(CONFIG_FAT_WRITE)
+#if defined(CONFIG_FLAG_UNICODE) || defined(CONFIG_FLAG_WRITE)
 static enum Result allocateStaticNode(struct FatHandle *handle,
     struct FatNode *node)
 {
@@ -2060,14 +2060,14 @@ static enum Result allocateStaticNode(struct FatHandle *handle,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#if defined(CONFIG_FAT_UNICODE) || defined(CONFIG_FAT_WRITE)
+#if defined(CONFIG_FLAG_UNICODE) || defined(CONFIG_FLAG_WRITE)
 static void freeStaticNode(struct FatNode *node)
 {
   FatNode->deinit(node);
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#if defined(CONFIG_FAT_UNICODE) && defined(CONFIG_FAT_WRITE)
+#if defined(CONFIG_FLAG_UNICODE) && defined(CONFIG_FLAG_WRITE)
 /* Save Unicode characters to long file name entry */
 static void fillLongName(struct DirEntryImage *entry, const char16_t *name,
     size_t count)
@@ -2086,7 +2086,7 @@ static void fillLongName(struct DirEntryImage *entry, const char16_t *name,
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#if defined(CONFIG_FAT_UNICODE) && defined(CONFIG_FAT_WRITE)
+#if defined(CONFIG_FLAG_UNICODE) && defined(CONFIG_FLAG_WRITE)
 static void fillLongNameEntry(struct DirEntryImage *entry, uint8_t current,
     uint8_t total, uint8_t checksum)
 {
@@ -2113,7 +2113,7 @@ static enum Result fatHandleInit(void *object, const void *configBase)
 
   handle->interface = config->interface;
 
-#ifdef CONFIG_FAT_TIME
+#ifdef CONFIG_FLAG_TIME
   handle->clock = config->clock;
   if (!handle->clock)
     DEBUG_PRINT(0, "fat32: real-time clock is not initialized\n");
@@ -2152,7 +2152,7 @@ static void *fatHandleRoot(void *object)
   return node;
 }
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static enum Result fatHandleSync(void *object)
 {
   struct FatHandle * const handle = object;
@@ -2195,7 +2195,7 @@ static enum Result fatNodeInit(void *object, const void *configBase)
 
   node->parentCluster = RESERVED_CLUSTER;
   node->parentIndex = 0;
-#ifdef CONFIG_FAT_UNICODE
+#ifdef CONFIG_FLAG_UNICODE
   node->nameCluster = 0;
   node->nameIndex = 0;
 #endif
@@ -2220,7 +2220,7 @@ static void fatNodeDeinit(void *object)
 
   if (node->flags & FAT_FLAG_DIRTY)
   {
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
     struct FatHandle * const handle = (struct FatHandle *)node->handle;
     struct CommandContext *context;
     enum Result res = E_MEMORY;
@@ -2245,7 +2245,7 @@ static void fatNodeDeinit(void *object)
   DEBUG_PRINT(2, "fat32: node freed, address %p\n", object);
 }
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static enum Result fatNodeCreate(void *rootObject,
     const struct FsFieldDescriptor *descriptors, size_t number)
 {
@@ -2281,7 +2281,7 @@ static enum Result fatNodeCreate(void *rootObject,
         break;
 
       case FS_NODE_NAME:
-        if (desc->length > CONFIG_FILENAME_LENGTH
+        if (desc->length > CONFIG_NAME_LENGTH
             || desc->length != strlen(desc->data) + 1)
         {
           return E_VALUE;
@@ -2303,7 +2303,7 @@ static enum Result fatNodeCreate(void *rootObject,
   if (!nameDesc)
     return E_INVALID; /* Node cannot be left unnamed */
 
-#ifdef CONFIG_FAT_TIME
+#ifdef CONFIG_FLAG_TIME
   if (!nodeTime && handle->clock)
     nodeTime = rtTime(handle->clock); //FIXME Check whether user time is 0
 #endif
@@ -2578,7 +2578,7 @@ static enum Result fatNodeRead(void *object, enum FsFieldType type,
       break;
     }
 
-#ifdef CONFIG_FAT_UNICODE
+#ifdef CONFIG_FLAG_UNICODE
     case FS_NODE_NAME:
     {
       if (position)
@@ -2647,7 +2647,7 @@ static enum Result fatNodeRead(void *object, enum FsFieldType type,
       break;
     }
 
-#ifdef CONFIG_FAT_TIME
+#ifdef CONFIG_FLAG_TIME
     case FS_NODE_TIME:
     {
       if (position)
@@ -2680,7 +2680,7 @@ static enum Result fatNodeRead(void *object, enum FsFieldType type,
   return res;
 }
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static enum Result fatNodeRemove(void *rootObject, void *object)
 {
   struct FatNode * const root = rootObject;
@@ -2716,7 +2716,7 @@ static enum Result fatNodeRemove(void *rootObject __attribute__((unused)),
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_WRITE
+#ifdef CONFIG_FLAG_WRITE
 static enum Result fatNodeWrite(void *object, enum FsFieldType type,
     length_t position, const void *buffer, length_t length, length_t *written)
 {

@@ -53,7 +53,7 @@ static inline unsigned int sectorInCluster(const struct FatHandle *handle,
   return (offset >> SECTOR_EXP) & ((1 << handle->clusterSize) - 1);
 }
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_UNICODE
+#ifdef CONFIG_FLAG_UNICODE
 static inline bool hasLongName(const struct FatNode *node)
 {
   return node->parentCluster != node->nameCluster
@@ -61,7 +61,7 @@ static inline bool hasLongName(const struct FatNode *node)
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_THREADS
+#ifdef CONFIG_FLAG_THREADS
 static inline void lockHandle(struct FatHandle *handle)
 {
   if (queueCapacity(&handle->contextPool.queue) > 1)
@@ -74,7 +74,7 @@ static inline void lockHandle(struct FatHandle *handle __attribute__((unused)))
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_THREADS
+#ifdef CONFIG_FLAG_THREADS
 static inline void unlockHandle(struct FatHandle *handle)
 {
   if (queueCapacity(&handle->contextPool.queue) > 1)
@@ -88,7 +88,7 @@ static inline void unlockHandle(struct FatHandle *handle
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_THREADS
+#ifdef CONFIG_FLAG_THREADS
 static inline void lockPools(struct FatHandle *handle)
 {
   mutexLock(&handle->memoryMutex);
@@ -100,7 +100,7 @@ static inline void lockPools(struct FatHandle *handle __attribute__((unused)))
 }
 #endif
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FAT_THREADS
+#ifdef CONFIG_FLAG_THREADS
 static inline void unlockPools(struct FatHandle *handle)
 {
   mutexUnlock(&handle->memoryMutex);
