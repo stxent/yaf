@@ -117,10 +117,6 @@ struct FatHandle
   struct FsHandle *head;
   struct Interface *interface;
 
-#ifdef CONFIG_FLAG_TIME
-  struct RtClock *clock;
-#endif
-
 #ifdef CONFIG_FLAG_POOLS
   struct Pool nodePool;
 #endif

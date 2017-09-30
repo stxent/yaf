@@ -46,11 +46,21 @@ static enum Result getNextCluster(struct CommandContext *, struct FatHandle *,
 static enum Result mountStorage(struct FatHandle *);
 static enum Result readBuffer(struct FatHandle *, uint32_t, uint8_t *,
     uint32_t);
+static enum Result readNodeAccess(struct FatNode *, FsLength, void *, FsLength,
+    FsLength *);
+static enum Result readNodeId(struct FatNode *, FsLength, void *, FsLength,
+    FsLength *);
+static enum Result readNodeData(struct CommandContext *, struct FatNode *,
+    FsLength, void *, FsLength, FsLength *);
+static enum Result readNodeName(struct CommandContext *, struct FatNode *,
+    FsLength, void *, FsLength, FsLength *);
+static enum Result readNodeTime(struct CommandContext *, struct FatNode *,
+    FsLength, void *, FsLength, FsLength *);
 static enum Result readSector(struct CommandContext *, struct FatHandle *,
     uint32_t);
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FLAG_TIME
-static enum Result rawTimestampToTime(time64_t *, uint16_t, uint16_t);
+static enum Result rawDateTimeToTimestamp(time64_t *, uint16_t, uint16_t);
 #endif
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FLAG_UNICODE
@@ -67,11 +77,11 @@ static enum Result clearCluster(struct CommandContext *, struct FatHandle *,
     uint32_t);
 static void clearDirtyFlag(struct FatNode *);
 static enum Result createNode(struct CommandContext *, const struct FatNode *,
-    bool, const char *, access_t, uint32_t, time64_t);
+    bool, const char *, FsAccess, uint32_t, time64_t);
 static void extractShortBasename(char *, const char *);
 static uint32_t fileWriteData(struct CommandContext *, struct FatNode *,
     uint32_t, const void *, uint32_t);
-static void fillDirEntry(struct DirEntryImage *, bool, access_t, uint32_t,
+static void fillDirEntry(struct DirEntryImage *, bool, FsAccess, uint32_t,
     time64_t);
 static enum Result fillShortName(char *, const char *, bool);
 static enum Result findGap(struct CommandContext *, struct FatNode *,
@@ -91,6 +101,8 @@ static enum Result updateTable(struct CommandContext *, struct FatHandle *,
     uint32_t);
 static enum Result writeBuffer(struct FatHandle *, uint32_t, const uint8_t *,
     uint32_t);
+static enum Result writeNodeData(struct CommandContext *, struct FatNode *,
+    FsLength, const void *, FsLength, FsLength *);
 static enum Result writeSector(struct CommandContext *, struct FatHandle *,
     uint32_t);
 #endif
@@ -98,6 +110,8 @@ static enum Result writeSector(struct CommandContext *, struct FatHandle *,
 #if defined(CONFIG_FLAG_TIME) && defined(CONFIG_FLAG_WRITE)
 static uint16_t timeToRawDate(const struct RtDateTime *);
 static uint16_t timeToRawTime(const struct RtDateTime *);
+static enum Result writeNodeTime(struct CommandContext *, struct FatNode *,
+    FsLength, const void *, FsLength, FsLength *);
 #endif
 /*----------------------------------------------------------------------------*/
 #if defined(CONFIG_FLAG_UNICODE) || defined(CONFIG_FLAG_WRITE)
@@ -124,13 +138,13 @@ static enum Result fatNodeCreate(void *, const struct FsFieldDescriptor *,
     size_t);
 static void *fatNodeHead(void *);
 static void fatNodeFree(void *);
-static enum Result fatNodeLength(void *, enum FsFieldType, length_t *);
+static enum Result fatNodeLength(void *, enum FsFieldType, FsLength *);
 static enum Result fatNodeNext(void *);
-static enum Result fatNodeRead(void *, enum FsFieldType, length_t,
-    void *, length_t, length_t *);
+static enum Result fatNodeRead(void *, enum FsFieldType, FsLength,
+    void *, FsLength, FsLength *);
 static enum Result fatNodeRemove(void *, void *);
-static enum Result fatNodeWrite(void *, enum FsFieldType, length_t,
-    const void *, length_t, length_t *);
+static enum Result fatNodeWrite(void *, enum FsFieldType, FsLength,
+    const void *, FsLength, FsLength *);
 /*------------------Class descriptors-----------------------------------------*/
 static const struct FsHandleClass fatHandleTable = {
     .size = sizeof(struct FatHandle),
@@ -809,6 +823,141 @@ static enum Result readBuffer(struct FatHandle *handle, uint32_t sector,
   return res;
 }
 /*----------------------------------------------------------------------------*/
+static enum Result readNodeAccess(struct FatNode *node, FsLength position,
+    void *buffer, FsLength length, FsLength *bytesRead)
+{
+  if (position)
+    return E_INVALID;
+  if (length != sizeof(FsAccess))
+    return E_VALUE;
+
+  FsAccess value = FS_ACCESS_READ;
+
+  if (!(node->flags & FAT_FLAG_RO))
+    value |= FS_ACCESS_WRITE;
+  memcpy(buffer, &value, sizeof(value));
+  *bytesRead = sizeof(value);
+  return E_OK;
+}
+/*----------------------------------------------------------------------------*/
+static enum Result readNodeId(struct FatNode *node, FsLength position,
+    void *buffer, FsLength length, FsLength *bytesRead)
+{
+  if (position)
+    return E_INVALID;
+  if (length != sizeof(uint64_t))
+    return E_VALUE;
+
+  const uint64_t nodeId = (uint64_t)node->parentIndex
+      | ((uint64_t)node->parentCluster << 16);
+
+  memcpy(buffer, &nodeId, sizeof(nodeId));
+  *bytesRead = sizeof(nodeId);
+  return E_OK;
+}
+/*----------------------------------------------------------------------------*/
+static enum Result readNodeData(struct CommandContext *context,
+    struct FatNode *node, FsLength position, void *buffer,
+    FsLength length, FsLength *bytesRead)
+{
+  if (!(node->flags & FAT_FLAG_FILE))
+    return E_INVALID;
+  if (node->flags & FAT_FLAG_RO)
+    return E_ACCESS;
+  if (position > node->payloadSize)
+    return E_VALUE;
+
+  if (length)
+  {
+    const uint32_t count = fileReadData(context, node, position,
+        buffer, length);
+
+    if (count)
+    {
+      *bytesRead = count;
+      return E_OK;
+    }
+    else
+      return E_EMPTY;
+  }
+  else
+  {
+    *bytesRead = 0;
+    return E_OK;
+  }
+}
+/*----------------------------------------------------------------------------*/
+static enum Result readNodeName(struct CommandContext *context,
+    struct FatNode *node, FsLength position, void *buffer,
+    FsLength length, FsLength *bytesRead)
+{
+  if (position)
+    return E_INVALID;
+  if (length <= node->nameLength)
+    return E_VALUE;
+
+  enum Result res;
+
+#ifdef CONFIG_FLAG_UNICODE
+  if (hasLongName(node))
+  {
+    if ((res = readLongName(context, buffer, length, node)) == E_OK)
+    {
+      /* Include terminating character */
+      *bytesRead = node->nameLength + 1;
+    }
+
+    return res;
+  }
+#endif
+
+  struct FatHandle * const handle = (struct FatHandle *)node->handle;
+  const uint32_t sector = getSector(handle, node->parentCluster)
+      + ENTRY_SECTOR(node->parentIndex);
+
+  if ((res = readSector(context, handle, sector)) != E_OK)
+    return res;
+
+  const struct DirEntryImage * const entry =
+      getEntry(context, node->parentIndex);
+
+  extractShortName(buffer, entry);
+  /* Include terminating character */
+  *bytesRead = node->nameLength + 1;
+
+  return E_OK;
+}
+/*----------------------------------------------------------------------------*/
+static enum Result readNodeTime(struct CommandContext *context,
+    struct FatNode *node, FsLength position, void *buffer,
+    FsLength length, FsLength *bytesRead)
+{
+  if (position)
+    return E_INVALID;
+  if (length != sizeof(time64_t))
+    return E_VALUE;
+
+  /* Timestamp reading requires access to the directory entry */
+  struct FatHandle * const handle = (struct FatHandle *)node->handle;
+  const uint32_t sector = getSector(handle, node->parentCluster)
+      + ENTRY_SECTOR(node->parentIndex);
+  enum Result res;
+
+  if ((res = readSector(context, handle, sector)) != E_OK)
+    return res;
+
+  const struct DirEntryImage * const entry =
+      getEntry(context, node->parentIndex);
+
+  const uint16_t rawDate = fromLittleEndian16(entry->date);
+  const uint16_t rawTime = fromLittleEndian16(entry->time);
+
+  if ((res = rawDateTimeToTimestamp(buffer, rawDate, rawTime)) == E_OK)
+    *bytesRead = sizeof(time64_t);
+
+  return res;
+}
+/*----------------------------------------------------------------------------*/
 static enum Result readSector(struct CommandContext *context,
     struct FatHandle *handle, uint32_t sector)
 {
@@ -837,10 +986,10 @@ static enum Result readSector(struct CommandContext *context,
 }
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FLAG_TIME
-static enum Result rawTimestampToTime(time64_t *converted, uint16_t date,
-    uint16_t time)
+static enum Result rawDateTimeToTimestamp(time64_t *timestamp,
+    uint16_t date, uint16_t time)
 {
-  const struct RtDateTime timestamp = {
+  const struct RtDateTime dateTime = {
       .second = time & 0x1F,
       .minute = (time >> 5) & 0x3F,
       .hour = (time >> 11) & 0x1F,
@@ -849,7 +998,13 @@ static enum Result rawTimestampToTime(time64_t *converted, uint16_t date,
       .year = ((date >> 9) & 0x7F) + 1980
   };
 
-  return rtMakeEpochTime(converted, &timestamp);
+  time64_t unixTime;
+  enum Result res;
+
+  if ((res = rtMakeEpochTime(&unixTime, &dateTime)) == E_OK)
+    *timestamp = unixTime * 1000000;
+
+  return res;
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -883,19 +1038,23 @@ static enum Result readLongName(struct CommandContext *context, char *name,
     size_t length, const struct FatNode *node)
 {
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
-  struct FatNode allocatedNode;
-  enum Result res;
+
+  if (node->nameLength > CONFIG_NAME_LENGTH)
+  {
+    /* Available buffer is shorter than entry name */
+    return E_MEMORY;
+  }
 
   if (length > CONFIG_NAME_LENGTH)
   {
-    /* Size of the temporary buffer is greater than allowed by configuration */
-    return E_VALUE;
+    DEBUG_PRINT(0, "fat32: length of name buffer truncated from %zu to %zu\n",
+        length, (size_t)CONFIG_NAME_LENGTH);
+
+    length = CONFIG_NAME_LENGTH;
   }
-  if (length <= node->nameLength)
-  {
-    /* Buffer is shorter than entry name */
-    return E_MEMORY;
-  }
+
+  struct FatNode allocatedNode;
+  enum Result res;
 
   /* Initialize temporary data */
   if ((res = allocateStaticNode(handle, &allocatedNode)) != E_OK)
@@ -1076,7 +1235,7 @@ static void clearDirtyFlag(struct FatNode *node)
 #ifdef CONFIG_FLAG_WRITE
 static enum Result createNode(struct CommandContext *context,
     const struct FatNode *root, bool directory, const char *nodeName,
-    access_t nodeAccess, uint32_t nodePayloadCluster, time64_t nodeAccessTime)
+    FsAccess nodeAccess, uint32_t nodePayloadCluster, time64_t nodeAccessTime)
 {
   struct FatHandle * const handle = (struct FatHandle *)root->handle;
   char shortName[NAME_LENGTH];
@@ -1326,7 +1485,7 @@ static uint32_t fileWriteData(struct CommandContext *context,
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FLAG_WRITE
 static void fillDirEntry(struct DirEntryImage *entry, bool directory,
-    access_t access, uint32_t payloadCluster, time64_t accessTime)
+    FsAccess access, uint32_t payloadCluster, time64_t timestamp)
 {
   /* Clear unused fields */
   entry->unused0 = 0;
@@ -1344,14 +1503,15 @@ static void fillDirEntry(struct DirEntryImage *entry, bool directory,
   entry->size = 0;
 
 #ifdef CONFIG_FLAG_TIME
-  struct RtDateTime currentTime;
+  struct RtDateTime dateTime;
 
-  rtMakeTime(&currentTime, accessTime);
-  entry->date = toLittleEndian16(timeToRawDate(&currentTime));
-  entry->time = toLittleEndian16(timeToRawTime(&currentTime));
+  timestamp /= 1000000;
+  rtMakeTime(&dateTime, timestamp);
+  entry->date = toLittleEndian16(timeToRawDate(&dateTime));
+  entry->time = toLittleEndian16(timeToRawTime(&dateTime));
 #else
   /* Suppress warning */
-  (void)accessTime;
+  (void)timestamp;
 
   entry->date = 0;
   entry->time = 0;
@@ -1875,7 +2035,7 @@ static enum Result uniqueNamePropose(struct CommandContext *context,
 #ifdef CONFIG_FLAG_WRITE
 static enum Result setupDirCluster(struct CommandContext *context,
     struct FatHandle *handle, uint32_t parentCluster, uint32_t payloadCluster,
-    time64_t accessTime)
+    time64_t timestamp)
 {
   enum Result res;
 
@@ -1888,14 +2048,14 @@ static enum Result setupDirCluster(struct CommandContext *context,
   memset(entry->filename, ' ', NAME_LENGTH);
   entry->name[0] = '.';
   fillDirEntry(entry, true, FS_ACCESS_READ | FS_ACCESS_WRITE,
-      payloadCluster, accessTime);
+      payloadCluster, timestamp);
 
   /* Parent directory entry .. */
   ++entry;
   memset(entry->filename, ' ', NAME_LENGTH);
   entry->name[0] = entry->name[1] = '.';
   fillDirEntry(entry, true, FS_ACCESS_READ | FS_ACCESS_WRITE,
-      payloadCluster, accessTime);
+      payloadCluster, timestamp);
   if (parentCluster != handle->rootCluster)
   {
     entry->clusterHigh = toLittleEndian16((uint16_t)(payloadCluster >> 16));
@@ -1937,17 +2097,6 @@ static enum Result syncFile(struct CommandContext *context,
   entry->clusterLow = toLittleEndian16((uint16_t)node->payloadCluster);
   /* Update file size */
   entry->size = toLittleEndian32(node->payloadSize);
-
-#ifdef CONFIG_FLAG_TIME
-  if (handle->clock)
-  {
-    struct RtDateTime currentTime;
-
-    rtMakeTime(&currentTime, rtTime(handle->clock));
-    entry->date = toLittleEndian16(timeToRawDate(&currentTime));
-    entry->time = toLittleEndian16(timeToRawTime(&currentTime));
-  }
-#endif
 
   res = writeSector(context, handle, sector);
   unlockHandle(handle);
@@ -2000,6 +2149,37 @@ static enum Result writeBuffer(struct FatHandle *handle,
 }
 #endif
 /*----------------------------------------------------------------------------*/
+static enum Result writeNodeData(struct CommandContext *context,
+    struct FatNode *node, FsLength position, const void *buffer,
+    FsLength length, FsLength *bytesWritten)
+{
+  if (!(node->flags & FAT_FLAG_FILE))
+    return E_INVALID;
+  if (node->flags & FAT_FLAG_RO)
+    return E_ACCESS;
+  if (position > node->payloadSize)
+    return E_VALUE;
+
+  if (length)
+  {
+    const uint32_t count = fileWriteData(context, node, position,
+        buffer, length);
+
+    if (count)
+    {
+      *bytesWritten = count;
+      return E_OK;
+    }
+    else
+      return E_FULL;
+  }
+  else
+  {
+    *bytesWritten = 0;
+    return E_OK;
+  }
+}
+/*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FLAG_WRITE
 static enum Result writeSector(struct CommandContext *context,
     struct FatHandle *handle, uint32_t sector)
@@ -2037,6 +2217,43 @@ static uint16_t timeToRawDate(const struct RtDateTime *value)
 static uint16_t timeToRawTime(const struct RtDateTime *value)
 {
   return (value->second >> 1) | (value->minute << 5) | (value->hour << 11);
+}
+#endif
+/*----------------------------------------------------------------------------*/
+#if defined(CONFIG_FLAG_TIME) && defined(CONFIG_FLAG_WRITE)
+static enum Result writeNodeTime(struct CommandContext *context,
+    struct FatNode *node, FsLength position, const void *buffer,
+    FsLength length, FsLength *bytesWritten)
+{
+  if (position)
+    return E_INVALID;
+  if (length != sizeof(time64_t))
+    return E_VALUE;
+
+  time64_t timestamp;
+  memcpy(&timestamp, buffer, sizeof(timestamp));
+
+  /* Timestamp writing requires access to the directory entry */
+  struct FatHandle * const handle = (struct FatHandle *)node->handle;
+  const uint32_t sector = getSector(handle, node->parentCluster)
+      + ENTRY_SECTOR(node->parentIndex);
+  enum Result res;
+
+  if ((res = readSector(context, handle, sector)) != E_OK)
+    return res;
+
+  struct DirEntryImage * const entry = getEntry(context, node->parentIndex);
+  struct RtDateTime dateTime;
+
+  timestamp /= 1000000;
+  rtMakeTime(&dateTime, timestamp);
+  entry->date = toLittleEndian16(timeToRawDate(&dateTime));
+  entry->time = toLittleEndian16(timeToRawTime(&dateTime));
+
+  if ((res = writeSector(context, handle, sector)) == E_OK)
+    *bytesWritten = sizeof(timestamp);
+
+  return res;
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -2112,12 +2329,6 @@ static enum Result fatHandleInit(void *object, const void *configBase)
     return res;
 
   handle->interface = config->interface;
-
-#ifdef CONFIG_FLAG_TIME
-  handle->clock = config->clock;
-  if (!handle->clock)
-    DEBUG_PRINT(0, "fat32: real-time clock is not initialized\n");
-#endif
 
   if ((res = mountStorage(handle)) != E_OK)
     freeBuffers(handle, FREE_ALL);
@@ -2259,7 +2470,7 @@ static enum Result fatNodeCreate(void *rootObject,
     return E_ACCESS;
 
   time64_t nodeTime = 0;
-  access_t nodeAccess = FS_ACCESS_READ | FS_ACCESS_WRITE;
+  FsAccess nodeAccess = FS_ACCESS_READ | FS_ACCESS_WRITE;
 
   const struct FsFieldDescriptor *nameDesc = 0;
   const struct FsFieldDescriptor *payloadDesc = 0;
@@ -2271,9 +2482,9 @@ static enum Result fatNodeCreate(void *rootObject,
     switch (desc->type)
     {
       case FS_NODE_ACCESS:
-        if (desc->length != sizeof(access_t))
+        if (desc->length != sizeof(FsAccess))
           return E_VALUE;
-        memcpy(&nodeAccess, desc->data, sizeof(access_t));
+        memcpy(&nodeAccess, desc->data, sizeof(FsAccess));
         break;
 
       case FS_NODE_DATA:
@@ -2290,9 +2501,9 @@ static enum Result fatNodeCreate(void *rootObject,
         break;
 
       case FS_NODE_TIME:
-        if (desc->length != sizeof(time64_t))
+        if (desc->length != sizeof(nodeTime))
           return E_VALUE;
-        memcpy(&nodeTime, desc->data, sizeof(time64_t));
+        memcpy(&nodeTime, desc->data, sizeof(nodeTime));
         break;
 
       default:
@@ -2302,11 +2513,6 @@ static enum Result fatNodeCreate(void *rootObject,
 
   if (!nameDesc)
     return E_INVALID; /* Node cannot be left unnamed */
-
-#ifdef CONFIG_FLAG_TIME
-  if (!nodeTime && handle->clock)
-    nodeTime = rtTime(handle->clock); //FIXME Check whether user time is 0
-#endif
 
   const bool directory = payloadDesc == 0;
   uint32_t nodePayloadCluster = RESERVED_CLUSTER;
@@ -2412,7 +2618,7 @@ static void fatNodeFree(void *object)
 }
 /*----------------------------------------------------------------------------*/
 static enum Result fatNodeLength(void *object, enum FsFieldType type,
-    length_t *length)
+    FsLength *length)
 {
   struct FatNode * const node = object;
 
@@ -2420,7 +2626,7 @@ static enum Result fatNodeLength(void *object, enum FsFieldType type,
   {
     case FS_NODE_ACCESS:
       if (length)
-        *length = sizeof(access_t);
+        *length = sizeof(FsAccess);
       break;
 
     case FS_NODE_DATA:
@@ -2490,185 +2696,64 @@ static enum Result fatNodeNext(void *object)
 }
 /*----------------------------------------------------------------------------*/
 static enum Result fatNodeRead(void *object, enum FsFieldType type,
-    length_t position, void *buffer, length_t length, length_t *read)
+    FsLength position, void *buffer, FsLength length, FsLength *read)
 {
   struct FatNode * const node = object;
-  struct FatHandle * const handle = (struct FatHandle *)node->handle;
-  struct CommandContext *context;
-  length_t bytesRead = 0;
-  enum Result res = E_OK;
+  FsLength bytesRead = 0;
+  enum Result res = E_INVALID;
+  bool processed = false;
 
   /* Read fields that do not require reading from the interface */
   switch (type)
   {
     case FS_NODE_ACCESS:
-    {
-      if (position)
-        return E_INVALID;
-      if (length < sizeof(access_t))
-        return E_VALUE;
-
-      access_t value = FS_ACCESS_READ;
-
-      if (!(node->flags & FAT_FLAG_RO))
-        value |= FS_ACCESS_WRITE;
-      memcpy(buffer, &value, sizeof(value));
-      bytesRead = sizeof(value);
+      res = readNodeAccess(node, position, buffer, length, &bytesRead);
+      processed = true;
       break;
-    }
 
     case FS_NODE_ID:
-    {
-      if (position)
-        return E_INVALID;
-      if (length < sizeof(uint64_t))
-        return E_VALUE;
-
-      uint64_t nodeId = (uint64_t)node->parentIndex
-          | ((uint64_t)node->parentCluster << 16);
-
-      memcpy(buffer, &nodeId, sizeof(nodeId));
-      bytesRead = sizeof(nodeId);
+      res = readNodeId(node, position, buffer, length, &bytesRead);
+      processed = true;
       break;
-    }
+
+    case FS_NODE_DATA:
+    case FS_NODE_NAME:
+    case FS_NODE_TIME:
+      break;
 
     default:
-      break;
+      return E_INVALID;
   }
 
-  if (res != E_OK)
-    return res;
-  if (bytesRead)
+  if (processed)
   {
-    if (read)
+    if (res == E_OK && read)
       *read = bytesRead;
-    return E_OK;
+    return res;
   }
 
   /* Read fields that require reading from the interface */
-  if (!(context = allocateContext(handle)))
+  struct FatHandle * const handle = (struct FatHandle *)node->handle;
+  struct CommandContext * const context = allocateContext(handle);
+
+  if (!context)
     return E_MEMORY;
 
   switch (type)
   {
     case FS_NODE_DATA:
-    {
-      if (!(node->flags & FAT_FLAG_FILE))
-      {
-        res = E_INVALID;
-        break;
-      }
-      if (node->flags & FAT_FLAG_RO)
-      {
-        res = E_ACCESS;
-        break;
-      }
-      if (position > node->payloadSize)
-      {
-        res = E_VALUE;
-        break;
-      }
-      if (!length)
-        break;
-
-      bytesRead = fileReadData(context, node, position, buffer, length);
-
-      if (!bytesRead)
-        res = E_EMPTY;
+      res = readNodeData(context, node, position, buffer, length, &bytesRead);
       break;
-    }
 
-#ifdef CONFIG_FLAG_UNICODE
     case FS_NODE_NAME:
-    {
-      if (position)
-        return E_INVALID;
-      if (!hasLongName(node))
-        break;
-      if (length <= node->nameLength)
-      {
-        res = E_VALUE;
-        break;
-      }
-
-      if ((res = readLongName(context, buffer, length, node)) == E_OK)
-      {
-        /* Include terminating character */
-        bytesRead = node->nameLength + 1;
-      }
+      res = readNodeName(context, node, position, buffer, length, &bytesRead);
       break;
-    }
-#endif
 
-    default:
-      break;
-  }
-
-  if (res != E_OK)
-  {
-    freeContext(handle, context);
-    return res;
-  }
-  if (bytesRead)
-  {
-    if (read)
-      *read = bytesRead;
-    freeContext(handle, context);
-    return E_OK;
-  }
-
-  /* Read fields that require access to the directory entry */
-  const uint32_t sector = getSector(handle, node->parentCluster)
-      + ENTRY_SECTOR(node->parentIndex);
-
-  if ((res = readSector(context, handle, sector)) != E_OK)
-  {
-    freeContext(handle, context);
-    return res;
-  }
-
-  const struct DirEntryImage * const entry =
-      getEntry(context, node->parentIndex);
-
-  switch (type)
-  {
-    case FS_NODE_NAME:
-    {
-      /* Check whether the buffer has enough space for names in 8.3 format */
-      if (length <= node->nameLength)
-      {
-        res = E_VALUE;
-        break;
-      }
-
-      extractShortName(buffer, entry);
-      /* Include terminating character */
-      bytesRead = node->nameLength + 1;
-      break;
-    }
-
-#ifdef CONFIG_FLAG_TIME
     case FS_NODE_TIME:
-    {
-      if (position)
-        return E_INVALID;
-      if (length < sizeof(time64_t))
-      {
-        res = E_VALUE;
-        break;
-      }
-
-      const uint16_t rawDate = fromLittleEndian16(entry->date);
-      const uint16_t rawTime = fromLittleEndian16(entry->time);
-
-      if ((res = rawTimestampToTime(buffer, rawDate, rawTime)) == E_OK)
-        bytesRead = sizeof(time64_t);
+      res = readNodeTime(context, node, position, buffer, length, &bytesRead);
       break;
-    }
-#endif
 
     default:
-      res = E_INVALID;
       break;
   }
 
@@ -2676,7 +2761,6 @@ static enum Result fatNodeRead(void *object, enum FsFieldType type,
 
   if (res == E_OK && read)
     *read = bytesRead;
-
   return res;
 }
 /*----------------------------------------------------------------------------*/
@@ -2685,19 +2769,19 @@ static enum Result fatNodeRemove(void *rootObject, void *object)
 {
   struct FatNode * const root = rootObject;
   struct FatNode * const node = object;
-  struct FatHandle * const handle = (struct FatHandle *)root->handle;
-  struct CommandContext *context;
-  enum Result res;
 
   if ((root->flags & FAT_FLAG_RO) || (node->flags & FAT_FLAG_RO))
     return E_ACCESS;
 
-  if (!(context = allocateContext(handle)))
+  struct FatHandle * const handle = (struct FatHandle *)root->handle;
+  struct CommandContext * const context = allocateContext(handle);
+
+  if (!context)
     return E_MEMORY;
 
-  res = truncatePayload(context, node);
+  enum Result res;
 
-  if (res == E_OK)
+  if ((res = truncatePayload(context, node)) == E_OK)
   {
     lockHandle(handle);
     res = markFree(context, node);
@@ -2705,7 +2789,6 @@ static enum Result fatNodeRemove(void *rootObject, void *object)
   }
 
   freeContext(handle, context);
-
   return res;
 }
 #else
@@ -2718,65 +2801,56 @@ static enum Result fatNodeRemove(void *rootObject __attribute__((unused)),
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FLAG_WRITE
 static enum Result fatNodeWrite(void *object, enum FsFieldType type,
-    length_t position, const void *buffer, length_t length, length_t *written)
+    FsLength position, const void *buffer, FsLength length, FsLength *written)
 {
-  struct FatNode * const node = object;
-  struct FatHandle * const handle = (struct FatHandle *)node->handle;
-  struct CommandContext *context;
-  length_t bytesWritten = 0;
-  enum Result res = E_OK;
-
-  if (!(context = allocateContext(handle)))
-    return E_MEMORY;
-
   switch (type)
   {
-    case FS_NODE_DATA:
-    {
-      if (!(node->flags & FAT_FLAG_FILE))
-      {
-        res = E_INVALID;
-        break;
-      }
-      if (node->flags & FAT_FLAG_RO)
-      {
-        res = E_ACCESS;
-        break;
-      }
-      if (position > node->payloadSize)
-      {
-        res = E_VALUE;
-        break;
-      }
-      if (!length)
-        break;
-
-      bytesWritten = fileWriteData(context, node, position, buffer, length);
-
-      if (!bytesWritten)
-        res = E_EMPTY;
+#ifdef CONFIG_FLAG_TIME
+    case FS_NODE_TIME:
       break;
-    }
+#endif
+
+    case FS_NODE_DATA:
+      break;
 
     default:
-      res = E_INVALID;
-      break;
+      return E_INVALID;
   }
+
+  struct FatNode * const node = object;
+  struct FatHandle * const handle = (struct FatHandle *)node->handle;
+  struct CommandContext * const context = allocateContext(handle);
+
+  if (!context)
+    return E_MEMORY;
+
+  FsLength bytesWritten = 0;
+  enum Result res = E_INVALID;
+
+  if (type == FS_NODE_DATA)
+  {
+    res = writeNodeData(context, node, position, buffer, length, &bytesWritten);
+  }
+#ifdef CONFIG_FLAG_TIME
+  else if (type == FS_NODE_TIME)
+  {
+    res = writeNodeTime(context, node, position, buffer, length, &bytesWritten);
+  }
+#endif
 
   freeContext(handle, context);
 
   if (res == E_OK && written)
     *written = bytesWritten;
-
   return res;
 }
 #else
 static enum Result fatNodeWrite(void *object __attribute__((unused)),
     enum FsFieldType type __attribute__((unused)),
-    length_t position __attribute__((unused)),
+    FsLength position __attribute__((unused)),
     const void *buffer __attribute__((unused)),
-    length_t length __attribute__((unused)),
-    length_t *written __attribute__((unused)))
+    FsLength length __attribute__((unused)),
+    FsLength *written __attribute__((unused)))
 {
   return E_INVALID;
 }

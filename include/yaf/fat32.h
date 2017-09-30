@@ -15,13 +15,10 @@ extern const struct FsHandleClass * const FatHandle;
 /*----------------------------------------------------------------------------*/
 struct Fat32Config
 {
-  /** Mandatory: pointer to an initialized interface. */
-  struct Interface *interface;
   /**
-   * Optional: pointer to a real-time clock. This option is used
-   * only when time support is enabled.
+   * Mandatory: pointer to an initialized interface.
    */
-  struct RtClock *clock;
+  struct Interface *interface;
   /**
    * Optional: number of node descriptors in node pool. This option is used
    * only when support for object pools is enabled.
@@ -29,7 +26,8 @@ struct Fat32Config
   size_t nodes;
   /**
    * Optional: number of threads that can use the same handle simultaneously.
-   * This option is used only when support for multiple threads is enabled. */
+   * This option is used only when support for multiple threads is enabled.
+   */
   size_t threads;
 };
 /*----------------------------------------------------------------------------*/
