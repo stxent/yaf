@@ -1187,10 +1187,7 @@ static enum Result allocateCluster(struct CommandContext *context,
       info->freeClusters =
           toLittleEndian32(fromLittleEndian32(info->freeClusters) - 1);
 
-      if ((res = writeSector(context, handle, handle->infoSector)))
-        return res;
-
-      return E_OK;
+      return writeSector(context, handle, handle->infoSector);
     }
 
     ++current;
@@ -1772,11 +1769,16 @@ static enum Result truncatePayload(struct CommandContext *context,
 #ifdef CONFIG_FLAG_WRITE
 static unsigned int uniqueNameConvert(char *shortName)
 {
-  unsigned int begin = 0;
-  unsigned int end = 0;
+  size_t position = strlen(shortName);
+
+  if (!position--)
+    return 0;
+
+  size_t begin = 0;
+  size_t end = 0;
   unsigned int nameIndex = 0;
 
-  for (unsigned int position = strlen(shortName) - 1; position; --position)
+  for (; position > 0; --position)
   {
     const char value = shortName[position];
 
@@ -1799,9 +1801,7 @@ static unsigned int uniqueNameConvert(char *shortName)
         end = position;
     }
     else
-    {
       break;
-    }
   }
 
   if (nameIndex)
@@ -1941,11 +1941,7 @@ static enum Result setupDirCluster(struct CommandContext *context,
   else
     entry->clusterLow = entry->clusterHigh = 0;
 
-  res = writeSector(context, handle, getSector(handle, payloadCluster));
-  if (res != E_OK)
-    return res;
-
-  return E_OK;
+  return writeSector(context, handle, getSector(handle, payloadCluster));
 }
 #endif
 /*----------------------------------------------------------------------------*/
@@ -1990,7 +1986,7 @@ static enum Result syncFile(struct CommandContext *context,
 static enum Result updateTable(struct CommandContext *context,
     struct FatHandle *handle, uint32_t offset)
 {
-  for (unsigned int fat = 0; fat < handle->tableCount; ++fat)
+  for (size_t fat = 0; fat < handle->tableCount; ++fat)
   {
     const enum Result res = writeSector(context, handle, offset
         + handle->tableSector + handle->tableSize * fat);
@@ -2187,12 +2183,8 @@ static enum Result writeNodeData(struct CommandContext *context,
         &node->payloadPosition);
 
     if (res == E_OK)
-    {
       *bytesWritten = length;
-      return E_OK;
-    }
-    else
-      return res;
+    return res;
   }
   else
   {
@@ -2490,8 +2482,8 @@ static enum Result fatNodeCreate(void *rootObject,
   time64_t nodeTime = 0;
   FsAccess nodeAccess = FS_ACCESS_READ | FS_ACCESS_WRITE;
 
+  const struct FsFieldDescriptor *dataDesc = 0;
   const struct FsFieldDescriptor *nameDesc = 0;
-  const struct FsFieldDescriptor *payloadDesc = 0;
 
   for (size_t index = 0; index < number; ++index)
   {
@@ -2500,29 +2492,36 @@ static enum Result fatNodeCreate(void *rootObject,
     switch (desc->type)
     {
       case FS_NODE_ACCESS:
-        if (desc->length != sizeof(FsAccess))
+        if (desc->length == sizeof(FsAccess))
+        {
+          memcpy(&nodeAccess, desc->data, sizeof(FsAccess));
+          break;
+        }
+        else
           return E_VALUE;
-        memcpy(&nodeAccess, desc->data, sizeof(FsAccess));
-        break;
 
       case FS_NODE_DATA:
-        payloadDesc = desc;
+        dataDesc = desc;
         break;
 
       case FS_NODE_NAME:
-        if (desc->length > CONFIG_NAME_LENGTH
-            || desc->length != strlen(desc->data) + 1)
+        if (desc->length <= CONFIG_NAME_LENGTH
+            && desc->length == strlen(desc->data) + 1)
         {
-          return E_VALUE;
+          nameDesc = desc;
+          break;
         }
-        nameDesc = desc;
-        break;
+        else
+          return E_VALUE;
 
       case FS_NODE_TIME:
-        if (desc->length != sizeof(nodeTime))
+        if (desc->length == sizeof(nodeTime))
+        {
+          memcpy(&nodeTime, desc->data, sizeof(nodeTime));
+          break;
+        }
+        else
           return E_VALUE;
-        memcpy(&nodeTime, desc->data, sizeof(nodeTime));
-        break;
 
       default:
         break;
@@ -2538,7 +2537,7 @@ static enum Result fatNodeCreate(void *rootObject,
   if ((context = allocateContext(handle)))
   {
     /* Allocate a cluster chain for the directory */
-    if (!payloadDesc)
+    if (!dataDesc)
     {
       /* Prevent unexpected table modifications from other threads */
       lockHandle(handle);
@@ -2551,17 +2550,17 @@ static enum Result fatNodeCreate(void *rootObject,
             nodePayloadCluster, nodeTime);
       }
     }
-    else if (payloadDesc->length)
+    else if (dataDesc->length)
     {
-      res = writeDataChain(context, handle, 0, payloadDesc->data,
-          payloadDesc->length, &nodePayloadCluster, 0, 0, 0);
+      res = writeDataChain(context, handle, 0, dataDesc->data,
+          dataDesc->length, &nodePayloadCluster, 0, 0, 0);
     }
 
     /* Create an entry in the parent directory */
     if (res == E_OK)
     {
       lockHandle(handle);
-      res = createNode(context, root, payloadDesc == 0, nameDesc->data,
+      res = createNode(context, root, dataDesc == 0, nameDesc->data,
           nodeAccess, nodePayloadCluster, nodeTime);
       unlockHandle(handle);
     }
@@ -2640,43 +2639,39 @@ static enum Result fatNodeLength(void *object, enum FsFieldType type,
     FsLength *length)
 {
   struct FatNode * const node = object;
+  FsLength len = 0;
 
   switch (type)
   {
     case FS_NODE_ACCESS:
-      if (length)
-        *length = sizeof(FsAccess);
+      len = sizeof(FsAccess);
       break;
 
     case FS_NODE_DATA:
       if (node->flags & FAT_FLAG_FILE)
-      {
-        if (length)
-          *length = node->payloadSize;
-      }
+        len = node->payloadSize;
       else
         return E_INVALID;
       break;
 
     case FS_NODE_ID:
-      if (length)
-        *length = sizeof(uint64_t);
+      len = sizeof(uint64_t);
       break;
 
     case FS_NODE_NAME:
-      if (length)
-        *length = node->nameLength + 1;
+      len = node->nameLength + 1;
       break;
 
     case FS_NODE_TIME:
-      if (length)
-        *length = sizeof(time64_t);
+      len = sizeof(time64_t);
       break;
 
     default:
       return E_INVALID;
   }
 
+  if (length)
+    *length = len;
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
