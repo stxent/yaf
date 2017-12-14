@@ -1,5 +1,5 @@
-#Copyright (C) 2017 xent
-#Project is distributed under the terms of the GNU General Public License v3.0
+# Copyright (C) 2017 xent
+# Project is distributed under the terms of the GNU General Public License v3.0
 
 project(yaf C)
 cmake_minimum_required(VERSION 3.6)
@@ -13,7 +13,7 @@ option(USE_LTO "Enable Link Time Optimization." OFF)
 set(PATH_XCORE "${PROJECT_SOURCE_DIR}/../xcore" CACHE STRING "Path to the XCORE library.")
 set(PATH_OSW "${PROJECT_SOURCE_DIR}/../osw" CACHE STRING "Path to the OSW library.")
 
-#Library configuration
+# Library configuration
 option(CONFIG_FLAG_POOLS "Build driver with statically allocated buffers." ON)
 option(CONFIG_FLAG_THREADS "Enable multithreading." ON)
 option(CONFIG_FLAG_TIME "Build driver with time functions enabled." ON)
@@ -25,7 +25,7 @@ set(CONFIG_DEBUG_LEVEL 0 CACHE STRING "Debug level.")
 set(CONFIG_NAME_LENGTH 64 CACHE STRING "Maximum length of entry name in bytes.")
 set(CONFIG_SECTOR_SIZE 512 CACHE STRING "Size of a filesystem sector may be 512, 1024, 2048 or 4096 bytes.")
 
-#Convert configuration into compiler flags
+# Convert configuration into compiler flags
 get_cmake_property(CONFIG_DATA VARIABLES)
 
 set(FLAGS_LIBRARY "")
@@ -43,15 +43,13 @@ foreach(ENTRY ${CONFIG_DATA})
     endif()
 endforeach()
 
-#Default compiler flags
+# Default compiler flags
 string(TOLOWER ${CMAKE_SYSTEM_NAME} OS_TYPE)
-set(FLAGS_DEFAULT "-fdata-sections -ffunction-sections -fmessage-length=0 -Wall -Wextra -Wshadow -pedantic")
+set(FLAGS_DEFAULT "-fdata-sections -ffunction-sections -Wall -Wextra -Wshadow -pedantic")
 set(FLAGS_PLATFORM "-DOS_TYPE=${OS_TYPE}")
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAGS_DEFAULT} ${FLAGS_CPU} ${FLAGS_PLATFORM} ${FLAGS_LIBRARY}")
-set(CMAKE_C_FLAGS_DEBUG "-O0 -g3")
-set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 
 if(${USE_LTO})
@@ -62,8 +60,7 @@ include_directories("${PATH_XCORE}/include")
 include_directories("${PATH_OSW}/include")
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
-#Gather files for the library
-include("${PROJECT_SOURCE_DIR}/libyaf/CMakeLists.txt")
-
-add_library(${PROJECT_NAME} ${LIBRARY_SOURCES})
+# Gather files for the library
+add_subdirectory(sources)
+add_library(${PROJECT_NAME} $<TARGET_OBJECTS:sources>)
 install(TARGETS ${PROJECT_NAME} ARCHIVE DESTINATION lib)
