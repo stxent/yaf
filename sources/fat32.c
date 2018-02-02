@@ -666,21 +666,18 @@ static void freeBuffers(struct FatHandle *handle, enum cleanup step)
   }
 }
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FLAG_THREADS
 static void freeContext(struct FatHandle *handle,
     const struct CommandContext *context)
 {
+#ifdef CONFIG_FLAG_THREADS
   mutexLock(&handle->memoryMutex);
   queuePush(&handle->contextPool.queue, &context);
   mutexUnlock(&handle->memoryMutex);
-}
 #else
-static void freeContext(struct FatHandle *handle __attribute__((unused)),
-    const struct CommandContext *context __attribute__((unused)))
-{
-
-}
+  (void)handle;
+  (void)context;
 #endif
+}
 /*----------------------------------------------------------------------------*/
 static void freeNode(struct FatNode *node)
 {
@@ -1546,8 +1543,9 @@ static enum Result findGap(struct CommandContext *context, struct FatNode *node,
     if (!entry->name[0] || ((entry->flags & MASK_LFN) == MASK_LFN
         && (entry->ordinal & LFN_DELETED)) || entry->name[0] == E_FLAG_EMPTY)
     {
-      if (!chunks) /* When first free node found */
+      if (!chunks)
       {
+        /* First free node found */
         index = node->parentIndex;
         parent = node->parentCluster;
       }
@@ -2373,9 +2371,9 @@ static void *fatHandleRoot(void *object)
   return node;
 }
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FLAG_WRITE
 static enum Result fatHandleSync(void *object)
 {
+#ifdef CONFIG_FLAG_WRITE
   struct FatHandle * const handle = object;
   struct CommandContext *context;
   struct FatNode *node;
@@ -2399,13 +2397,12 @@ static enum Result fatHandleSync(void *object)
   freeContext(handle, context);
 
   return res;
-}
 #else
-static enum Result fatHandleSync(void *object __attribute__((unused)))
-{
+  (void)object;
+
   return E_OK;
-}
 #endif
+}
 /*------------------Node functions--------------------------------------------*/
 static enum Result fatNodeInit(void *object, const void *configBase)
 {
@@ -2466,10 +2463,10 @@ static void fatNodeDeinit(void *object)
   DEBUG_PRINT(2, "fat32: node freed, address %p\n", object);
 }
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FLAG_WRITE
 static enum Result fatNodeCreate(void *rootObject,
     const struct FsFieldDescriptor *descriptors, size_t number)
 {
+#ifdef CONFIG_FLAG_WRITE
   const struct FatNode * const root = rootObject;
   struct FatHandle * const handle = (struct FatHandle *)root->handle;
   struct CommandContext *context;
@@ -2578,15 +2575,14 @@ static enum Result fatNodeCreate(void *rootObject,
     res = E_MEMORY;
 
   return res;
-}
 #else
-static enum Result fatNodeCreate(void *rootObject __attribute__((unused)),
-    const struct FsFieldDescriptor *descriptors __attribute__((unused)),
-    uint8_t count __attribute__((unused)))
-{
+  (void)rootObject;
+  (void)descriptors;
+  (void)number;
+
   return E_INVALID;
-}
 #endif
+}
 /*----------------------------------------------------------------------------*/
 static void *fatNodeHead(void *object)
 {
@@ -2778,9 +2774,9 @@ static enum Result fatNodeRead(void *object, enum FsFieldType type,
   return res;
 }
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FLAG_WRITE
 static enum Result fatNodeRemove(void *rootObject, void *object)
 {
+#ifdef CONFIG_FLAG_WRITE
   struct FatNode * const root = rootObject;
   struct FatNode * const node = object;
 
@@ -2804,19 +2800,18 @@ static enum Result fatNodeRemove(void *rootObject, void *object)
 
   freeContext(handle, context);
   return res;
-}
 #else
-static enum Result fatNodeRemove(void *rootObject __attribute__((unused)),
-    void *object __attribute__((unused)))
-{
+  (void)rootObject;
+  (void)object;
+
   return E_INVALID;
-}
 #endif
+}
 /*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FLAG_WRITE
 static enum Result fatNodeWrite(void *object, enum FsFieldType type,
     FsLength position, const void *buffer, size_t length, size_t *written)
 {
+#ifdef CONFIG_FLAG_WRITE
   switch (type)
   {
 #ifdef CONFIG_FLAG_TIME
@@ -2857,15 +2852,14 @@ static enum Result fatNodeWrite(void *object, enum FsFieldType type,
   if (res == E_OK && written)
     *written = bytesWritten;
   return res;
-}
 #else
-static enum Result fatNodeWrite(void *object __attribute__((unused)),
-    enum FsFieldType type __attribute__((unused)),
-    FsLength position __attribute__((unused)),
-    const void *buffer __attribute__((unused)),
-    size_t length __attribute__((unused)),
-    size_t *written __attribute__((unused)))
-{
+  (void)object;
+  (void)type;
+  (void)position;
+  (void)buffer;
+  (void)length;
+  (void)written;
+
   return E_INVALID;
-}
 #endif
+}
