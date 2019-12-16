@@ -64,7 +64,7 @@ static inline bool hasLongName(const struct FatNode *node)
 #ifdef CONFIG_FLAG_THREADS
 static inline void lockHandle(struct FatHandle *handle)
 {
-  if (queueCapacity(&handle->contextPool.queue) > 1)
+  if (pointerQueueCapacity(&handle->contextPool.queue) > 1)
     mutexLock(&handle->consistencyMutex);
 }
 #else
@@ -77,7 +77,7 @@ static inline void lockHandle(struct FatHandle *handle __attribute__((unused)))
 #ifdef CONFIG_FLAG_THREADS
 static inline void unlockHandle(struct FatHandle *handle)
 {
-  if (queueCapacity(&handle->contextPool.queue) > 1)
+  if (pointerQueueCapacity(&handle->contextPool.queue) > 1)
     mutexUnlock(&handle->consistencyMutex);
 }
 #else

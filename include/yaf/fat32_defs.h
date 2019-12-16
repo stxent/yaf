@@ -10,10 +10,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <xcore/bits.h>
-#include <xcore/containers/list.h>
-#include <xcore/containers/queue.h>
 #include <xcore/fs.h>
 #include <xcore/unicode.h>
+#include <yaf/pointer_list.h>
+#include <yaf/pointer_queue.h>
 /*----------------------------------------------------------------------------*/
 #ifdef CONFIG_FLAG_THREADS
 #include <osw/mutex.h>
@@ -99,7 +99,7 @@ struct CommandContext
 struct Pool
 {
   void *data;
-  struct Queue queue;
+  PointerQueue queue;
 };
 /*----------------------------------------------------------------------------*/
 enum
@@ -130,7 +130,7 @@ struct FatHandle
 #endif
 
 #ifdef CONFIG_FLAG_WRITE
-  struct List openedFiles;
+  PointerList openedFiles;
 #endif
 
   /* Number of the first sector containing cluster data */

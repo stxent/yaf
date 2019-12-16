@@ -3,6 +3,7 @@
 
 project(yaf C)
 cmake_minimum_required(VERSION 3.6)
+cmake_policy(SET CMP0054 NEW)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build: Debug Release." FORCE)
@@ -28,17 +29,16 @@ set(CONFIG_SECTOR_SIZE 512 CACHE STRING "Size of a filesystem sector may be 512,
 # Convert configuration into compiler flags
 get_cmake_property(CONFIG_DATA VARIABLES)
 
-set(FLAGS_LIBRARY "")
-foreach(ENTRY ${CONFIG_DATA})
-    string(FIND "${ENTRY}" "CONFIG_" ENTRY_IS_CONFIG)
-    if(${ENTRY_IS_CONFIG} EQUAL 0)
-        string(FIND "${ENTRY}" "CONFIG_FLAG_" ENTRY_IS_CONFIG_FLAG)
-        if(${ENTRY_IS_CONFIG_FLAG} EQUAL 0)
-            if(${${ENTRY}})
-                set(FLAGS_LIBRARY "${FLAGS_LIBRARY} -D${ENTRY}")
+foreach(_entry ${CONFIG_DATA})
+    string(FIND "${_entry}" "CONFIG_" _entry_is_config)
+    if(${_entry_is_config} EQUAL 0)
+        string(FIND "${_entry}" "CONFIG_FLAG_" _entry_is_config_flag)
+        if(${_entry_is_config_flag} EQUAL 0)
+            if(${${_entry}})
+                add_definitions(-D${_entry})
             endif()
         else()
-            set(FLAGS_LIBRARY "${FLAGS_LIBRARY} -D${ENTRY}=${${ENTRY}}")
+            add_definitions(-D${_entry}=${${_entry}})
         endif()
     endif()
 endforeach()

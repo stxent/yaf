@@ -14,12 +14,11 @@
 #include <yaf/fat32_defs.h>
 #include <yaf/fat32_inlines.h>
 /*----------------------------------------------------------------------------*/
-enum cleanup
+enum Cleanup
 {
   FREE_ALL,
   FREE_NODE_POOL,
   FREE_FILE_LIST,
-  FREE_CONTEXT_POOL,
   FREE_LOCKS
 };
 /*----------------------------------------------------------------------------*/
@@ -38,8 +37,8 @@ static uint32_t fileReadData(struct CommandContext *, struct FatNode *,
     uint32_t, void *, uint32_t);
 static enum Result fileSeekData(struct CommandContext *, struct FatHandle *,
     uint32_t, uint32_t, uint32_t *, uint32_t *);
-static void freeBuffers(struct FatHandle *, enum cleanup);
-static void freeContext(struct FatHandle *, const struct CommandContext *);
+static void freeBuffers(struct FatHandle *, enum Cleanup);
+static void freeContext(struct FatHandle *, struct CommandContext *);
 static void freeNode(struct FatNode *);
 static enum Result getNextCluster(struct CommandContext *, struct FatHandle *,
     uint32_t *);
@@ -182,22 +181,19 @@ static enum Result allocatePool(struct Pool *pool, size_t capacity,
   if (!data)
     return E_MEMORY;
 
-  const enum Result res = queueInit(&pool->queue, sizeof(struct Entity *),
-      capacity);
-
-  if (res != E_OK)
+  if (!pointerQueueInit(&pool->queue, capacity))
   {
     free(data);
     return E_MEMORY;
   }
 
   pool->data = data;
-  for (unsigned int index = 0; index < capacity; ++index)
+  for (size_t index = 0; index < capacity; ++index)
   {
     if (initializer)
       ((struct Entity *)data)->descriptor = initializer;
 
-    queuePush(&pool->queue, &data);
+    pointerQueuePushBack(&pool->queue, data);
     data += width;
   }
 
@@ -206,7 +202,7 @@ static enum Result allocatePool(struct Pool *pool, size_t capacity,
 /*----------------------------------------------------------------------------*/
 static void freePool(struct Pool *pool)
 {
-  queueDeinit(&pool->queue);
+  pointerQueueDeinit(&pool->queue);
   free(pool->data);
 }
 /*----------------------------------------------------------------------------*/
@@ -264,12 +260,7 @@ static enum Result allocateBuffers(struct FatHandle *handle,
 #endif /* CONFIG_FLAG_THREADS */
 
 #ifdef CONFIG_FLAG_WRITE
-  res = listInit(&handle->openedFiles, sizeof(struct FatNode *));
-  if (res != E_OK)
-  {
-    freeBuffers(handle, FREE_CONTEXT_POOL);
-    return res;
-  }
+  pointerListInit(&handle->openedFiles);
 #endif /* CONFIG_FLAG_WRITE */
 
 #ifdef CONFIG_FLAG_POOLS
@@ -295,8 +286,11 @@ static struct CommandContext *allocateContext(struct FatHandle *handle)
 
 #ifdef CONFIG_FLAG_THREADS
   mutexLock(&handle->memoryMutex);
-  if (!queueEmpty(&handle->contextPool.queue))
-    queuePop(&handle->contextPool.queue, &context);
+  if (!pointerQueueEmpty(&handle->contextPool.queue))
+  {
+    context = pointerQueueFront(&handle->contextPool.queue);
+    pointerQueuePopFront(&handle->contextPool.queue);
+  }
   mutexUnlock(&handle->memoryMutex);
 #else
   context = handle->context;
@@ -315,9 +309,10 @@ static void *allocateNode(struct FatHandle *handle)
 
   lockPools(handle);
 #ifdef CONFIG_FLAG_POOLS
-  if (!queueEmpty(&handle->nodePool.queue))
+  if (!pointerQueueEmpty(&handle->nodePool.queue))
   {
-    queuePop(&handle->nodePool.queue, &node);
+    node = pointerQueueFront(&handle->nodePool.queue);
+    pointerQueuePopFront(&handle->nodePool.queue);
     FatNode->init(node, &config);
   }
 #else
@@ -632,7 +627,7 @@ static enum Result fileSeekData(struct CommandContext *context,
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-static void freeBuffers(struct FatHandle *handle, enum cleanup step)
+static void freeBuffers(struct FatHandle *handle, enum Cleanup step)
 {
   switch (step)
   {
@@ -642,18 +637,19 @@ static void freeBuffers(struct FatHandle *handle, enum cleanup step)
       freePool(&handle->nodePool);
 #endif
       /* Falls through */
+
     case FREE_FILE_LIST:
 #ifdef CONFIG_FLAG_WRITE
-      listDeinit(&handle->openedFiles);
+      pointerListDeinit(&handle->openedFiles);
 #endif
-      /* Falls through */
-    case FREE_CONTEXT_POOL:
+
 #ifdef CONFIG_FLAG_THREADS
       freePool(&handle->contextPool);
 #else
       free(handle->context);
 #endif
       /* Falls through */
+
     case FREE_LOCKS:
 #ifdef CONFIG_FLAG_THREADS
       mutexDeinit(&handle->memoryMutex);
@@ -667,11 +663,11 @@ static void freeBuffers(struct FatHandle *handle, enum cleanup step)
 }
 /*----------------------------------------------------------------------------*/
 static void freeContext(struct FatHandle *handle,
-    const struct CommandContext *context)
+    struct CommandContext *context)
 {
 #ifdef CONFIG_FLAG_THREADS
   mutexLock(&handle->memoryMutex);
-  queuePush(&handle->contextPool.queue, &context);
+  pointerQueuePushBack(&handle->contextPool.queue, context);
   mutexUnlock(&handle->memoryMutex);
 #else
   (void)handle;
@@ -687,7 +683,7 @@ static void freeNode(struct FatNode *node)
   FatNode->deinit(node);
 
   lockPools(handle);
-  queuePush(&handle->nodePool.queue, &node);
+  pointerQueuePushBack(&handle->nodePool.queue, node);
   unlockPools(handle);
 #else
   deinit(node);
@@ -1220,11 +1216,8 @@ static enum Result clearCluster(struct CommandContext *context,
 static void clearDirtyFlag(struct FatNode *node)
 {
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
-  struct ListNode * const listNode = listFind(&handle->openedFiles, &node);
 
-  if (listNode)
-    listErase(&handle->openedFiles, listNode);
-
+  pointerListErase(&handle->openedFiles, node);
   node->flags &= ~FAT_FLAG_DIRTY;
 }
 #endif
@@ -2167,7 +2160,8 @@ static enum Result writeNodeData(struct CommandContext *context,
     if (!(node->flags & FAT_FLAG_DIRTY))
     {
       lockHandle(handle);
-      res = listPush(&handle->openedFiles, &node);
+      if (!pointerListPushFront(&handle->openedFiles, node))
+        res = E_MEMORY;
       unlockHandle(handle);
 
       if (res == E_OK)
@@ -2383,14 +2377,14 @@ static enum Result fatHandleSync(void *object)
     return E_MEMORY;
   lockHandle(handle);
 
-  const struct ListNode *current = listFirst(&handle->openedFiles);
+  PointerListNode *current = pointerListFront(&handle->openedFiles);
 
   while (current)
   {
-    listData(&handle->openedFiles, current, &node);
+    node = *pointerListData(current);
     if ((res = syncFile(context, node)) != E_OK)
       break;
-    current = listNext(current);
+    current = pointerListNext(current);
   }
 
   unlockHandle(handle);
