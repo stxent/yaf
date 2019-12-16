@@ -62,5 +62,5 @@ include_directories("${PROJECT_SOURCE_DIR}/include")
 
 # Gather files for the library
 add_subdirectory(sources)
-add_library(${PROJECT_NAME} $<TARGET_OBJECTS:sources>)
+add_library(${PROJECT_NAME} $<TARGET_OBJECTS:yaf_generic>)
 install(TARGETS ${PROJECT_NAME} ARCHIVE DESTINATION lib)
