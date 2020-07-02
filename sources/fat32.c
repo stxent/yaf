@@ -806,7 +806,7 @@ static enum Result readBuffer(struct FatHandle *handle, uint32_t sector,
   enum Result res;
 
   ifSetParam(handle->interface, IF_ACQUIRE, 0);
-  if ((res = ifSetParam(handle->interface, IF_POSITION, &position)) == E_OK)
+  if ((res = ifSetParam(handle->interface, IF_POSITION_64, &position)) == E_OK)
   {
     if (ifRead(handle->interface, buffer, length) != length)
     {
@@ -964,7 +964,7 @@ static enum Result readSector(struct CommandContext *context,
   enum Result res;
 
   ifSetParam(handle->interface, IF_ACQUIRE, 0);
-  if ((res = ifSetParam(handle->interface, IF_POSITION, &position)) == E_OK)
+  if ((res = ifSetParam(handle->interface, IF_POSITION_64, &position)) == E_OK)
   {
     if (ifRead(handle->interface, context->buffer, SECTOR_SIZE) == SECTOR_SIZE)
     {
@@ -1999,7 +1999,7 @@ static enum Result writeBuffer(struct FatHandle *handle,
   enum Result res;
 
   ifSetParam(handle->interface, IF_ACQUIRE, 0);
-  if ((res = ifSetParam(handle->interface, IF_POSITION, &position)) == E_OK)
+  if ((res = ifSetParam(handle->interface, IF_POSITION_64, &position)) == E_OK)
   {
     if (ifWrite(handle->interface, buffer, length) != length)
     {
@@ -2160,7 +2160,9 @@ static enum Result writeNodeData(struct CommandContext *context,
     if (!(node->flags & FAT_FLAG_DIRTY))
     {
       lockHandle(handle);
-      if (!pointerListPushFront(&handle->openedFiles, node))
+      if (pointerListPushFront(&handle->openedFiles, node))
+        res = E_OK;
+      else
         res = E_MEMORY;
       unlockHandle(handle);
 
@@ -2194,7 +2196,7 @@ static enum Result writeSector(struct CommandContext *context,
   enum Result res;
 
   ifSetParam(handle->interface, IF_ACQUIRE, 0);
-  if ((res = ifSetParam(handle->interface, IF_POSITION, &position)) == E_OK)
+  if ((res = ifSetParam(handle->interface, IF_POSITION_64, &position)) == E_OK)
   {
     if (ifWrite(handle->interface, context->buffer, SECTOR_SIZE) == SECTOR_SIZE)
     {

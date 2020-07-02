@@ -26,23 +26,6 @@ set(CONFIG_DEBUG_LEVEL 0 CACHE STRING "Debug level.")
 set(CONFIG_NAME_LENGTH 64 CACHE STRING "Maximum length of entry name in bytes.")
 set(CONFIG_SECTOR_SIZE 512 CACHE STRING "Size of a filesystem sector may be 512, 1024, 2048 or 4096 bytes.")
 
-# Convert configuration into compiler flags
-get_cmake_property(CONFIG_DATA VARIABLES)
-
-foreach(_entry ${CONFIG_DATA})
-    string(FIND "${_entry}" "CONFIG_" _entry_is_config)
-    if(${_entry_is_config} EQUAL 0)
-        string(FIND "${_entry}" "CONFIG_FLAG_" _entry_is_config_flag)
-        if(${_entry_is_config_flag} EQUAL 0)
-            if(${${_entry}})
-                add_definitions(-D${_entry})
-            endif()
-        else()
-            add_definitions(-D${_entry}=${${_entry}})
-        endif()
-    endif()
-endforeach()
-
 # Default compiler flags
 string(TOLOWER ${CMAKE_SYSTEM_NAME} OS_TYPE)
 set(FLAGS_DEFAULT "-fdata-sections -ffunction-sections -Wall -Wextra -Wshadow -pedantic")
@@ -56,11 +39,32 @@ if(${USE_LTO})
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto -ffat-lto-objects")
 endif()
 
-include_directories("${PATH_XCORE}/include")
-include_directories("${PATH_OSW}/include")
-include_directories("${PROJECT_SOURCE_DIR}/include")
-
 # Gather files for the library
 add_subdirectory(sources)
+
+target_include_directories(yaf_generic
+        PRIVATE "${PROJECT_SOURCE_DIR}/include"
+        PRIVATE "${PATH_XCORE}/include"
+        PRIVATE "${PATH_OSW}/include"
+)
+
+# Convert configuration into compiler flags
+get_cmake_property(CONFIG_DATA VARIABLES)
+foreach(_entry ${CONFIG_DATA})
+    string(FIND "${_entry}" "CONFIG_" _entry_is_config)
+    if(${_entry_is_config} EQUAL 0)
+        string(FIND "${_entry}" "CONFIG_FLAG_" _entry_is_config_flag)
+        if(${_entry_is_config_flag} EQUAL 0)
+            if(${${_entry}})
+                target_compile_definitions(yaf_generic PRIVATE -D${_entry})
+            endif()
+        else()
+            target_compile_definitions(yaf_generic PRIVATE -D${_entry}=${${_entry}})
+        endif()
+    endif()
+endforeach()
+
 add_library(${PROJECT_NAME} $<TARGET_OBJECTS:yaf_generic>)
+target_include_directories(${PROJECT_NAME} PUBLIC "${PROJECT_SOURCE_DIR}/include")
+
 install(TARGETS ${PROJECT_NAME} ARCHIVE DESTINATION lib)
