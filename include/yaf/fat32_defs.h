@@ -10,7 +10,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <xcore/bits.h>
-#include <xcore/fs.h>
+#include <xcore/fs/fs.h>
 #include <xcore/unicode.h>
 #include <yaf/pointer_list.h>
 #include <yaf/pointer_queue.h>

@@ -7,7 +7,7 @@
 #ifndef YAF_FAT32_H_
 #define YAF_FAT32_H_
 /*----------------------------------------------------------------------------*/
-#include <xcore/fs.h>
+#include <xcore/fs/fs.h>
 #include <xcore/interface.h>
 #include <xcore/realtime.h>
 /*----------------------------------------------------------------------------*/
