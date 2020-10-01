@@ -1253,11 +1253,10 @@ static enum Result createNode(struct CommandContext *context,
 #ifdef CONFIG_FLAG_UNICODE
   if (longNameRequired)
   {
+    /* Name length contains terminating character */
     uToUtf16(nameBuffer, nodeName, nameLength);
-    chunks = (nameLength - 1) / LFN_ENTRY_LENGTH;
     /* Append additional entry when last chunk is incomplete */
-    if ((nameLength - 1) > chunks * LFN_ENTRY_LENGTH)
-      ++chunks;
+    chunks = (nameLength + LFN_ENTRY_LENGTH - 2) / LFN_ENTRY_LENGTH;
   }
 #endif
 
@@ -2294,16 +2293,25 @@ static void fillLongName(struct DirEntryImage *entry, const char16_t *name,
     size_t count)
 {
   char16_t buffer[LFN_ENTRY_LENGTH];
+  const char16_t *position = buffer;
 
-  memcpy(buffer, name, count);
+  memcpy(buffer, name, count * sizeof(char16_t));
   if (count < LFN_ENTRY_LENGTH)
-    memset(buffer + count, 0, LFN_ENTRY_LENGTH - count);
+  {
+    buffer[count] = '\0';
 
-  memcpy(entry->longName0, name, sizeof(entry->longName0));
-  name += sizeof(entry->longName0) / sizeof(char16_t);
-  memcpy(entry->longName1, name, sizeof(entry->longName1));
-  name += sizeof(entry->longName1) / sizeof(char16_t);
-  memcpy(entry->longName2, name, sizeof(entry->longName2));
+    if (count + 1 < LFN_ENTRY_LENGTH)
+    {
+      const size_t padding = LFN_ENTRY_LENGTH - 1 - count;
+      memset(&buffer[count + 1], 0xFF, padding * sizeof(char16_t));
+    }
+  }
+
+  memcpy(entry->longName0, position, sizeof(entry->longName0));
+  position += sizeof(entry->longName0) / sizeof(char16_t);
+  memcpy(entry->longName1, position, sizeof(entry->longName1));
+  position += sizeof(entry->longName1) / sizeof(char16_t);
+  memcpy(entry->longName2, position, sizeof(entry->longName2));
 }
 #endif
 /*----------------------------------------------------------------------------*/
