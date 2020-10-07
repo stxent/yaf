@@ -4,15 +4,15 @@
  * Project is distributed under the terms of the GNU General Public License v3.0
  */
 
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
-#include <xcore/bits.h>
-#include <xcore/memory.h>
 #include <yaf/debug.h>
 #include <yaf/fat32.h>
 #include <yaf/fat32_defs.h>
 #include <yaf/fat32_inlines.h>
+#include <xcore/bits.h>
+#include <xcore/memory.h>
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 /*----------------------------------------------------------------------------*/
 enum Cleanup
 {

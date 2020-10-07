@@ -8,6 +8,7 @@
 #define YAF_FAT32_INLINES_H_
 /*----------------------------------------------------------------------------*/
 #include <yaf/fat32_defs.h>
+#include <xcore/memory.h>
 /*----------------------------------------------------------------------------*/
 static inline bool clusterFree(uint32_t cluster)
 {

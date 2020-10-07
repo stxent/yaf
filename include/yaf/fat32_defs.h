@@ -7,21 +7,22 @@
 #ifndef YAF_FAT32_DEFS_H_
 #define YAF_FAT32_DEFS_H_
 /*----------------------------------------------------------------------------*/
-#include <stdbool.h>
-#include <stdint.h>
+#include <yaf/pointer_list.h>
+#include <yaf/pointer_queue.h>
 #include <xcore/bits.h>
 #include <xcore/fs/fs.h>
 #include <xcore/unicode.h>
-#include <yaf/pointer_list.h>
-#include <yaf/pointer_queue.h>
-/*----------------------------------------------------------------------------*/
-#ifdef CONFIG_FLAG_THREADS
-#include <osw/mutex.h>
-#endif
 
 #ifdef CONFIG_FLAG_TIME
 #include <xcore/realtime.h>
 #endif
+
+#ifdef CONFIG_FLAG_THREADS
+#include <osw/mutex.h>
+#endif
+
+#include <stdbool.h>
+#include <stdint.h>
 /*----------------------------------------------------------------------------*/
 /* Sector size may be 512, 1024, 2048 or 4096 bytes, default is 512. */
 #if CONFIG_SECTOR_SIZE == 512
