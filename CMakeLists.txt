@@ -26,6 +26,17 @@ set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAGS_DEFAULT} ${FLAGS_CPU}")
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 
+find_package(xcore QUIET)
+if(NOT xcore_FOUND)
+    message(STATUS "Package information for xcore not found")
+endif()
+if(${YAF_CONFIG_THREADS})
+    find_package(osw QUIET)
+    if(NOT osw_FOUND)
+        message(STATUS "Package information for osw not found")
+    endif()
+endif()
+
 if(${USE_LTO})
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
     if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
@@ -37,4 +48,16 @@ add_subdirectory(sources)
 add_library(${PROJECT_NAME} $<TARGET_OBJECTS:yaf_generic>)
 target_link_libraries(${PROJECT_NAME} PUBLIC yaf_generic)
 
-install(TARGETS ${PROJECT_NAME} ARCHIVE DESTINATION lib)
+# Library installation configuration
+install(TARGETS ${PROJECT_NAME}
+        EXPORT yaf-targets
+        ARCHIVE DESTINATION lib
+)
+install(EXPORT yaf-targets
+        FILE yaf-targets.cmake
+        DESTINATION lib/yaf
+)
+install(FILES "${PROJECT_SOURCE_DIR}/config.cmake.in"
+        DESTINATION lib/yaf
+        RENAME yaf-config.cmake
+)
