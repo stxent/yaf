@@ -13,11 +13,11 @@
 #include <xcore/fs/fs.h>
 #include <xcore/unicode.h>
 
-#ifdef CONFIG_FLAG_TIME
+#ifdef CONFIG_TIME
 #include <xcore/realtime.h>
 #endif
 
-#ifdef CONFIG_FLAG_THREADS
+#ifdef CONFIG_THREADS
 #include <osw/mutex.h>
 #endif
 
@@ -118,11 +118,11 @@ struct FatHandle
   struct FsHandle *head;
   struct Interface *interface;
 
-#ifdef CONFIG_FLAG_POOLS
+#ifdef CONFIG_POOLS
   struct Pool nodePool;
 #endif
 
-#ifdef CONFIG_FLAG_THREADS
+#ifdef CONFIG_THREADS
   struct Pool contextPool;
   struct Mutex consistencyMutex;
   struct Mutex memoryMutex;
@@ -130,7 +130,7 @@ struct FatHandle
   struct CommandContext *context;
 #endif
 
-#ifdef CONFIG_FLAG_WRITE
+#ifdef CONFIG_WRITE
   PointerList openedFiles;
 #endif
 
@@ -140,7 +140,7 @@ struct FatHandle
   uint32_t rootCluster;
   /* Starting point of the file allocation table */
   uint32_t tableSector;
-#ifdef CONFIG_FLAG_WRITE
+#ifdef CONFIG_WRITE
   /* Number of clusters in the partition */
   uint32_t clusterCount;
   /* Last allocated cluster */
@@ -171,7 +171,7 @@ struct FatNode
   uint32_t parentCluster;
   /* Position in the parent cluster */
   uint16_t parentIndex;
-#ifdef CONFIG_FLAG_UNICODE
+#ifdef CONFIG_UNICODE
   /* First name entry position in the parent cluster */
   uint16_t nameIndex;
   /* Directory cluster of the first name entry */
