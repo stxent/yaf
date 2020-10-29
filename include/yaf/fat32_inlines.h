@@ -10,41 +10,46 @@
 #include <yaf/fat32_defs.h>
 #include <xcore/memory.h>
 /*----------------------------------------------------------------------------*/
-static inline bool clusterFree(uint32_t cluster)
+static inline size_t calcLfnCount(size_t length)
+{
+  return (length - 1) / 2 / LFN_ENTRY_LENGTH;
+}
+/*----------------------------------------------------------------------------*/
+/* File or directory entries per directory cluster */
+static inline unsigned int calcNodeCount(const struct FatHandle *handle)
+{
+  return 1 << ENTRY_EXP << handle->clusterSize;
+}
+/*----------------------------------------------------------------------------*/
+/* Calculate the number of the first sector for a cluster */
+static inline uint32_t calcSectorNumber(const struct FatHandle *handle,
+    uint32_t cluster)
+{
+  return handle->dataSector + (((cluster) - 2) << handle->clusterSize);
+}
+/*----------------------------------------------------------------------------*/
+static inline bool isClusterFree(uint32_t cluster)
 {
   /* All reserved clusters and bad clusters are skipped */
   return !(cluster & 0x0FFFFFFFUL);
 }
 /*----------------------------------------------------------------------------*/
-static inline bool clusterUsed(uint32_t cluster)
+static inline bool isClusterUsed(uint32_t cluster)
 {
   return (cluster & 0x0FFFFFFFUL) >= 0x00000002UL
       && (cluster & 0x0FFFFFFFUL) <= 0x0FFFFFEFUL;
 }
 /*----------------------------------------------------------------------------*/
-static inline struct DirEntryImage *getEntry(struct CommandContext *context,
+static inline struct DirEntryImage *getDirEntry(struct CommandContext *context,
     uint16_t index)
 {
   return (struct DirEntryImage *)(context->buffer + ENTRY_OFFSET(index));
-}
-/*----------------------------------------------------------------------------*/
-/* Calculate the number of the first sector for a cluster */
-static inline uint32_t getSector(const struct FatHandle *handle,
-    uint32_t cluster)
-{
-  return handle->dataSector + (((cluster) - 2) << handle->clusterSize);
 }
 /*----------------------------------------------------------------------------*/
 static inline uint32_t makeClusterNumber(const struct DirEntryImage *entry)
 {
   return ((uint32_t)fromLittleEndian16(entry->clusterHigh) << 16)
       | (uint32_t)fromLittleEndian16(entry->clusterLow);
-}
-/*----------------------------------------------------------------------------*/
-/* File or directory entries per directory cluster */
-static inline unsigned int nodeCount(const struct FatHandle *handle)
-{
-  return 1 << ENTRY_EXP << handle->clusterSize;
 }
 /*----------------------------------------------------------------------------*/
 /* Calculate current sector in data cluster for read or write operations */

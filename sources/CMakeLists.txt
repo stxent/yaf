@@ -3,7 +3,8 @@
 
 file(GLOB SOURCE_FILES "*.c")
 add_library(yaf_generic OBJECT ${SOURCE_FILES})
-set_target_properties(yaf_generic PROPERTIES PUBLIC_HEADER "${PROJECT_SOURCE_DIR}/include/yaf/fat32.h")
+set_target_properties(yaf_generic PROPERTIES PUBLIC_HEADER
+        "${PROJECT_SOURCE_DIR}/include/yaf/fat32.h;${PROJECT_SOURCE_DIR}/include/yaf/utils.h")
 target_include_directories(yaf_generic PUBLIC
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
@@ -22,9 +23,6 @@ if(${YAF_CONFIG_POOLS})
 endif()
 if(${YAF_CONFIG_THREADS})
     target_compile_definitions(yaf_generic PRIVATE -DCONFIG_THREADS)
-endif()
-if(${YAF_CONFIG_TIME})
-    target_compile_definitions(yaf_generic PRIVATE -DCONFIG_TIME)
 endif()
 if(${YAF_CONFIG_UNICODE})
     target_compile_definitions(yaf_generic PRIVATE -DCONFIG_UNICODE)

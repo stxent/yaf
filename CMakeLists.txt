@@ -13,7 +13,6 @@ set(FS_NAME_LENGTH 64 CACHE STRING "Maximum length of filesystem entry name in b
 # Library configuration
 option(YAF_CONFIG_POOLS "Build driver with statically allocated buffers." ON)
 option(YAF_CONFIG_THREADS "Enable multithreading." ON)
-option(YAF_CONFIG_TIME "Build driver with time functions enabled." ON)
 option(YAF_CONFIG_UNICODE "Enable support for Unicode characters." ON)
 option(YAF_CONFIG_WRITE "Enable write functions." ON)
 set(YAF_CONFIG_DEBUG 0 CACHE STRING "Debug level.")
@@ -26,10 +25,15 @@ set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAGS_DEFAULT} ${FLAGS_CPU}")
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 
+if(${BUILD_TESTS})
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage")
+endif()
+
 find_package(xcore QUIET)
 if(NOT xcore_FOUND)
     message(STATUS "Package information for xcore not found")
 endif()
+
 if(${YAF_CONFIG_THREADS})
     find_package(osw QUIET)
     if(NOT osw_FOUND)

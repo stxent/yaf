@@ -11,11 +11,8 @@
 #include <yaf/pointer_queue.h>
 #include <xcore/bits.h>
 #include <xcore/fs/fs.h>
-#include <xcore/unicode.h>
-
-#ifdef CONFIG_TIME
 #include <xcore/realtime.h>
-#endif
+#include <xcore/unicode.h>
 
 #ifdef CONFIG_THREADS
 #include <osw/mutex.h>
@@ -62,6 +59,8 @@
 /*----------------------------------------------------------------------------*/
 /* End of cluster chain value */
 #define CLUSTER_EOC_VAL         0x0FFFFFF8UL
+/* Reserved cluster value */
+#define CLUSTER_RES_VAL         0x0FFFFFFFUL
 /* Directory entry free flag */
 #define E_FLAG_EMPTY            (char)0xE5
 /* The maximum possible size for a file is 4 GiB minus 1 byte */
@@ -171,6 +170,7 @@ struct FatNode
   uint32_t parentCluster;
   /* Position in the parent cluster */
   uint16_t parentIndex;
+
 #ifdef CONFIG_UNICODE
   /* First name entry position in the parent cluster */
   uint16_t nameIndex;
@@ -192,6 +192,8 @@ struct FatNode
 
   /* Status flags */
   uint8_t flags;
+  /* Number of LFN entries */
+  uint8_t lfn;
 };
 /*----------------------------------------------------------------------------*/
 /* Directory entry or long file name entry */
@@ -266,7 +268,7 @@ struct BootSectorImage
   uint32_t tableSize;        /* Sectors per FAT record */
   char unused3[4];
   uint32_t rootCluster;      /* Root directory cluster */
-  uint16_t infoSector;       /* Sector number for information sector */
+  uint16_t infoSector;       /* Information sector number */
   char unused4[460];
   uint16_t bootSignature;    /* 0xAA55 */
 } __attribute__((packed));
