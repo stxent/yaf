@@ -7,7 +7,7 @@
 #ifndef YAF_FAT32_DEFS_H_
 #define YAF_FAT32_DEFS_H_
 /*----------------------------------------------------------------------------*/
-#include <yaf/pointer_list.h>
+#include <yaf/pointer_array.h>
 #include <yaf/pointer_queue.h>
 #include <xcore/bits.h>
 #include <xcore/fs/fs.h>
@@ -37,8 +37,7 @@
 /* Sector size in bytes */
 #define SECTOR_SIZE             (1 << SECTOR_EXP)
 /*----------------------------------------------------------------------------*/
-/* Default pool sizes */
-#define DEFAULT_NODE_COUNT      4
+/* Default pool size */
 #define DEFAULT_THREAD_COUNT    1
 /*----------------------------------------------------------------------------*/
 #define FLAG_RO                 BIT(0) /* Read only */
@@ -90,6 +89,17 @@
 /* Length of both entry name and extension */
 #define NAME_LENGTH             (BASENAME_LENGTH + EXTENSION_LENGTH)
 /*----------------------------------------------------------------------------*/
+enum
+{
+  FAT_FLAG_DIR    = 0x01,
+  FAT_FLAG_FILE   = 0x02,
+  FAT_FLAG_RO     = 0x04,
+  FAT_FLAG_DIRTY  = 0x08
+};
+/*----------------------------------------------------------------------------*/
+extern const struct FsHandleClass * const FatHandle;
+extern const struct FsNodeClass * const FatNode;
+/*----------------------------------------------------------------------------*/
 struct CommandContext
 {
   uint32_t sector;
@@ -102,14 +112,6 @@ struct Pool
   PointerQueue queue;
 };
 /*----------------------------------------------------------------------------*/
-enum
-{
-  FAT_FLAG_DIR    = 0x01,
-  FAT_FLAG_FILE   = 0x02,
-  FAT_FLAG_RO     = 0x04,
-  FAT_FLAG_DIRTY  = 0x08
-};
-/*----------------------------------------------------------------------------*/
 struct FatHandle
 {
   struct FsHandle base;
@@ -117,20 +119,19 @@ struct FatHandle
   struct FsHandle *head;
   struct Interface *interface;
 
-#ifdef CONFIG_POOLS
-  struct Pool nodePool;
-#endif
+  struct
+  {
+    struct Pool contexts;
+    struct Pool nodes;
+  } pools;
 
 #ifdef CONFIG_THREADS
-  struct Pool contextPool;
   struct Mutex consistencyMutex;
   struct Mutex memoryMutex;
-#else
-  struct CommandContext *context;
 #endif
 
 #ifdef CONFIG_WRITE
-  PointerList openedFiles;
+  PointerArray openedFiles;
 #endif
 
   /* Number of the first sector containing cluster data */
@@ -159,7 +160,7 @@ struct FatNodeConfig
 {
   struct FsHandle *handle;
 };
-/*----------------------------------------------------------------------------*/
+
 struct FatNode
 {
   struct FsNode base;

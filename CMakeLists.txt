@@ -11,7 +11,6 @@ option(USE_LTO "Enable Link Time Optimization." OFF)
 set(FS_NAME_LENGTH 64 CACHE STRING "Maximum length of filesystem entry name in bytes.")
 
 # Library configuration
-option(YAF_CONFIG_POOLS "Build driver with statically allocated buffers." ON)
 option(YAF_CONFIG_THREADS "Enable multithreading." ON)
 option(YAF_CONFIG_UNICODE "Enable support for Unicode characters." ON)
 option(YAF_CONFIG_WRITE "Enable write functions." ON)
@@ -30,14 +29,14 @@ if(${BUILD_TESTS})
 endif()
 
 find_package(xcore QUIET)
-if(NOT xcore_FOUND)
-    message(STATUS "Package information for xcore not found")
+if(xcore_FOUND)
+    message(STATUS "Found xcore package")
 endif()
 
 if(${YAF_CONFIG_THREADS})
     find_package(osw QUIET)
-    if(NOT osw_FOUND)
-        message(STATUS "Package information for osw not found")
+    if(osw_FOUND)
+        message(STATUS "Found osw package")
     endif()
 endif()
 
@@ -51,6 +50,11 @@ endif()
 add_subdirectory(sources)
 add_library(${PROJECT_NAME} $<TARGET_OBJECTS:yaf_generic>)
 target_link_libraries(${PROJECT_NAME} PUBLIC yaf_generic)
+
+if(${BUILD_TESTS})
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 # Library installation configuration
 install(TARGETS ${PROJECT_NAME}

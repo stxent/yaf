@@ -14,13 +14,10 @@ install(TARGETS yaf_generic EXPORT yaf-targets PUBLIC_HEADER DESTINATION include
 
 string(TOLOWER ${CMAKE_SYSTEM_NAME} OS_TYPE)
 target_compile_definitions(yaf_generic PRIVATE
-      -DOS_TYPE=${OS_TYPE}
-      -DCONFIG_DEBUG=${YAF_CONFIG_DEBUG}
-      -DCONFIG_NAME_LENGTH=${FS_NAME_LENGTH}
-      -DCONFIG_SECTOR_SIZE=${YAF_CONFIG_SECTOR_SIZE})
-if(${YAF_CONFIG_POOLS})
-    target_compile_definitions(yaf_generic PRIVATE -DCONFIG_POOLS)
-endif()
+        -DOS_TYPE=${OS_TYPE}
+        -DCONFIG_DEBUG=${YAF_CONFIG_DEBUG}
+        -DCONFIG_NAME_LENGTH=${FS_NAME_LENGTH}
+        -DCONFIG_SECTOR_SIZE=${YAF_CONFIG_SECTOR_SIZE})
 if(${YAF_CONFIG_THREADS})
     target_compile_definitions(yaf_generic PRIVATE -DCONFIG_THREADS)
 endif()

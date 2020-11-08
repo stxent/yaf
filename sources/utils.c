@@ -20,10 +20,15 @@ enum Result fat32MakeFs(struct Interface *interface,
 
   const uint32_t sectorsPerCluster = config->clusterSize >> SECTOR_EXP;
   const uint32_t sectorCount = MIN(partitionSize, UINT32_MAX);
+
+  if (sectorCount < 2 + sectorsPerCluster + config->tableCount)
+    return E_VALUE;
+
   const uint32_t clusterCount =
       ((sectorCount - 2) * CELL_COUNT - config->tableCount * (CELL_COUNT - 1))
           / (config->tableCount + sectorsPerCluster * CELL_COUNT);
 
+  static const uint64_t bootPosition = 0;
   struct BootSectorImage bImage;
 
   memset(bImage.unused0, 0, sizeof(bImage.unused0));
@@ -52,10 +57,12 @@ enum Result fat32MakeFs(struct Interface *interface,
   memset(bImage.unused4, 0, sizeof(bImage.unused4));
   bImage.bootSignature = TO_BIG_ENDIAN_16(0x55AA);
 
-  static const uint64_t pos0 = 0;
-  ifSetParam(interface, IF_POSITION_64, &pos0);
-  ifWrite(interface, &bImage, sizeof(bImage));
+  if ((res = ifSetParam(interface, IF_POSITION_64, &bootPosition)) != E_OK)
+    return res;
+  if (ifWrite(interface, &bImage, sizeof(bImage)) != sizeof(bImage))
+    return ifGetParam(interface, IF_STATUS, 0);
 
+  static const uint64_t infoPosition = 1 << SECTOR_EXP;
   struct InfoSectorImage iImage;
 
   iImage.firstSignature = TO_BIG_ENDIAN_32(0x52526141UL);
@@ -66,9 +73,10 @@ enum Result fat32MakeFs(struct Interface *interface,
   memset(iImage.unused1, 0, sizeof(iImage.unused1));
   iImage.bootSignature = TO_BIG_ENDIAN_16(0x55AA);
 
-  static const uint64_t pos1 = 1 << SECTOR_EXP;
-  ifSetParam(interface, IF_POSITION_64, &pos1);
-  ifWrite(interface, &iImage, sizeof(iImage));
+  if ((res = ifSetParam(interface, IF_POSITION_64, &infoPosition)) != E_OK)
+    return res;
+  if (ifWrite(interface, &iImage, sizeof(iImage)) != sizeof(iImage))
+    return ifGetParam(interface, IF_STATUS, 0);
 
   /* Format FAT tables */
   for (uint32_t i = 0; i < bImage.tableSize; ++i)
@@ -98,7 +106,7 @@ enum Result fat32MakeFs(struct Interface *interface,
       if ((res = ifSetParam(interface, IF_POSITION_64, &position)) != E_OK)
         return res;
       if (ifWrite(interface, buffer, sizeof(buffer)) != sizeof(buffer))
-        return res;
+        return ifGetParam(interface, IF_STATUS, 0);
     }
   }
 
@@ -108,6 +116,14 @@ enum Result fat32MakeFs(struct Interface *interface,
     uint8_t buffer[1 << SECTOR_EXP];
     memset(buffer, 0, sizeof(buffer));
 
+    /* Add volume label */
+    if (config->label)
+    {
+      struct DirEntryImage * const entry = (struct DirEntryImage *)buffer;
+      memcpy(entry->filename, config->label, strlen(config->label));
+      entry->flags = FLAG_VOLUME;
+    }
+
     const uint32_t sectors = i + bImage.reservedSectors
         + bImage.tableSize * bImage.tableCount;
     const uint64_t position = (uint64_t)sectors << SECTOR_EXP;
@@ -115,7 +131,7 @@ enum Result fat32MakeFs(struct Interface *interface,
     if ((res = ifSetParam(interface, IF_POSITION_64, &position)) != E_OK)
       return res;
     if (ifWrite(interface, buffer, sizeof(buffer)) != sizeof(buffer))
-      return res;
+      return ifGetParam(interface, IF_STATUS, 0);
   }
 
   return E_OK;

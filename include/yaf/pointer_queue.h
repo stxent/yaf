@@ -8,12 +8,7 @@
 #define YAF_POINTER_QUEUE_H_
 /*----------------------------------------------------------------------------*/
 #include <xcore/containers/tg_queue.h>
-#include <xcore/helpers.h>
 /*----------------------------------------------------------------------------*/
-BEGIN_DECLS
-
 DEFINE_QUEUE(void *, Pointer, pointer)
-
-END_DECLS
 /*----------------------------------------------------------------------------*/
 #endif /* YAF_POINTER_QUEUE_H_ */

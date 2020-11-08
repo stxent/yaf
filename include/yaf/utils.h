@@ -13,6 +13,7 @@ struct Fat32FsConfig
 {
   size_t clusterSize;
   size_t tableCount;
+  const char *label;
 };
 /*----------------------------------------------------------------------------*/
 BEGIN_DECLS
