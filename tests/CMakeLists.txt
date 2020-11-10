@@ -32,7 +32,6 @@ set(TEST_LIST
         context_failures
         dir_read
         handle_failures
-        handle_funcs
         make_fs
         node_read
         node_read_failures
@@ -53,6 +52,7 @@ endif()
 if(${YAF_CONFIG_WRITE})
     list(APPEND TEST_LIST dir_write)
     list(APPEND TEST_LIST dir_write_failures)
+    list(APPEND TEST_LIST handle_funcs)
     list(APPEND TEST_LIST node_write)
     list(APPEND TEST_LIST node_write_failures)
 endif()

@@ -7,6 +7,7 @@
 #include "default_fs.h"
 #include "virtual_mem.h"
 #include <xcore/fs/utils.h>
+#include <xcore/realtime.h>
 #include <yaf/fat32.h>
 #include <yaf/utils.h>
 #include <check.h>
