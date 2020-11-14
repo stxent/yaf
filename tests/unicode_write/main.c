@@ -135,12 +135,18 @@ END_TEST
 /*----------------------------------------------------------------------------*/
 START_TEST(testNameOverflow)
 {
-  /* Default LFN buffer length is 64 / 2 */
-  static const char path[] =
-      PATH_HOME_USER "/padding_padding_padding_padding_name.txt";
+  char path[CONFIG_NAME_LENGTH];
+  char *position = path;
+
+  *position++ = '/';
+  for (size_t i = 0; i < CONFIG_NAME_LENGTH * 2 / 3; ++i)
+    *position++ = '_';
+  memcpy(position, ".txt\0", 5);
 
   const char * const name = fsExtractName(path);
   ck_assert_ptr_nonnull(name);
+  printf("path = %s\r\n", path);
+  printf("name = %s\r\n", name);
 
   struct TestContext context = makeTestHandle();
   struct FsNode * const parent = fsOpenBaseNode(context.handle, path);
