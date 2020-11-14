@@ -35,8 +35,8 @@ static bool inForbiddenRegion(struct VirtualMem *, uint64_t, uint8_t);
 
 static enum Result vmemInit(void *, const void *);
 static void vmemDeinit(void *);
-static enum Result vmemGetParam(void *, enum IfParameter, void *);
-static enum Result vmemSetParam(void *, enum IfParameter, const void *);
+static enum Result vmemGetParam(void *, int, void *);
+static enum Result vmemSetParam(void *, int, const void *);
 static size_t vmemRead(void *, void *, size_t);
 static size_t vmemWrite(void *, const void *, size_t);
 /*----------------------------------------------------------------------------*/
@@ -118,12 +118,11 @@ static void vmemDeinit(void *object)
   vmemRegionListDeinit(&dev->regions);
 }
 /*----------------------------------------------------------------------------*/
-static enum Result vmemGetParam(void *object, enum IfParameter parameter,
-    void *data)
+static enum Result vmemGetParam(void *object, int parameter, void *data)
 {
   struct VirtualMem * const dev = object;
 
-  switch (parameter)
+  switch ((enum IfParameter)parameter)
   {
     case IF_POSITION_64:
       *(uint64_t *)data = (uint64_t)dev->position;
@@ -146,12 +145,11 @@ static enum Result vmemGetParam(void *object, enum IfParameter parameter,
   }
 }
 /*----------------------------------------------------------------------------*/
-static enum Result vmemSetParam(void *object, enum IfParameter parameter,
-    const void *data)
+static enum Result vmemSetParam(void *object, int parameter, const void *data)
 {
   struct VirtualMem * const dev = object;
 
-  switch (parameter)
+  switch ((enum IfParameter)parameter)
   {
     case IF_POSITION_64:
     {
