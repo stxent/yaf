@@ -1,7 +1,7 @@
 /*
  * yaf/fat32_pools.h
  * Copyright (C) 2020 xent
- * Project is distributed under the terms of the GNU General Public License v3.0
+ * Project is distributed under the terms of the MIT License
  */
 
 #ifndef YAF_FAT32_POOLS_H_
