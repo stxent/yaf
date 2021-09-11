@@ -18,7 +18,7 @@ struct Fat32FsConfig
 /*----------------------------------------------------------------------------*/
 BEGIN_DECLS
 
-enum Result fat32MakeFs(struct Interface *, const struct Fat32FsConfig *);
+enum Result fat32MakeFs(void *, const struct Fat32FsConfig *);
 
 END_DECLS
 /*----------------------------------------------------------------------------*/

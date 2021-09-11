@@ -8,8 +8,7 @@
 #include <yaf/utils.h>
 #include <xcore/memory.h>
 /*----------------------------------------------------------------------------*/
-enum Result fat32MakeFs(struct Interface *interface,
-    const struct Fat32FsConfig *config)
+enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config)
 {
   uint64_t partitionSize;
   enum Result res;

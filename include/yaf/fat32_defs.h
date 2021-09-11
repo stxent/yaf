@@ -58,6 +58,8 @@
 /*----------------------------------------------------------------------------*/
 /* End of cluster chain value */
 #define CLUSTER_EOC_VAL         0x0FFFFFF8UL
+/* Index of the first cluster of the data region */
+#define CLUSTER_OFFSET          2
 /* Reserved cluster value */
 #define CLUSTER_RES_VAL         0x0FFFFFFFUL
 /* Directory entry free flag */

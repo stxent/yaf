@@ -417,7 +417,7 @@ static enum Result mountStorage(struct FatHandle *handle)
   handle->tableCount = boot->tableCount;
   handle->tableSize = fromLittleEndian32(boot->tableSize);
   handle->clusterCount = ((fromLittleEndian32(boot->partitionSize)
-      - handle->dataSector) >> handle->clusterSize) + 2;
+      - handle->dataSector) >> handle->clusterSize) + CLUSTER_OFFSET;
   handle->infoSector = fromLittleEndian16(boot->infoSector);
 
   DEBUG_PRINT(1, "fat32: info sector:    %"PRIu16"\n", handle->infoSector);
@@ -807,7 +807,7 @@ static enum Result allocateCluster(struct CommandContext *context,
     enum Result res;
 
     if (currentCluster >= handle->clusterCount)
-      currentCluster = 2;
+      currentCluster = CLUSTER_OFFSET;
 
     uint32_t * const address = (uint32_t *)(context->buffer
         + CELL_OFFSET(currentCluster));
