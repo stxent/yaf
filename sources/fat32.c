@@ -23,6 +23,7 @@ static enum Result allocateBuffers(struct FatHandle *,
     const struct Fat32Config * const);
 static enum Result fetchEntry(struct CommandContext *, struct FatNode *);
 static enum Result fetchNode(struct CommandContext *, struct FatNode *);
+static enum Result findChainLength(struct FatNode *, uint32_t *);
 static void freeBuffers(struct FatHandle *, enum Cleanup);
 static enum Result getNextCluster(struct CommandContext *, struct FatHandle *,
     uint32_t *);
@@ -315,6 +316,39 @@ static enum Result fetchNode(struct CommandContext *context,
 #endif
 
   return E_OK;
+}
+/*----------------------------------------------------------------------------*/
+static enum Result findChainLength(struct FatNode *node, uint32_t *result)
+{
+  struct FatHandle * const handle = (struct FatHandle *)node->handle;
+  struct CommandContext * const context = allocatePoolContext(handle);
+
+  if (!context)
+    return E_MEMORY;
+
+  uint32_t clusters = 0;
+  uint32_t current = node->payloadCluster;
+  enum Result res = E_EMPTY;
+
+  if (current != RESERVED_CLUSTER)
+  {
+    do
+    {
+      ++clusters;
+      res = getNextCluster(context, handle, &current);
+    }
+    while (res == E_OK);
+  }
+
+  if (res == E_EMPTY)
+  {
+    if (result)
+      *result = clusters;
+    res = E_OK;
+  }
+
+  freePoolContext(handle, context);
+  return res;
 }
 /*----------------------------------------------------------------------------*/
 static void freeBuffers(struct FatHandle *handle, enum Cleanup step)
@@ -2120,6 +2154,33 @@ static enum Result fatNodeLength(void *object, enum FsFieldType type,
 
     case FS_NODE_NAME:
       len = node->nameLength + 1;
+      break;
+
+    case FS_NODE_SPACE:
+      if (node->flags & FAT_FLAG_FILE)
+      {
+        struct FatHandle * const handle = (struct FatHandle *)node->handle;
+        const uint32_t clusterSizeMask =
+            (1U << (handle->clusterSize + SECTOR_EXP)) - 1;
+
+        len = (node->payloadSize + clusterSizeMask) & ~clusterSizeMask;
+      }
+      else
+      {
+        uint32_t clusters;
+        const enum Result res = findChainLength(node, &clusters);
+
+        if (res == E_OK)
+        {
+          struct FatHandle * const handle = (struct FatHandle *)node->handle;
+          const uint32_t clusterSize =
+              1U << (handle->clusterSize + SECTOR_EXP);
+
+          len = (FsLength)clusterSize * clusters;
+        }
+        else
+          return res;
+      }
       break;
 
     case FS_NODE_TIME:

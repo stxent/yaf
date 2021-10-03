@@ -32,6 +32,7 @@ set(TEST_LIST
         context_failures
         dir_read
         handle_failures
+        handle_usage
         make_fs
         node_read
         node_read_failures
