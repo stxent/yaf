@@ -5,8 +5,90 @@
  */
 
 #include <yaf/fat32_defs.h>
+#include <yaf/fat32_helpers.h>
 #include <yaf/utils.h>
+#include <xcore/interface.h>
 #include <xcore/memory.h>
+/*----------------------------------------------------------------------------*/
+static enum Result readSector(void *, uint32_t, uint8_t *, size_t);
+/*----------------------------------------------------------------------------*/
+static enum Result readSector(void *interface, uint32_t sector,
+    uint8_t *buffer, size_t length)
+{
+  const uint64_t position = (uint64_t)sector << SECTOR_EXP;
+  enum Result res;
+
+  ifSetParam(interface, IF_ACQUIRE, 0);
+
+  res = ifSetParam(interface, IF_POSITION_64, &position);
+  if (res == E_OK)
+  {
+    if (ifRead(interface, buffer, length) != length)
+      res = ifGetParam(interface, IF_STATUS, 0);
+  }
+
+  ifSetParam(interface, IF_RELEASE, 0);
+  return res;
+}
+/*----------------------------------------------------------------------------*/
+FsCapacity fat32GetCapacity(const void *object)
+{
+  const struct FatHandle * const handle = object;
+  const uint32_t clusterSize = SECTOR_SIZE * (1 << handle->clusterSize);
+  const uint32_t clustersTotal = handle->clusterCount - CLUSTER_OFFSET;
+
+  return (FsCapacity)clusterSize * clustersTotal;
+}
+/*----------------------------------------------------------------------------*/
+size_t fat32GetClusterSize(const void *object)
+{
+  const struct FatHandle * const handle = object;
+  return (size_t)(SECTOR_SIZE * (1 << handle->clusterSize));
+}
+/*----------------------------------------------------------------------------*/
+enum Result fat32GetUsage(void *object, void *arena, size_t length,
+    FsCapacity *result)
+{
+  const struct FatHandle * const handle = object;
+  uint8_t * const buffer = arena;
+  uint32_t cluster = 0;
+  uint32_t used = 0;
+  enum Result res = E_OK;
+
+  while (cluster < handle->clusterCount)
+  {
+    if ((cluster & (length / sizeof(uint32_t) - 1)) == 0)
+    {
+      if (cluster == 0)
+        cluster = CLUSTER_OFFSET;
+
+      const uint32_t sector = handle->tableSector + (cluster >> CELL_COUNT);
+
+      res = readSector(handle->interface, sector, buffer, length);
+      if (res != E_OK)
+        break;
+    }
+
+    uint32_t offset = (cluster & (length / sizeof(uint32_t) - 1)) << 2;
+    uint32_t value;
+
+    memcpy(&value, buffer + offset, sizeof(value));
+    value = fromLittleEndian32(value);
+
+    if (!isClusterFree(value))
+      ++used;
+
+    ++cluster;
+  }
+
+  if (res == E_OK)
+  {
+    const uint32_t size = 1U << (handle->clusterSize + SECTOR_EXP);
+    *result = (FsCapacity)size * used;
+  }
+
+  return res;
+}
 /*----------------------------------------------------------------------------*/
 enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config)
 {

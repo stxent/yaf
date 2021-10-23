@@ -27,6 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #define PATH_BOOT             "/BOOT"
 #define PATH_HOME             "/HOME"
+#define PATH_IMAGE            "/IMAGE.BMP"
 #define PATH_LIB              "/LIB"
 #define PATH_SYS              "/SYS"
 

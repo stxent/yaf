@@ -23,7 +23,8 @@ static enum Result allocateBuffers(struct FatHandle *,
     const struct Fat32Config * const);
 static enum Result fetchEntry(struct CommandContext *, struct FatNode *);
 static enum Result fetchNode(struct CommandContext *, struct FatNode *);
-static enum Result findChainLength(struct FatNode *, uint32_t *);
+static enum Result findChainLength(struct CommandContext *, struct FatNode *,
+    uint32_t *);
 static void freeBuffers(struct FatHandle *, enum Cleanup);
 static enum Result getNextCluster(struct CommandContext *, struct FatHandle *,
     uint32_t *);
@@ -32,8 +33,10 @@ static enum Result readBuffer(struct FatHandle *, uint32_t, uint8_t *,
     uint32_t);
 static enum Result readClusterChain(struct CommandContext *,
     struct FatNode *, uint32_t, uint8_t *, uint32_t);
-static void readNodeAccess(struct FatNode *, void *);
-static void readNodeId(struct FatNode *, void *);
+static void readNodeAccess(struct FatNode *, FsAccess *);
+static enum Result readNodeCapacity(struct CommandContext *, struct FatNode *,
+    FsCapacity *);
+static void readNodeId(struct FatNode *, FsIdentifier *);
 static enum Result readNodeData(struct CommandContext *, struct FatNode *,
     FsLength, void *, size_t, size_t *);
 static enum Result readNodeName(struct CommandContext *, struct FatNode *,
@@ -318,14 +321,10 @@ static enum Result fetchNode(struct CommandContext *context,
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-static enum Result findChainLength(struct FatNode *node, uint32_t *result)
+static enum Result findChainLength(struct CommandContext *context,
+    struct FatNode *node, uint32_t *result)
 {
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
-  struct CommandContext * const context = allocatePoolContext(handle);
-
-  if (!context)
-    return E_MEMORY;
-
   uint32_t clusters = 0;
   uint32_t current = node->payloadCluster;
   enum Result res = E_EMPTY;
@@ -347,7 +346,6 @@ static enum Result findChainLength(struct FatNode *node, uint32_t *result)
     res = E_OK;
   }
 
-  freePoolContext(handle, context);
   return res;
 }
 /*----------------------------------------------------------------------------*/
@@ -600,7 +598,7 @@ static enum Result readClusterChain(struct CommandContext *context,
   return E_OK;
 }
 /*----------------------------------------------------------------------------*/
-static void readNodeAccess(struct FatNode *node, void *buffer)
+static void readNodeAccess(struct FatNode *node, FsAccess *buffer)
 {
   FsAccess value = FS_ACCESS_READ;
 
@@ -610,10 +608,43 @@ static void readNodeAccess(struct FatNode *node, void *buffer)
   memcpy(buffer, &value, sizeof(value));
 }
 /*----------------------------------------------------------------------------*/
-static void readNodeId(struct FatNode *node, void *buffer)
+static enum Result readNodeCapacity(struct CommandContext *context,
+    struct FatNode *node, FsCapacity *buffer)
 {
-  const uint64_t value = (uint64_t)node->parentIndex
-      | ((uint64_t)node->parentCluster << 16);
+  FsCapacity value = 0;
+  enum Result res = E_OK;
+
+  if (node->flags & FAT_FLAG_FILE)
+  {
+    struct FatHandle * const handle = (struct FatHandle *)node->handle;
+    const FsCapacity mask = (1U << (handle->clusterSize + SECTOR_EXP)) - 1;
+
+    value = ((FsCapacity)node->payloadSize + mask) & ~mask;
+  }
+  else
+  {
+    uint32_t clusters;
+
+    res = findChainLength(context, node, &clusters);
+    if (res == E_OK)
+    {
+      struct FatHandle * const handle = (struct FatHandle *)node->handle;
+      const uint32_t size = 1U << (handle->clusterSize + SECTOR_EXP);
+
+      value = (FsCapacity)size * clusters;
+    }
+  }
+
+  if (res == E_OK)
+    memcpy(buffer, &value, sizeof(value));
+
+  return res;
+}
+/*----------------------------------------------------------------------------*/
+static void readNodeId(struct FatNode *node, FsIdentifier *buffer)
+{
+  const FsIdentifier value = (FsIdentifier)node->parentIndex
+      | ((FsIdentifier)node->parentCluster << 16);
 
   memcpy(buffer, &value, sizeof(value));
 }
@@ -2141,6 +2172,10 @@ static enum Result fatNodeLength(void *object, enum FsFieldType type,
       len = sizeof(FsAccess);
       break;
 
+    case FS_NODE_CAPACITY:
+      len = sizeof(FsCapacity);
+      break;
+
     case FS_NODE_DATA:
       if (node->flags & FAT_FLAG_FILE)
         len = node->payloadSize;
@@ -2149,38 +2184,11 @@ static enum Result fatNodeLength(void *object, enum FsFieldType type,
       break;
 
     case FS_NODE_ID:
-      len = sizeof(uint64_t);
+      len = sizeof(FsIdentifier);
       break;
 
     case FS_NODE_NAME:
       len = node->nameLength + 1;
-      break;
-
-    case FS_NODE_SPACE:
-      if (node->flags & FAT_FLAG_FILE)
-      {
-        struct FatHandle * const handle = (struct FatHandle *)node->handle;
-        const uint32_t clusterSizeMask =
-            (1U << (handle->clusterSize + SECTOR_EXP)) - 1;
-
-        len = (node->payloadSize + clusterSizeMask) & ~clusterSizeMask;
-      }
-      else
-      {
-        uint32_t clusters;
-        const enum Result res = findChainLength(node, &clusters);
-
-        if (res == E_OK)
-        {
-          struct FatHandle * const handle = (struct FatHandle *)node->handle;
-          const uint32_t clusterSize =
-              1U << (handle->clusterSize + SECTOR_EXP);
-
-          len = (FsLength)clusterSize * clusters;
-        }
-        else
-          return res;
-      }
       break;
 
     case FS_NODE_TIME:
@@ -2239,33 +2247,30 @@ static enum Result fatNodeRead(void *object, enum FsFieldType type,
   switch (type)
   {
     case FS_NODE_ACCESS:
-      if (position > 0 || length < sizeof(FsAccess))
-      {
-        res = E_VALUE;
-      }
-      else
+      if (position == 0 && length >= sizeof(FsAccess))
       {
         readNodeAccess(node, buffer);
         bytesRead = sizeof(FsAccess);
         res = E_OK;
       }
+      else
+        res = E_VALUE;
       processed = true;
       break;
 
     case FS_NODE_ID:
-      if (position > 0 || length < sizeof(uint64_t))
-      {
-        res = E_VALUE;
-      }
-      else
+      if (position == 0 && length >= sizeof(FsIdentifier))
       {
         readNodeId(node, buffer);
-        bytesRead = sizeof(uint64_t);
+        bytesRead = sizeof(FsIdentifier);
         res = E_OK;
       }
+      else
+        res = E_VALUE;
       processed = true;
       break;
 
+    case FS_NODE_CAPACITY:
     case FS_NODE_DATA:
     case FS_NODE_NAME:
     case FS_NODE_TIME:
@@ -2289,7 +2294,18 @@ static enum Result fatNodeRead(void *object, enum FsFieldType type,
   if (!context)
     return E_MEMORY;
 
-  if (type == FS_NODE_DATA)
+  if (type == FS_NODE_CAPACITY)
+  {
+    if (position == 0 && length >= sizeof(FsCapacity))
+    {
+      res = readNodeCapacity(context, node, buffer);
+      if (res == E_OK)
+        bytesRead = sizeof(FsCapacity);
+    }
+    else
+      res = E_VALUE;
+  }
+  else if (type == FS_NODE_DATA)
   {
     res = readNodeData(context, node, position, buffer, length, &bytesRead);
   }
@@ -2302,16 +2318,14 @@ static enum Result fatNodeRead(void *object, enum FsFieldType type,
   }
   else if (type == FS_NODE_TIME)
   {
-    if (position > 0 || length < sizeof(time64_t))
-    {
-      res = E_VALUE;
-    }
-    else
+    if (position == 0 && length >= sizeof(time64_t))
     {
       res = readNodeTime(context, node, buffer);
       if (res == E_OK)
         bytesRead = sizeof(time64_t);
     }
+    else
+      res = E_VALUE;
   }
 
   freePoolContext(handle, context);
