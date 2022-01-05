@@ -9,7 +9,7 @@ add_library(yaf_shared ${SHARED_SOURCES})
 target_compile_definitions(yaf_shared PUBLIC _POSIX_C_SOURCE=200809L)
 target_compile_options(yaf_shared PUBLIC --coverage)
 target_include_directories(yaf_shared PUBLIC "shared")
-target_link_libraries(yaf_shared PUBLIC xcore yaf check gcov pthread)
+target_link_libraries(yaf_shared PUBLIC xcore yaf check gcov)
 
 string(TOLOWER ${CMAKE_SYSTEM_NAME} OS_TYPE)
 target_compile_definitions(yaf_shared PUBLIC
@@ -18,6 +18,7 @@ target_compile_definitions(yaf_shared PUBLIC
         -DCONFIG_SECTOR_SIZE=${YAF_CONFIG_SECTOR_SIZE})
 if(${YAF_CONFIG_THREADS})
     target_compile_definitions(yaf_shared PUBLIC -DCONFIG_THREADS)
+    target_link_libraries(yaf_shared PUBLIC osw)
 endif()
 if(${YAF_CONFIG_UNICODE})
     target_compile_definitions(yaf_shared PUBLIC -DCONFIG_UNICODE)

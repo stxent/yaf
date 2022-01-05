@@ -6,27 +6,26 @@
 
 #include "default_fs.h"
 #include "virtual_mem.h"
+#include <osw/mutex.h>
 #include <yaf/fat32.h>
 #include <yaf/utils.h>
 #include <check.h>
+#include <pthread.h>
 #include <stdlib.h>
 /*----------------------------------------------------------------------------*/
-extern int __pthread_mutex_init(pthread_mutex_t *, const pthread_mutexattr_t *);
-
 static unsigned int pthreadHookFails = 0;
 
-int pthread_mutex_init(pthread_mutex_t *restrict mutex,
-    const pthread_mutexattr_t *restrict attr)
+enum Result mutexInit(struct Mutex *mutex)
 {
   if (pthreadHookFails)
   {
     if (--pthreadHookFails)
-      return __pthread_mutex_init(mutex, attr);
+      return pthread_mutex_init(&mutex->handle, 0) == 0 ? E_OK : E_ERROR;
     else
-      return -1;
+      return E_ERROR;
   }
   else
-    return __pthread_mutex_init(mutex, attr);
+    return pthread_mutex_init(&mutex->handle, 0) == 0 ? E_OK : E_ERROR;
 }
 /*----------------------------------------------------------------------------*/
 START_TEST(testMutexInitError)

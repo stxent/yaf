@@ -53,7 +53,7 @@ START_TEST(testClusterSizeReading)
 {
   struct TestContext context = makeTestHandle();
 
-  const size_t size = fat32GetClusterSize(context.interface);
+  const size_t size = fat32GetClusterSize(context.handle);
   ck_assert_uint_eq(size, FS_CLUSTER_SIZE);
 
   freeTestHandle(context);
