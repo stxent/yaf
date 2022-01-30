@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.13)
 cmake_policy(SET CMP0054 NEW)
 cmake_policy(SET CMP0069 NEW)
 
-option(BUILD_TESTS "Enable building of test executables." OFF)
+option(BUILD_TESTING "Enable testing support." OFF)
 option(USE_LTO "Enable Link Time Optimization." OFF)
 set(FS_NAME_LENGTH 64 CACHE STRING "Maximum length of filesystem entry name in bytes.")
 
@@ -23,10 +23,6 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAGS_DEFAULT} ${FLAGS_CPU}")
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
-
-if(${BUILD_TESTS})
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage")
-endif()
 
 find_package(xcore QUIET)
 if(xcore_FOUND)
@@ -51,7 +47,7 @@ add_subdirectory(sources)
 add_library(${PROJECT_NAME} $<TARGET_OBJECTS:yaf_generic>)
 target_link_libraries(${PROJECT_NAME} PUBLIC yaf_generic)
 
-if(${BUILD_TESTS})
+if(${BUILD_TESTING})
     enable_testing()
     add_subdirectory(tests)
 endif()

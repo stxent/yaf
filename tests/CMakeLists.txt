@@ -6,7 +6,6 @@ pkg_check_modules(CHECK REQUIRED check)
 
 file(GLOB_RECURSE SHARED_SOURCES "shared/*.c")
 add_library(yaf_shared ${SHARED_SOURCES})
-target_compile_definitions(yaf_shared PUBLIC _POSIX_C_SOURCE=200809L)
 target_compile_options(yaf_shared PUBLIC --coverage)
 target_include_directories(yaf_shared PUBLIC "shared")
 target_link_libraries(yaf_shared PUBLIC xcore yaf check gcov)

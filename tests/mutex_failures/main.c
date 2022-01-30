@@ -43,7 +43,7 @@ START_TEST(testMutexInitError)
       .label = "TEST"
   };
   res = fat32MakeFs(vmem, &makeFsConfig);
-  ck_assert(res == E_OK);
+  ck_assert_uint_eq(res, E_OK);
 
   const struct Fat32Config fsConfig = {
       .interface = vmem,

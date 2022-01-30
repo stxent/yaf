@@ -59,7 +59,7 @@ static void restoreNodeAccess(struct FsHandle *handle, const char *path)
 
   const enum Result res = fsNodeWrite(node, FS_NODE_ACCESS, 0,
       &access, sizeof(access), 0);
-  ck_assert(res == E_OK);
+  ck_assert_uint_eq(res, E_OK);
 
   fsNodeFree(node);
 }
@@ -93,7 +93,7 @@ void freeNode(struct FsHandle *handle, const char *path)
   struct FsNode * const node = fsOpenNode(handle, path);
   ck_assert_ptr_nonnull(node);
   const enum Result res = fsNodeRemove(root, node);
-  ck_assert(res == E_OK);
+  ck_assert_uint_eq(res, E_OK);
 
   fsNodeFree(node);
   fsNodeFree(root);
@@ -191,7 +191,7 @@ void makeNode(struct FsHandle *handle, const char *path, bool dir, bool ro)
   };
   const size_t count = dir ? ARRAY_SIZE(desc) - 1: ARRAY_SIZE(desc);
   const enum Result res = fsNodeCreate(parent, desc, count);
-  ck_assert(res == E_OK);
+  ck_assert_uint_eq(res, E_OK);
   fsNodeFree(parent);
 
   struct FsNode *node = fsOpenNode(handle, path);
@@ -213,7 +213,7 @@ struct TestContext makeTestHandle(void)
       .label = "TEST"
   };
   const enum Result res = fat32MakeFs(vmem, &makeFsConfig);
-  ck_assert(res == E_OK);
+  ck_assert_uint_eq(res, E_OK);
 
   const struct Fat32Config fsConfig = {
       .interface = vmem,
