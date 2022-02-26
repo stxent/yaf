@@ -25,14 +25,14 @@ START_TEST(testAuxStreamErrors)
   vmemAddRegion(context.interface,
       vmemExtractDataRegion(context.interface));
   res = fsNodeRead(node, FS_NODE_NAME, 0, buffer, sizeof(buffer), 0);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ADDRESS);
     vmemClearRegions(context.interface);
 
   /* Try to read node time */
   vmemAddRegion(context.interface,
       vmemExtractDataRegion(context.interface));
   res = fsNodeRead(node, FS_NODE_TIME, 0, &timestamp, sizeof(timestamp), 0);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ADDRESS);
   vmemClearRegions(context.interface);
 
   /* Release all resources */
@@ -56,19 +56,19 @@ START_TEST(testDataReadErrors)
   /* Aligned read */
   res = fsNodeRead(node, FS_NODE_DATA,
       ALIG_FILE_SIZE - sizeof(buffer), buffer, sizeof(buffer), 0);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ADDRESS);
 
   /* Unaligned read */
   res = fsNodeRead(node, FS_NODE_DATA,
       ALIG_FILE_SIZE - sizeof(buffer) * 3 / 2, buffer, sizeof(buffer), 0);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ADDRESS);
 
   /* Seek error */
   vmemAddRegion(context.interface,
       vmemExtractTableRegion(context.interface, 0));
   res = fsNodeRead(node, FS_NODE_DATA,
       ALIG_FILE_SIZE - sizeof(buffer), buffer, sizeof(buffer), 0);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ADDRESS);
 
   /* Address setup allowed, but reading is forbidden */
   vmemClearRegions(context.interface);
@@ -78,12 +78,12 @@ START_TEST(testDataReadErrors)
   /* Aligned read */
   res = fsNodeRead(node, FS_NODE_DATA,
       ALIG_FILE_SIZE - sizeof(buffer), buffer, sizeof(buffer), 0);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
 
   /* Unaligned read */
   res = fsNodeRead(node, FS_NODE_DATA,
       ALIG_FILE_SIZE - sizeof(buffer) * 3 / 2, buffer, sizeof(buffer), 0);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
 
   /* Restore access */
   vmemClearRegions(context.interface);
@@ -113,7 +113,7 @@ START_TEST(testSequentialReadErrors)
   vmemAddRegion(context.interface,
       vmemExtractTableRegion(context.interface, 0));
   res = fsNodeRead(node, FS_NODE_DATA, position, buffer, sizeof(buffer), 0);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ADDRESS);
   vmemClearRegions(context.interface);
 
   /* Release all resources */

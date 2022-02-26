@@ -43,7 +43,7 @@ START_TEST(testCapacityReading)
   /* Read capacity failure */
 
   res = fsNodeRead(node, FS_NODE_CAPACITY, 0, &capacity, 0, 0);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   fsNodeFree(node);
   freeTestHandle(context);
@@ -173,7 +173,7 @@ START_TEST(testFullVolumeUsage)
       false, true, true);
 
   res = fat32GetUsage(handle, buffer, sizeof(buffer), &used);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
 
   vmemClearRegions(vmem);
 

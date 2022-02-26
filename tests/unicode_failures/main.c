@@ -31,15 +31,15 @@ START_TEST(testLongNameErrors)
 
   changeLfnCount(node0, 2);
   res = fsNodeRead(node0, FS_NODE_NAME, 0, buffer, sizeof(buffer), 0);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ENTRY);
 
   changeLfnCount(node1, 1);
   res = fsNodeRead(node1, FS_NODE_NAME, 0, buffer, sizeof(buffer), 0);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_MEMORY);
 
   changeLfnCount(node1, 127);
   res = fsNodeRead(node1, FS_NODE_NAME, 0, buffer, sizeof(buffer), 0);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_MEMORY);
 
   /* Release all resources */
   fsNodeFree(node1);

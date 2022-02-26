@@ -41,7 +41,7 @@ START_TEST(testNameAllocationError0)
       vmemExtractNodeDataRegion(context.interface, parent, 1),
       false, true, true);
   res = fsNodeCreate(parent, desc, ARRAY_SIZE(desc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
   vmemClearRegions(context.interface);
 
   /* Release all resources */
@@ -80,7 +80,7 @@ START_TEST(testNameAllocationError1)
       vmemExtractNodeDataRegion(context.interface, parent, 0),
       true, false, true);
   res = fsNodeCreate(parent, desc, ARRAY_SIZE(desc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
   vmemClearRegions(context.interface);
 
   /* Release all resources */
@@ -120,7 +120,7 @@ START_TEST(testNameAllocationError2)
   vmemAddMarkedRegion(context.interface,
       vmemExtractTableRegion(context.interface, 0), false, true, true);
   res = fsNodeCreate(parent, desc, ARRAY_SIZE(desc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
   vmemClearRegions(context.interface);
 
   /* Release all resources */

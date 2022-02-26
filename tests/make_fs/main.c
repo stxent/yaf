@@ -41,14 +41,14 @@ START_TEST(testMemoryErrors)
   vmem = init(VirtualMem, &vmemConfigZero);
   ck_assert_ptr_nonnull(vmem);
   res = fat32MakeFs(vmem, &makeFsConfig);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_MEMORY);
   deinit(vmem);
 
   /* Cluster calculation error */
   vmem = init(VirtualMem, &vmemConfigTiny);
   ck_assert_ptr_nonnull(vmem);
   res = fat32MakeFs(vmem, &makeFsConfig);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
   deinit(vmem);
 
   /* Boot sector addressing and writing errors */
@@ -56,10 +56,10 @@ START_TEST(testMemoryErrors)
   ck_assert_ptr_nonnull(vmem);
   vmemAddMarkedRegion(vmem, vmemExtractBootRegion(), false, false, true);
   res = fat32MakeFs(vmem, &makeFsConfig);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
   vmemAddMarkedRegion(vmem, vmemExtractBootRegion(), false, false, false);
   res = fat32MakeFs(vmem, &makeFsConfig);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ADDRESS);
   deinit(vmem);
 
   /* Info sector addressing and writing errors */
@@ -67,10 +67,10 @@ START_TEST(testMemoryErrors)
   ck_assert_ptr_nonnull(vmem);
   vmemAddMarkedRegion(vmem, vmemExtractInfoRegion(), false, false, true);
   res = fat32MakeFs(vmem, &makeFsConfig);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
   vmemAddMarkedRegion(vmem, vmemExtractInfoRegion(), false, false, false);
   res = fat32MakeFs(vmem, &makeFsConfig);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ADDRESS);
   deinit(vmem);
 
   /* Table addressing and writing errors */
@@ -79,11 +79,11 @@ START_TEST(testMemoryErrors)
   vmemAddMarkedRegion(vmem, vmemExtractTableRegion(vref, 0),
       false, false, true);
   res = fat32MakeFs(vmem, &makeFsConfig);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
   vmemAddMarkedRegion(vmem, vmemExtractTableRegion(vref, 0),
       false, false, false);
   res = fat32MakeFs(vmem, &makeFsConfig);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ADDRESS);
   deinit(vmem);
 
   /* Root cluster addressing and writing errors */
@@ -92,11 +92,11 @@ START_TEST(testMemoryErrors)
   vmemAddMarkedRegion(vmem, vmemExtractRootDataRegion(vref),
       false, false, true);
   res = fat32MakeFs(vmem, &makeFsConfig);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
   vmemAddMarkedRegion(vmem, vmemExtractRootDataRegion(vref),
       false, false, false);
   res = fat32MakeFs(vmem, &makeFsConfig);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ADDRESS);
   deinit(vmem);
 
   /* Free reference partition */

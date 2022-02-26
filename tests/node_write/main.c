@@ -230,15 +230,15 @@ START_TEST(testAccessWrite)
   access = FS_ACCESS_WRITE;
   res = fsNodeWrite(node, FS_NODE_ACCESS, 0,
       &access, sizeof(access), &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   /* Try unaligned write to access flags */
   res = fsNodeWrite(node, FS_NODE_ACCESS, 1,
       &access, sizeof(access), &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
   res = fsNodeWrite(node, FS_NODE_ACCESS, 0,
       &access, sizeof(access) - 1, &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   /* Release all resources */
   fsNodeFree(node);
@@ -264,12 +264,12 @@ START_TEST(testDataWrite)
   /* Try to write after the end of the file */
   res = fsNodeWrite(node, FS_NODE_DATA, ALIG_FILE_SIZE + 1,
       buffer, sizeof(buffer), &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   /* Try to write incorrect stream */
   res = fsNodeWrite(node, FS_TYPE_END, 0,
       buffer, sizeof(buffer), &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INVALID);
 
   /* Release all resources */
   fsNodeFree(node);
@@ -291,7 +291,7 @@ START_TEST(testNameWrite)
   /* Try to write new file name */
   res = fsNodeWrite(node, FS_NODE_NAME, 0, NEW_NAME, strlen(NEW_NAME) + 1,
       &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INVALID);
 
   /* Release all resources */
   fsNodeFree(node);
@@ -333,10 +333,10 @@ START_TEST(testTimeWrite)
   /* Try unaligned write to time */
   res = fsNodeWrite(node, FS_NODE_TIME, 1,
       &timestamp, sizeof(timestamp), &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
   res = fsNodeWrite(node, FS_NODE_TIME, 0,
       &timestamp, sizeof(timestamp) - 1, &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   /* Release all resources */
   fsNodeFree(node);
@@ -385,7 +385,7 @@ START_TEST(testWriteToReadOnly)
 
   /* Try to write to the read-only file */
   res = fsNodeWrite(node, FS_NODE_DATA, 0, buffer, sizeof(buffer), &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ACCESS);
 
   /* Release all resources */
   fsNodeFree(node);

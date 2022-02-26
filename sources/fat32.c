@@ -995,7 +995,7 @@ static enum Result createNode(struct CommandContext *context,
   char shortName[NAME_LENGTH];
 
   if (!strlen(nodeName))
-    return E_ERROR;
+    return E_VALUE;
 
   const bool longNameRequired = !fillShortName(shortName, nodeName, !directory);
 
@@ -2052,7 +2052,7 @@ static enum Result fatNodeCreate(void *rootObject,
   }
 
   if (!nameDesc)
-    return E_INVALID; /* Node cannot be left unnamed */
+    return E_VALUE; /* Node cannot be left unnamed */
 
   struct CommandContext * const context = allocatePoolContext(handle);
   uint32_t nodePayloadCluster = RESERVED_CLUSTER;

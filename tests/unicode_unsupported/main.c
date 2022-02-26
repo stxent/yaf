@@ -97,23 +97,23 @@ START_TEST(testNodeNames)
   enum Result res;
 
   res = fsNodeCreate(parent, incorrectDirDesc, ARRAY_SIZE(incorrectDirDesc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   res = fsNodeCreate(parent, longExtDesc, ARRAY_SIZE(longExtDesc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   res = fsNodeCreate(parent, longDirNameDesc, ARRAY_SIZE(longDirNameDesc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   res = fsNodeCreate(parent, longNameDesc, ARRAY_SIZE(longNameDesc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   res = fsNodeCreate(parent, lowerCaseNameDesc, ARRAY_SIZE(lowerCaseNameDesc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   res = fsNodeCreate(parent, nameWithSpacesDesc,
       ARRAY_SIZE(nameWithSpacesDesc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   /* Release all resources */
   fsNodeFree(parent);

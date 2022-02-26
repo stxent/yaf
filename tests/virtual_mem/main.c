@@ -15,15 +15,12 @@ static unsigned int mallocHookFails = 0;
 
 void *malloc(size_t size)
 {
-  if (mallocHookFails)
-  {
-    if (--mallocHookFails)
-      return __libc_malloc(size);
-    else
-      return 0;
-  }
-  else
-    return __libc_malloc(size);
+  bool allocate = true;
+
+  if (mallocHookFails && !--mallocHookFails)
+    allocate = false;
+
+  return allocate ? __libc_malloc(size) : 0;
 }
 
 void *calloc(size_t number, size_t elementSize)
@@ -59,16 +56,16 @@ START_TEST(testInterfaceParams)
 
   /* Try to read incorrect parameter */
   res = ifGetParam(vmem, IF_ZEROCOPY, 0);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INVALID);
 
   /* Try to write incorrect parameter */
   res = ifSetParam(vmem, IF_ZEROCOPY, 0);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INVALID);
 
   /* Try to set incorrect position */
   value = FS_TOTAL_SIZE;
   res = ifSetParam(vmem, IF_POSITION_64, &value);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ADDRESS);
 
   /* Read default position */
   value = FS_TOTAL_SIZE;
@@ -119,7 +116,7 @@ START_TEST(testMatchSkip)
   res = ifSetParam(vmem, IF_POSITION_64, &position);
   ck_assert_uint_eq(res, E_OK);
   res = ifSetParam(vmem, IF_POSITION_64, &position);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ADDRESS);
   vmemClearRegions(vmem);
 
   /* Match skip during write */

@@ -20,7 +20,7 @@ START_TEST(testAuxStreams)
   char buffer[MAX_BUFFER_LENGTH];
 
   res = fsNodeRead(node, FS_TYPE_END, 0, buffer, sizeof(buffer), &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INVALID);
 
   res = fsNodeRead(node, FS_NODE_NAME, 0, buffer, sizeof(buffer), &count);
   ck_assert_uint_eq(res, E_OK);
@@ -28,7 +28,7 @@ START_TEST(testAuxStreams)
   ck_assert_str_eq(buffer, "");
 
   res = fsNodeRead(node, FS_NODE_DATA, 0, buffer, sizeof(buffer), &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INVALID);
 
   /* Release all resources */
   fsNodeFree(node);
@@ -60,7 +60,7 @@ START_TEST(testIteration)
   parent = fsOpenNode(context.handle, "/");
   ck_assert_ptr_nonnull(parent);
   res = fsNodeNext(parent);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ENTRY);
   fsNodeFree(parent);
 
   /* Release all resources */
@@ -78,7 +78,7 @@ START_TEST(testLength)
   enum Result res;
 
   res = fsNodeLength(node, FS_NODE_DATA, &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INVALID);
 
   res = fsNodeLength(node, FS_NODE_NAME, &count);
   ck_assert_uint_eq(res, E_OK);

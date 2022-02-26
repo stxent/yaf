@@ -42,21 +42,21 @@ START_TEST(testClusterAllocationErrors)
   vmemAddMarkedRegion(context.interface,
       vmemExtractTableSectorRegion(context.interface, 0, 1), false, true, true);
   res = fsNodeCreate(parent, desc, ARRAY_SIZE(desc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
   vmemClearRegions(context.interface);
 
   /* Directory cluster allocation failure at table write */
   vmemAddMarkedRegion(context.interface,
       vmemExtractTableRegion(context.interface, 0), true, false, true);
   res = fsNodeCreate(parent, desc, ARRAY_SIZE(desc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
   vmemClearRegions(context.interface);
 
   /* Directory cluster clear failure */
   vmemAddMarkedRegion(context.interface,
       vmemExtractDataRegion(context.interface), true, false, true);
   res = fsNodeCreate(parent, desc, ARRAY_SIZE(desc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
   vmemClearRegions(context.interface);
 
   /* Release all resources */
@@ -87,7 +87,7 @@ START_TEST(testDirCreationErrors)
   vmemAddMarkedRegion(context.interface,
       vmemExtractDataRegion(context.interface), true, false, true);
   const enum Result res = fsNodeCreate(parent, desc, ARRAY_SIZE(desc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
   vmemClearRegions(context.interface);
 
   /* Release all resources */
@@ -138,7 +138,7 @@ START_TEST(testNodeCreationErrors)
       vmemExtractNodeDataRegion(context.interface, parent, 0));
   res = fsNodeCreate(parent, nodeWithDataDesc,
       ARRAY_SIZE(nodeWithDataDesc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ADDRESS);
   vmemClearRegions(context.interface);
 
   /* Entry write failures */
@@ -148,7 +148,7 @@ START_TEST(testNodeCreationErrors)
       true, false, true);
   res = fsNodeCreate(parent, nodeWithoutDataDesc,
       ARRAY_SIZE(nodeWithoutDataDesc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
   vmemClearRegions(context.interface);
 
   /* Release all resources */
@@ -174,7 +174,7 @@ START_TEST(testRemovingErrors)
   vmemAddMarkedRegion(context.interface,
       vmemExtractTableRegion(context.interface, 0), false, true, true);
   res = fsNodeRemove(parent, node);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
   vmemClearRegions(context.interface);
 
   fsNodeFree(node);
@@ -190,7 +190,7 @@ START_TEST(testRemovingErrors)
   vmemAddMarkedRegion(context.interface,
       vmemExtractTableRegion(context.interface, 0), true, false, true);
   res = fsNodeRemove(parent, node);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
   vmemClearRegions(context.interface);
 
   fsNodeFree(node);
@@ -205,7 +205,7 @@ START_TEST(testRemovingErrors)
 
   vmemAddRegion(context.interface, vmemExtractInfoRegion());
   res = fsNodeRemove(parent, node);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ADDRESS);
   vmemClearRegions(context.interface);
 
   fsNodeFree(node);
@@ -221,7 +221,7 @@ START_TEST(testRemovingErrors)
   vmemAddMarkedRegion(context.interface,
       vmemExtractDataRegion(context.interface), true, false, true);
   res = fsNodeRemove(parent, node);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
   vmemClearRegions(context.interface);
 
   fsNodeFree(node);

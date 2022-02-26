@@ -30,10 +30,10 @@ START_TEST(testAccessRead)
   /* Try to partially read access flags */
   res = fsNodeRead(node, FS_NODE_ACCESS, 1,
       &access, sizeof(access), &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
   res = fsNodeRead(node, FS_NODE_ACCESS, 0,
       &access, sizeof(access) - 1, &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   /* Release all resources */
   fsNodeFree(node);
@@ -60,13 +60,13 @@ START_TEST(testAuxStreams)
 
   /* Try to partially read identifier */
   res = fsNodeRead(node, FS_NODE_ID, 1, &id, sizeof(id), &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
   res = fsNodeRead(node, FS_NODE_ID, 0, &id, sizeof(id) - 1, &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   /* Try to read incorrect stream */
   res = fsNodeRead(node, FS_TYPE_END, 0, buffer, sizeof(buffer), &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INVALID);
 
   /* Release all resources */
   fsNodeFree(node);
@@ -100,7 +100,7 @@ START_TEST(testDataRead)
   /* Try to read after the end of file */
   res = fsNodeRead(node, FS_NODE_DATA, ALIG_FILE_SIZE + 1,
       buffer, sizeof(buffer), &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   /* Release all resources */
   fsNodeFree(node);
@@ -140,7 +140,7 @@ START_TEST(testLength)
   ck_assert_uint_eq(count, sizeof(time64_t));
 
   res = fsNodeLength(node, FS_TYPE_END, &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INVALID);
 
   /* Release all resources */
   fsNodeFree(node);
@@ -160,9 +160,9 @@ START_TEST(testNameRead)
 
   /* Try to partially read name */
   res = fsNodeRead(node, FS_NODE_NAME, 1, buffer, sizeof(buffer), &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
   res = fsNodeRead(node, FS_NODE_NAME, 0, buffer, 1, &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   /* Release all resources */
   fsNodeFree(node);
@@ -235,10 +235,10 @@ START_TEST(testTimeRead)
   /* Try to partially read time */
   res = fsNodeRead(node, FS_NODE_TIME, 1,
       &timestamp, sizeof(timestamp), &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
   res = fsNodeRead(node, FS_NODE_TIME, 0,
       &timestamp, sizeof(timestamp) - 1, &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   /* Release all resources */
   fsNodeFree(node);

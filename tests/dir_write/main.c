@@ -72,11 +72,11 @@ START_TEST(testAuxStreams)
 
   /* Write incorrect stream */
   res = fsNodeWrite(node, FS_TYPE_END, 0, buffer, sizeof(buffer), &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INVALID);
 
   /* Try to write data to the directory */
   res = fsNodeWrite(node, FS_NODE_DATA, 0, buffer, sizeof(buffer), &count);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INVALID);
 
   /* Release all resources */
   fsNodeFree(node);
@@ -128,7 +128,7 @@ START_TEST(testDirWrite)
   ck_assert_ptr_nonnull(node);
 
   res = fsNodeRemove(parent, node);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_EXIST);
 
   fsNodeFree(node);
   fsNodeFree(parent);
@@ -138,7 +138,7 @@ START_TEST(testDirWrite)
   ck_assert_ptr_nonnull(parent);
 
   res = fsNodeCreate(parent, desc, ARRAY_SIZE(desc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   fsNodeFree(parent);
 
@@ -288,27 +288,27 @@ START_TEST(testNodeCreation)
   /* Try to create file with empty name */
   res = fsNodeCreate(parent, emptyNameDesc,
       ARRAY_SIZE(emptyNameDesc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   /* Try to create file with incorrect access */
   res = fsNodeCreate(parent, incorrectAccessDesc,
       ARRAY_SIZE(incorrectAccessDesc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   /* Try to create file with incorrect name */
   res = fsNodeCreate(parent, incorrectNameDesc,
       ARRAY_SIZE(incorrectNameDesc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   /* Try to create file with incorrect time */
   res = fsNodeCreate(parent, incorrectTimeDesc,
       ARRAY_SIZE(incorrectTimeDesc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   /* Try to create file without name */
   res = fsNodeCreate(parent, nodeWithoutNameDesc,
       ARRAY_SIZE(nodeWithoutNameDesc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   /* Create file with unknown descriptor */
   res = fsNodeCreate(parent, unknownValueDesc,
@@ -359,7 +359,7 @@ START_TEST(testReadOnlyDirWriting)
   res = fsNodeWrite(parent, FS_NODE_ACCESS, 0, &roAccess, sizeof(roAccess), 0);
   ck_assert_uint_eq(res, E_OK);
   res = fsNodeCreate(parent, desc, ARRAY_SIZE(desc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ACCESS);
   res = fsNodeWrite(parent, FS_NODE_ACCESS, 0, &rwAccess, sizeof(rwAccess), 0);
   ck_assert_uint_eq(res, E_OK);
 
@@ -374,7 +374,7 @@ START_TEST(testReadOnlyDirWriting)
   res = fsNodeWrite(parent, FS_NODE_ACCESS, 0, &roAccess, sizeof(roAccess), 0);
   ck_assert_uint_eq(res, E_OK);
   res = fsNodeRemove(parent, node);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ACCESS);
   res = fsNodeWrite(parent, FS_NODE_ACCESS, 0, &rwAccess, sizeof(rwAccess), 0);
   ck_assert_uint_eq(res, E_OK);
 
@@ -390,7 +390,7 @@ START_TEST(testReadOnlyDirWriting)
   res = fsNodeWrite(node, FS_NODE_ACCESS, 0, &roAccess, sizeof(roAccess), 0);
   ck_assert_uint_eq(res, E_OK);
   res = fsNodeRemove(parent, node);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ACCESS);
   res = fsNodeWrite(node, FS_NODE_ACCESS, 0, &rwAccess, sizeof(rwAccess), 0);
   ck_assert_uint_eq(res, E_OK);
 

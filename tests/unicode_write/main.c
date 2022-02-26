@@ -145,8 +145,6 @@ START_TEST(testNameOverflow)
 
   const char * const name = fsExtractName(path);
   ck_assert_ptr_nonnull(name);
-  printf("path = %s\r\n", path);
-  printf("name = %s\r\n", name);
 
   struct TestContext context = makeTestHandle();
   struct FsNode * const parent = fsOpenBaseNode(context.handle, path);
@@ -165,7 +163,7 @@ START_TEST(testNameOverflow)
       }
   };
   const enum Result res = fsNodeCreate(parent, desc, ARRAY_SIZE(desc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_VALUE);
 
   /* Release all resources */
   fsNodeFree(parent);
@@ -363,7 +361,7 @@ START_TEST(testReadOnlyDirWriting)
   res = fsNodeWrite(parent, FS_NODE_ACCESS, 0, &roAccess, sizeof(roAccess), 0);
   ck_assert_uint_eq(res, E_OK);
   res = fsNodeCreate(parent, desc, ARRAY_SIZE(desc));
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ACCESS);
   res = fsNodeWrite(parent, FS_NODE_ACCESS, 0, &rwAccess, sizeof(rwAccess), 0);
   ck_assert_uint_eq(res, E_OK);
 
@@ -378,7 +376,7 @@ START_TEST(testReadOnlyDirWriting)
   res = fsNodeWrite(parent, FS_NODE_ACCESS, 0, &roAccess, sizeof(roAccess), 0);
   ck_assert_uint_eq(res, E_OK);
   res = fsNodeRemove(parent, node);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ACCESS);
   res = fsNodeWrite(parent, FS_NODE_ACCESS, 0, &rwAccess, sizeof(rwAccess), 0);
   ck_assert_uint_eq(res, E_OK);
 
@@ -394,7 +392,7 @@ START_TEST(testReadOnlyDirWriting)
   res = fsNodeWrite(node, FS_NODE_ACCESS, 0, &roAccess, sizeof(roAccess), 0);
   ck_assert_uint_eq(res, E_OK);
   res = fsNodeRemove(parent, node);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ACCESS);
   res = fsNodeWrite(node, FS_NODE_ACCESS, 0, &rwAccess, sizeof(rwAccess), 0);
   ck_assert_uint_eq(res, E_OK);
 

@@ -19,15 +19,12 @@ static unsigned int mallocHookFails = 0;
 
 void *malloc(size_t size)
 {
-  if (mallocHookFails)
-  {
-    if (--mallocHookFails)
-      return __libc_malloc(size);
-    else
-      return 0;
-  }
-  else
-    return __libc_malloc(size);
+  bool allocate = true;
+
+  if (mallocHookFails && !--mallocHookFails)
+    allocate = false;
+
+  return allocate ? __libc_malloc(size) : 0;
 }
 /*----------------------------------------------------------------------------*/
 START_TEST(testClusterAllocationErrors)
@@ -45,7 +42,7 @@ START_TEST(testClusterAllocationErrors)
   vmemAddMarkedRegion(context.interface,
       vmemExtractTableRegion(context.interface, 0), true, false, true);
   res = fsNodeWrite(node, FS_NODE_DATA, 0, buffer, sizeof(buffer), 0);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
   vmemClearRegions(context.interface);
 
   fsNodeFree(node);
@@ -57,7 +54,7 @@ START_TEST(testClusterAllocationErrors)
 
   vmemAddRegion(context.interface, vmemExtractInfoRegion());
   res = fsNodeWrite(node, FS_NODE_DATA, 0, buffer, sizeof(buffer), 0);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ADDRESS);
   vmemClearRegions(context.interface);
 
   fsNodeFree(node);
@@ -78,7 +75,7 @@ START_TEST(testClusterAllocationErrors)
       vmemExtractTableSectorRegion(context.interface, 0, 0), false, true, true);
   res = fsNodeWrite(node, FS_NODE_DATA, ALIG_FILE_SIZE,
       buffer, sizeof(buffer), 0);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_INTERFACE);
   vmemClearRegions(context.interface);
 
   fsNodeFree(node);
@@ -194,7 +191,7 @@ START_TEST(testSyncErrors)
   vmemAddRegion(context.interface, vmemExtractDataRegion(context.interface));
   /* Failure in handle sync function */
   res = fsHandleSync(context.handle);
-  ck_assert_uint_ne(res, E_OK);
+  ck_assert_uint_eq(res, E_ADDRESS);
   /* Failure in node destructor */
   fsNodeFree(node);
   /* Remove all forbidden regions */
