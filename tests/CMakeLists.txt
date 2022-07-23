@@ -15,14 +15,14 @@ target_compile_definitions(yaf_shared PUBLIC
         -DOS_TYPE=${OS_TYPE}
         -DCONFIG_NAME_LENGTH=${FS_NAME_LENGTH}
         -DCONFIG_SECTOR_SIZE=${YAF_CONFIG_SECTOR_SIZE})
-if(${YAF_CONFIG_THREADS})
+if(YAF_CONFIG_THREADS)
     target_compile_definitions(yaf_shared PUBLIC -DCONFIG_THREADS)
     target_link_libraries(yaf_shared PUBLIC osw)
 endif()
-if(${YAF_CONFIG_UNICODE})
+if(YAF_CONFIG_UNICODE)
     target_compile_definitions(yaf_shared PUBLIC -DCONFIG_UNICODE)
 endif()
-if(${YAF_CONFIG_WRITE})
+if(YAF_CONFIG_WRITE)
     target_compile_definitions(yaf_shared PUBLIC -DCONFIG_WRITE)
 endif()
 
@@ -40,17 +40,17 @@ set(TEST_LIST
         system_funcs
         virtual_mem)
 
-if(${YAF_CONFIG_THREADS})
+if(YAF_CONFIG_THREADS)
     list(APPEND TEST_LIST mutex_failures)
 endif()
 
-if(${YAF_CONFIG_UNICODE})
+if(YAF_CONFIG_UNICODE)
     list(APPEND TEST_LIST unicode_failures)
 else()
     list(APPEND TEST_LIST unicode_unsupported)
 endif()
 
-if(${YAF_CONFIG_WRITE})
+if(YAF_CONFIG_WRITE)
     list(APPEND TEST_LIST dir_write)
     list(APPEND TEST_LIST dir_write_failures)
     list(APPEND TEST_LIST handle_funcs)
@@ -58,7 +58,7 @@ if(${YAF_CONFIG_WRITE})
     list(APPEND TEST_LIST node_write_failures)
 endif()
 
-if(${YAF_CONFIG_UNICODE} AND ${YAF_CONFIG_WRITE})
+if(YAF_CONFIG_UNICODE AND YAF_CONFIG_WRITE)
     list(APPEND TEST_LIST unicode_write)
     list(APPEND TEST_LIST unicode_write_failures)
 endif()
