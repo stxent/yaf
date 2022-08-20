@@ -18,10 +18,9 @@ set(YAF_CONFIG_DEBUG 0 CACHE STRING "Debug level.")
 set(YAF_CONFIG_SECTOR_SIZE 512 CACHE STRING "Size of a filesystem sector may be 512, 1024, 2048 or 4096 bytes.")
 
 # Default compiler flags
-set(FLAGS_DEFAULT "-fdata-sections -ffunction-sections -Wall -Wextra -Wshadow -pedantic")
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_EXTENSIONS OFF)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAGS_DEFAULT} ${FLAGS_CPU}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAGS_CPU}")
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 
 find_package(xcore QUIET)
