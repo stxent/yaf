@@ -11,6 +11,7 @@ option(USE_LTO "Enable Link Time Optimization." OFF)
 set(FS_NAME_LENGTH 64 CACHE STRING "Maximum length of filesystem entry name in bytes.")
 
 # Library configuration
+
 option(YAF_CONFIG_THREADS "Enable multithreading." ON)
 option(YAF_CONFIG_UNICODE "Enable support for Unicode characters." ON)
 option(YAF_CONFIG_WRITE "Enable write functions." ON)
@@ -18,9 +19,11 @@ set(YAF_CONFIG_DEBUG 0 CACHE STRING "Debug level.")
 set(YAF_CONFIG_SECTOR_SIZE 512 CACHE STRING "Size of a filesystem sector may be 512, 1024, 2048 or 4096 bytes.")
 
 # Default compiler flags
-set(CMAKE_C_STANDARD 11)
+
+set(FLAGS_DEFAULT "-fdata-sections -ffunction-sections")
+set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_EXTENSIONS OFF)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAGS_CPU}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_INIT} ${FLAGS_DEFAULT} ${FLAGS_CPU}")
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 
 find_package(xcore QUIET)
@@ -37,10 +40,12 @@ endif()
 
 if(USE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-    if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
         set(CMAKE_C_COMPILE_OPTIONS_IPO -flto -ffat-lto-objects)
     endif()
 endif()
+
+# Collect files for object libraries
 
 add_subdirectory(sources)
 add_library(${PROJECT_NAME} $<TARGET_OBJECTS:yaf_generic>)
@@ -51,7 +56,8 @@ if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()
 
-# Library installation configuration
+# Configure library installation
+
 install(TARGETS ${PROJECT_NAME}
         EXPORT yaf-targets
         ARCHIVE DESTINATION lib
