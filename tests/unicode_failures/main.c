@@ -30,15 +30,15 @@ START_TEST(testLongNameErrors)
   enum Result res;
 
   changeLfnCount(node0, 2);
-  res = fsNodeRead(node0, FS_NODE_NAME, 0, buffer, sizeof(buffer), 0);
+  res = fsNodeRead(node0, FS_NODE_NAME, 0, buffer, sizeof(buffer), NULL);
   ck_assert_uint_eq(res, E_ENTRY);
 
   changeLfnCount(node1, 1);
-  res = fsNodeRead(node1, FS_NODE_NAME, 0, buffer, sizeof(buffer), 0);
+  res = fsNodeRead(node1, FS_NODE_NAME, 0, buffer, sizeof(buffer), NULL);
   ck_assert_uint_eq(res, E_MEMORY);
 
   changeLfnCount(node1, 127);
-  res = fsNodeRead(node1, FS_NODE_NAME, 0, buffer, sizeof(buffer), 0);
+  res = fsNodeRead(node1, FS_NODE_NAME, 0, buffer, sizeof(buffer), NULL);
   ck_assert_uint_eq(res, E_MEMORY);
 
   /* Release all resources */

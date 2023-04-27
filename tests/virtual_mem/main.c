@@ -55,11 +55,11 @@ START_TEST(testInterfaceParams)
   enum Result res;
 
   /* Try to read incorrect parameter */
-  res = ifGetParam(vmem, IF_ZEROCOPY, 0);
+  res = ifGetParam(vmem, IF_ZEROCOPY, NULL);
   ck_assert_uint_eq(res, E_INVALID);
 
   /* Try to write incorrect parameter */
-  res = ifSetParam(vmem, IF_ZEROCOPY, 0);
+  res = ifSetParam(vmem, IF_ZEROCOPY, NULL);
   ck_assert_uint_eq(res, E_INVALID);
 
   /* Try to set incorrect position */
@@ -80,7 +80,7 @@ START_TEST(testInterfaceParams)
   ck_assert_uint_eq(value, FS_TOTAL_SIZE);
 
   /* Read status */
-  res = ifGetParam(vmem, IF_STATUS, 0);
+  res = ifGetParam(vmem, IF_STATUS, NULL);
   ck_assert_uint_eq(res, E_OK);
 
   /* Set and verify position */

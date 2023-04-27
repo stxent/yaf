@@ -20,13 +20,13 @@ START_TEST(testHandleSync)
   enum Result res;
 
   /* Write and sync handle */
-  res = fsNodeWrite(node, FS_NODE_DATA, 0, data, MAX_BUFFER_LENGTH, 0);
+  res = fsNodeWrite(node, FS_NODE_DATA, 0, data, MAX_BUFFER_LENGTH, NULL);
   ck_assert_uint_eq(res, E_OK);
   res = fsHandleSync(context.handle);
   ck_assert_uint_eq(res, E_OK);
 
   /* Write and delete node */
-  res = fsNodeWrite(node, FS_NODE_DATA, 0, data, MAX_BUFFER_LENGTH, 0);
+  res = fsNodeWrite(node, FS_NODE_DATA, 0, data, MAX_BUFFER_LENGTH, NULL);
   ck_assert_uint_eq(res, E_OK);
   fsNodeFree(node);
 

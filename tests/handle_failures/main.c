@@ -41,7 +41,7 @@ START_TEST(testClusterAllocationErrors)
 
   vmemAddMarkedRegion(context.interface,
       vmemExtractTableRegion(context.interface, 0), true, false, true);
-  res = fsNodeWrite(node, FS_NODE_DATA, 0, buffer, sizeof(buffer), 0);
+  res = fsNodeWrite(node, FS_NODE_DATA, 0, buffer, sizeof(buffer), NULL);
   ck_assert_uint_eq(res, E_INTERFACE);
   vmemClearRegions(context.interface);
 
@@ -53,7 +53,7 @@ START_TEST(testClusterAllocationErrors)
   ck_assert_ptr_nonnull(node);
 
   vmemAddRegion(context.interface, vmemExtractInfoRegion());
-  res = fsNodeWrite(node, FS_NODE_DATA, 0, buffer, sizeof(buffer), 0);
+  res = fsNodeWrite(node, FS_NODE_DATA, 0, buffer, sizeof(buffer), NULL);
   ck_assert_uint_eq(res, E_ADDRESS);
   vmemClearRegions(context.interface);
 
@@ -65,8 +65,8 @@ START_TEST(testClusterAllocationErrors)
   ck_assert_ptr_nonnull(node);
 
   /* Read last chunk to update internal file pointer */
-  res = fsNodeRead(node, FS_NODE_DATA,
-      ALIG_FILE_SIZE - sizeof(buffer), buffer, sizeof(buffer), 0);
+  res = fsNodeRead(node, FS_NODE_DATA, ALIG_FILE_SIZE - sizeof(buffer),
+      buffer, sizeof(buffer), NULL);
   ck_assert_uint_eq(res, E_OK);
 
   changeLastAllocatedCluster(context.handle, getTableEntriesPerSector() - 1);
@@ -74,7 +74,7 @@ START_TEST(testClusterAllocationErrors)
   vmemAddMarkedRegion(context.interface,
       vmemExtractTableSectorRegion(context.interface, 0, 0), false, true, true);
   res = fsNodeWrite(node, FS_NODE_DATA, ALIG_FILE_SIZE,
-      buffer, sizeof(buffer), 0);
+      buffer, sizeof(buffer), NULL);
   ck_assert_uint_eq(res, E_INTERFACE);
   vmemClearRegions(context.interface);
 
@@ -184,7 +184,7 @@ START_TEST(testSyncErrors)
   struct FsNode * const node = fsOpenNode(context.handle,
       PATH_HOME_ROOT_UNALIG);
   ck_assert_ptr_nonnull(node);
-  res = fsNodeWrite(node, FS_NODE_DATA, 0, data, MAX_BUFFER_LENGTH, 0);
+  res = fsNodeWrite(node, FS_NODE_DATA, 0, data, MAX_BUFFER_LENGTH, NULL);
   ck_assert_uint_eq(res, E_OK);
 
   /* Add directory data region to forbidden regions */

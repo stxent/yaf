@@ -18,16 +18,16 @@ static enum Result readSector(void *interface, uint32_t sector,
   const uint64_t position = (uint64_t)sector << SECTOR_EXP;
   enum Result res;
 
-  ifSetParam(interface, IF_ACQUIRE, 0);
+  ifSetParam(interface, IF_ACQUIRE, NULL);
 
   res = ifSetParam(interface, IF_POSITION_64, &position);
   if (res == E_OK)
   {
     if (ifRead(interface, buffer, length) != length)
-      res = ifGetParam(interface, IF_STATUS, 0);
+      res = ifGetParam(interface, IF_STATUS, NULL);
   }
 
-  ifSetParam(interface, IF_RELEASE, 0);
+  ifSetParam(interface, IF_RELEASE, NULL);
   return res;
 }
 /*----------------------------------------------------------------------------*/
@@ -141,7 +141,7 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config)
   if ((res = ifSetParam(interface, IF_POSITION_64, &bootPosition)) != E_OK)
     return res;
   if (ifWrite(interface, &bImage, sizeof(bImage)) != sizeof(bImage))
-    return ifGetParam(interface, IF_STATUS, 0);
+    return ifGetParam(interface, IF_STATUS, NULL);
 
   static const uint64_t infoPosition = 1 << SECTOR_EXP;
   struct InfoSectorImage iImage;
@@ -157,7 +157,7 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config)
   if ((res = ifSetParam(interface, IF_POSITION_64, &infoPosition)) != E_OK)
     return res;
   if (ifWrite(interface, &iImage, sizeof(iImage)) != sizeof(iImage))
-    return ifGetParam(interface, IF_STATUS, 0);
+    return ifGetParam(interface, IF_STATUS, NULL);
 
   /* Format FAT tables */
   for (uint32_t i = 0; i < bImage.tableSize; ++i)
@@ -187,7 +187,7 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config)
       if ((res = ifSetParam(interface, IF_POSITION_64, &position)) != E_OK)
         return res;
       if (ifWrite(interface, buffer, sizeof(buffer)) != sizeof(buffer))
-        return ifGetParam(interface, IF_STATUS, 0);
+        return ifGetParam(interface, IF_STATUS, NULL);
     }
   }
 
@@ -198,7 +198,7 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config)
     memset(buffer, 0, sizeof(buffer));
 
     /* Add volume label */
-    if (config->label)
+    if (config->label != NULL)
     {
       struct DirEntryImage * const entry = (struct DirEntryImage *)buffer;
       memcpy(entry->filename, config->label, strlen(config->label));
@@ -212,7 +212,7 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config)
     if ((res = ifSetParam(interface, IF_POSITION_64, &position)) != E_OK)
       return res;
     if (ifWrite(interface, buffer, sizeof(buffer)) != sizeof(buffer))
-      return ifGetParam(interface, IF_STATUS, 0);
+      return ifGetParam(interface, IF_STATUS, NULL);
   }
 
   return E_OK;

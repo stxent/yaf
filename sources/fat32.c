@@ -405,7 +405,7 @@ static enum Result mountStorage(struct FatHandle *handle)
   struct CommandContext * const context = allocatePoolContext(handle);
   enum Result res;
 
-  assert(context);
+  assert(context != NULL);
 
   /* Read first sector */
   res = readSector(context, handle, 0);
@@ -492,16 +492,16 @@ static enum Result readBuffer(struct FatHandle *handle, uint32_t sector,
   const uint32_t length = count << SECTOR_EXP;
   enum Result res;
 
-  ifSetParam(handle->interface, IF_ACQUIRE, 0);
+  ifSetParam(handle->interface, IF_ACQUIRE, NULL);
 
   res = ifSetParam(handle->interface, IF_POSITION_64, &position);
   if (res == E_OK)
   {
     if (ifRead(handle->interface, buffer, length) != length)
-      res = ifGetParam(handle->interface, IF_STATUS, 0);
+      res = ifGetParam(handle->interface, IF_STATUS, NULL);
   }
 
-  ifSetParam(handle->interface, IF_RELEASE, 0);
+  ifSetParam(handle->interface, IF_RELEASE, NULL);
   return res;
 }
 /*----------------------------------------------------------------------------*/
@@ -745,7 +745,7 @@ static enum Result readSector(struct CommandContext *context,
   const uint64_t position = (uint64_t)sector << SECTOR_EXP;
   enum Result res;
 
-  ifSetParam(handle->interface, IF_ACQUIRE, 0);
+  ifSetParam(handle->interface, IF_ACQUIRE, NULL);
 
   res = ifSetParam(handle->interface, IF_POSITION_64, &position);
   if (res == E_OK)
@@ -753,10 +753,10 @@ static enum Result readSector(struct CommandContext *context,
     if (ifRead(handle->interface, context->buffer, SECTOR_SIZE) == SECTOR_SIZE)
       context->sector = sector;
     else
-      res = ifGetParam(handle->interface, IF_STATUS, 0);
+      res = ifGetParam(handle->interface, IF_STATUS, NULL);
   }
 
-  ifSetParam(handle->interface, IF_RELEASE, 0);
+  ifSetParam(handle->interface, IF_RELEASE, NULL);
   return res;
 }
 /*----------------------------------------------------------------------------*/
@@ -1465,16 +1465,16 @@ static enum Result writeBuffer(struct FatHandle *handle,
   const uint32_t length = count << SECTOR_EXP;
   enum Result res;
 
-  ifSetParam(handle->interface, IF_ACQUIRE, 0);
+  ifSetParam(handle->interface, IF_ACQUIRE, NULL);
 
   res = ifSetParam(handle->interface, IF_POSITION_64, &position);
   if (res == E_OK)
   {
     if (ifWrite(handle->interface, buffer, length) != length)
-      res = ifGetParam(handle->interface, IF_STATUS, 0);
+      res = ifGetParam(handle->interface, IF_STATUS, NULL);
   }
 
-  ifSetParam(handle->interface, IF_RELEASE, 0);
+  ifSetParam(handle->interface, IF_RELEASE, NULL);
   return res;
 }
 #endif
@@ -1739,7 +1739,7 @@ static enum Result writeSector(struct CommandContext *context,
   const uint64_t position = (uint64_t)sector << SECTOR_EXP;
   enum Result res;
 
-  ifSetParam(handle->interface, IF_ACQUIRE, 0);
+  ifSetParam(handle->interface, IF_ACQUIRE, NULL);
 
   res = ifSetParam(handle->interface, IF_POSITION_64, &position);
   if (res == E_OK)
@@ -1747,10 +1747,10 @@ static enum Result writeSector(struct CommandContext *context,
     if (ifWrite(handle->interface, context->buffer, SECTOR_SIZE) == SECTOR_SIZE)
       context->sector = sector;
     else
-      res = ifGetParam(handle->interface, IF_STATUS, 0);
+      res = ifGetParam(handle->interface, IF_STATUS, NULL);
   }
 
-  ifSetParam(handle->interface, IF_RELEASE, 0);
+  ifSetParam(handle->interface, IF_RELEASE, NULL);
   return res;
 }
 #endif
@@ -1879,8 +1879,8 @@ static void *fatHandleRoot(void *object)
   struct FatHandle * const handle = object;
   struct FatNode * const node = allocatePoolNode(handle);
 
-  if (!node)
-    return 0;
+  if (node == NULL)
+    return NULL;
 
   /* Resulting node is the root node */
   node->parentCluster = RESERVED_CLUSTER;
@@ -1901,7 +1901,7 @@ static enum Result fatHandleSync(void *object)
   struct CommandContext * const context = allocatePoolContext(handle);
   enum Result res = E_OK;
 
-  if (!context)
+  if (context == NULL)
     return E_MEMORY;
 
   lockHandle(handle);
@@ -1975,7 +1975,7 @@ static void fatNodeDeinit(void *object)
     /* Lock handle to prevent directory modifications from other threads */
     lockHandle(handle);
 
-    if (context)
+    if (context != NULL)
     {
       syncDirEntry(context, node);
       freePoolContext(handle, context);
@@ -2005,8 +2005,8 @@ static enum Result fatNodeCreate(void *rootObject,
   time64_t nodeTime = 0;
   FsAccess nodeAccess = FS_ACCESS_READ | FS_ACCESS_WRITE;
 
-  const struct FsFieldDescriptor *dataDesc = 0;
-  const struct FsFieldDescriptor *nameDesc = 0;
+  const struct FsFieldDescriptor *dataDesc = NULL;
+  const struct FsFieldDescriptor *nameDesc = NULL;
 
   for (size_t i = 0; i < number; ++i)
   {
@@ -2051,17 +2051,17 @@ static enum Result fatNodeCreate(void *rootObject,
     }
   }
 
-  if (!nameDesc)
+  if (nameDesc == NULL)
     return E_VALUE; /* Node cannot be left unnamed */
 
   struct CommandContext * const context = allocatePoolContext(handle);
   uint32_t nodePayloadCluster = RESERVED_CLUSTER;
   enum Result res = E_OK;
 
-  if (context)
+  if (context != NULL)
   {
     /* Allocate a cluster chain for the directory */
-    if (!dataDesc)
+    if (dataDesc == NULL)
     {
       /* Prevent unexpected table modifications from other threads */
       lockHandle(handle);
@@ -2088,7 +2088,7 @@ static enum Result fatNodeCreate(void *rootObject,
     /* Create an entry in the parent directory */
     if (res == E_OK)
     {
-      const bool isDirNode = dataDesc == 0;
+      const bool isDirNode = dataDesc == NULL;
 
       lockHandle(handle);
       res = createNode(context, root, isDirNode, nameDesc->data,
@@ -2123,13 +2123,13 @@ static void *fatNodeHead(void *object)
   struct FatNode * const root = object;
 
   if (!(root->flags & FAT_FLAG_DIR))
-    return 0; /* Current node is not directory */
+    return NULL; /* Current node is not directory */
 
   struct FatHandle * const handle = (struct FatHandle *)root->handle;
   struct FatNode * const node = allocatePoolNode(handle);
 
-  if (!node)
-    return 0;
+  if (node == NULL)
+    return NULL;
 
   node->parentCluster = root->payloadCluster;
   node->parentIndex = 0;
@@ -2137,7 +2137,7 @@ static void *fatNodeHead(void *object)
   struct CommandContext * const context = allocatePoolContext(handle);
   enum Result res;
 
-  if (context)
+  if (context != NULL)
   {
     res = fetchNode(context, node);
     freePoolContext(handle, context);
@@ -2148,7 +2148,7 @@ static void *fatNodeHead(void *object)
   if (res != E_OK)
   {
     freePoolNode(node);
-    return 0;
+    return NULL;
   }
   else
     return node;
@@ -2215,7 +2215,7 @@ static enum Result fatNodeNext(void *object)
   struct CommandContext * const context = allocatePoolContext(handle);
   enum Result res;
 
-  if (context)
+  if (context != NULL)
   {
     ++node->parentIndex;
     res = fetchNode(context, node);
@@ -2291,7 +2291,7 @@ static enum Result fatNodeRead(void *object, enum FsFieldType type,
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
   struct CommandContext * const context = allocatePoolContext(handle);
 
-  if (!context)
+  if (context == NULL)
     return E_MEMORY;
 
   if (type == FS_NODE_CAPACITY)
@@ -2347,7 +2347,7 @@ static enum Result fatNodeRemove(void *rootObject, void *object)
   struct FatHandle * const handle = (struct FatHandle *)root->handle;
   struct CommandContext * const context = allocatePoolContext(handle);
 
-  if (!context)
+  if (context == NULL)
     return E_MEMORY;
 
   enum Result res = truncatePayload(context, node);
@@ -2388,7 +2388,7 @@ static enum Result fatNodeWrite(void *object, enum FsFieldType type,
   struct FatHandle * const handle = (struct FatHandle *)node->handle;
   struct CommandContext * const context = allocatePoolContext(handle);
 
-  if (!context)
+  if (context == NULL)
     return E_MEMORY;
 
   size_t bytesWritten = 0;
@@ -2433,7 +2433,7 @@ static enum Result fatNodeWrite(void *object, enum FsFieldType type,
 
   freePoolContext(handle, context);
 
-  if (res == E_OK && written)
+  if (res == E_OK && written != NULL)
     *written = bytesWritten;
   return res;
 #else

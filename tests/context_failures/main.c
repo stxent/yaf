@@ -60,7 +60,7 @@ START_TEST(testNodeCreationFailure)
           strlen(name) + 1,
           FS_NODE_NAME
       }, {
-          0,
+          NULL,
           0,
           FS_NODE_DATA
       }
@@ -94,7 +94,7 @@ START_TEST(testNodeReadingFailure)
   char data[MAX_BUFFER_LENGTH];
 
   const enum Result res = fsNodeRead(node, FS_NODE_DATA, 0,
-      data, sizeof(data), 0);
+      data, sizeof(data), NULL);
   ck_assert_uint_eq(res, E_MEMORY);
 
   /* Release all resources */
@@ -139,7 +139,7 @@ START_TEST(testNodeWritingFailure)
   PointerQueue contexts = drainContextPool(context.handle);
 
   const enum Result res = fsNodeWrite(node, FS_NODE_DATA, 0,
-      data, sizeof(data), 0);
+      data, sizeof(data), NULL);
   ck_assert_uint_eq(res, E_MEMORY);
 
   /* Release all resources */

@@ -42,7 +42,7 @@ START_TEST(testCapacityReading)
 
   /* Read capacity failure */
 
-  res = fsNodeRead(node, FS_NODE_CAPACITY, 0, &capacity, 0, 0);
+  res = fsNodeRead(node, FS_NODE_CAPACITY, 0, &capacity, 0, NULL);
   ck_assert_uint_eq(res, E_VALUE);
 
   fsNodeFree(node);
@@ -164,7 +164,7 @@ START_TEST(testFullVolumeUsage)
 
   /* Cross-verification */
 
-  size = fsFindUsedSpace(handle, 0);
+  size = fsFindUsedSpace(handle, NULL);
   ck_assert_uint_eq(size, used);
 
   /* Read failures */
@@ -194,12 +194,12 @@ START_TEST(testUsedSpaceCalculation)
   struct TestContext context = makeTestHandle();
   FsCapacity used;
 
-  used = fsFindUsedSpace(context.handle, 0);
+  used = fsFindUsedSpace(context.handle, NULL);
   ck_assert_uint_eq(used, TOTAL_SPACE_USED);
 
   /* Simulate context allocation error */
   PointerQueue contexts = drainContextPool(context.handle);
-  used = fsFindUsedSpace(context.handle, 0);
+  used = fsFindUsedSpace(context.handle, NULL);
   ck_assert_uint_eq(used, 0);
   restoreContextPool(context.handle, &contexts);
 

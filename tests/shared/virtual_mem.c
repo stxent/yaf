@@ -46,7 +46,7 @@ const struct InterfaceClass * const VirtualMem =
     .init = vmemInit,
     .deinit = vmemDeinit,
 
-    .setCallback = 0,
+    .setCallback = NULL,
     .getParam = vmemGetParam,
     .setParam = vmemSetParam,
     .read = vmemRead,
@@ -58,7 +58,7 @@ static bool inForbiddenRegion(struct VirtualMem *dev, uint64_t position,
 {
   VmemRegionListNode *current = vmemRegionListFront(&dev->regions);
 
-  while (current)
+  while (current != NULL)
   {
     const struct VirtualMemRegion * const entry = vmemRegionListData(current);
 
@@ -76,7 +76,7 @@ static bool inForbiddenRegion(struct VirtualMem *dev, uint64_t position,
 static enum Result vmemInit(void *object, const void *configBase)
 {
   const struct VirtualMemConfig * const config = configBase;
-  assert(config);
+  assert(config != NULL);
 
   struct VirtualMem * const dev = object;
   enum Result res = E_MEMORY;
@@ -91,7 +91,8 @@ static enum Result vmemInit(void *object, const void *configBase)
   {
     if (dev->size)
     {
-      if ((dev->data = malloc(dev->size)))
+      dev->data = malloc(dev->size);
+      if (dev->data != NULL)
       {
         memset(dev->data, 0, dev->size);
         res = E_OK;
@@ -101,7 +102,7 @@ static enum Result vmemInit(void *object, const void *configBase)
     }
     else
     {
-      dev->data = 0;
+      dev->data = NULL;
       res = E_OK;
     }
   }

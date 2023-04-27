@@ -36,7 +36,7 @@ START_TEST(testNodeNames)
           strlen(fsExtractName(path1)) + 1,
           FS_NODE_NAME
       }, {
-          0,
+          NULL,
           0,
           FS_NODE_DATA
       }
@@ -48,7 +48,7 @@ START_TEST(testNodeNames)
           strlen(fsExtractName(path2)) + 1,
           FS_NODE_NAME
       }, {
-          0,
+          NULL,
           0,
           FS_NODE_DATA
       }
@@ -60,7 +60,7 @@ START_TEST(testNodeNames)
           strlen(fsExtractName(path3)) + 1,
           FS_NODE_NAME
       }, {
-          0,
+          NULL,
           0,
           FS_NODE_DATA
       }
@@ -72,7 +72,7 @@ START_TEST(testNodeNames)
           strlen(fsExtractName(path4)) + 1,
           FS_NODE_NAME
       }, {
-          0,
+          NULL,
           0,
           FS_NODE_DATA
       }
@@ -84,7 +84,7 @@ START_TEST(testNodeNames)
           strlen(fsExtractName(path5)) + 1,
           FS_NODE_NAME
       }, {
-          0,
+          NULL,
           0,
           FS_NODE_DATA
       }

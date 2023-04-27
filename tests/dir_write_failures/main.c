@@ -23,7 +23,7 @@ START_TEST(testClusterAllocationErrors)
           strlen(name) + 1,
           FS_NODE_NAME
       }, {
-          0,
+          NULL,
           0,
           FS_NODE_DATA
       }
@@ -120,7 +120,7 @@ START_TEST(testNodeCreationErrors)
           strlen(name) + 1,
           FS_NODE_NAME
       }, {
-          0,
+          NULL,
           0,
           FS_NODE_DATA
       }

@@ -184,7 +184,7 @@ bool fillShortName(char *shortName, const char *name, bool extension)
     /* Dot not found */
     if (length > BASENAME_LENGTH)
       clean = false;
-    dot = 0;
+    dot = NULL;
   }
   else
   {
@@ -201,7 +201,7 @@ bool fillShortName(char *shortName, const char *name, bool extension)
   memset(shortName, ' ', NAME_LENGTH);
   for (char c = *name; c != '\0'; c = *name)
   {
-    if (dot && name == dot)
+    if (dot != NULL && name == dot)
     {
       position = BASENAME_LENGTH;
       ++name;
@@ -213,13 +213,13 @@ bool fillShortName(char *shortName, const char *name, bool extension)
 
     if (converted != c)
       clean = false;
-    if (!converted)
+    if (converted == '\0')
       continue;
     shortName[position++] = converted;
 
     if (position == BASENAME_LENGTH)
     {
-      if (dot) /* Check whether extension exists */
+      if (dot != NULL) /* Check whether extension exists */
       {
         name = dot + 1;
         continue;

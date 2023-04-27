@@ -22,7 +22,7 @@ START_TEST(testNameAllocationError0)
           strlen(name) + 1,
           FS_NODE_NAME
       }, {
-          0,
+          NULL,
           0,
           FS_NODE_DATA
       }
@@ -62,7 +62,7 @@ START_TEST(testNameAllocationError1)
           strlen(name) + 1,
           FS_NODE_NAME
       }, {
-          0,
+          NULL,
           0,
           FS_NODE_DATA
       }
@@ -101,7 +101,7 @@ START_TEST(testNameAllocationError2)
           strlen(name) + 1,
           FS_NODE_NAME
       }, {
-          0,
+          NULL,
           0,
           FS_NODE_DATA
       }
