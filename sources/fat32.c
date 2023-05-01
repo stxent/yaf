@@ -663,8 +663,12 @@ static enum Result readNodeData(struct CommandContext *context,
 
   if (length)
   {
-    const enum Result res = readClusterChain(context, node,
-        position, buffer, (uint32_t)length);
+    enum Result res;
+
+    if (buffer != NULL)
+      res = readClusterChain(context, node, position, buffer, (uint32_t)length);
+    else
+      res = E_VALUE;
 
     if (res == E_OK)
       *read = length;
@@ -1668,19 +1672,26 @@ static enum Result writeNodeData(struct CommandContext *context,
 
   if (length)
   {
-    struct FatHandle * const handle = (struct FatHandle *)node->handle;
+    enum Result res;
 
-    if (!(node->flags & FAT_FLAG_DIRTY))
+    if (buffer != NULL)
     {
-      lockHandle(handle);
-      pointerArrayPushBack(&handle->openedFiles, node);
-      unlockHandle(handle);
+      struct FatHandle * const handle = (struct FatHandle *)node->handle;
 
-      node->flags |= FAT_FLAG_DIRTY;
+      if (!(node->flags & FAT_FLAG_DIRTY))
+      {
+        lockHandle(handle);
+        pointerArrayPushBack(&handle->openedFiles, node);
+        unlockHandle(handle);
+
+        node->flags |= FAT_FLAG_DIRTY;
+      }
+
+      res = writeClusterChain(context, node, position, buffer,
+          (uint32_t)length);
     }
-
-    const enum Result res = writeClusterChain(context, node, position, buffer,
-        (uint32_t)length);
+    else
+      res = E_VALUE;
 
     if (res == E_OK)
       *written = length;
@@ -1852,6 +1863,9 @@ static enum Result uniqueNamePropose(struct CommandContext *context,
 static enum Result fatHandleInit(void *object, const void *configBase)
 {
   const struct Fat32Config * const config = configBase;
+  assert(config != NULL);
+  assert(config->interface != NULL);
+
   struct FatHandle * const handle = object;
   enum Result res;
 
@@ -2247,7 +2261,7 @@ static enum Result fatNodeRead(void *object, enum FsFieldType type,
   switch (type)
   {
     case FS_NODE_ACCESS:
-      if (position == 0 && length >= sizeof(FsAccess))
+      if (buffer != NULL && position == 0 && length >= sizeof(FsAccess))
       {
         readNodeAccess(node, buffer);
         bytesRead = sizeof(FsAccess);
@@ -2259,7 +2273,7 @@ static enum Result fatNodeRead(void *object, enum FsFieldType type,
       break;
 
     case FS_NODE_ID:
-      if (position == 0 && length >= sizeof(FsIdentifier))
+      if (buffer != NULL && position == 0 && length >= sizeof(FsIdentifier))
       {
         readNodeId(node, buffer);
         bytesRead = sizeof(FsIdentifier);
@@ -2282,7 +2296,7 @@ static enum Result fatNodeRead(void *object, enum FsFieldType type,
 
   if (processed)
   {
-    if (res == E_OK && read)
+    if (res == E_OK && read != NULL)
       *read = bytesRead;
     return res;
   }
@@ -2296,7 +2310,7 @@ static enum Result fatNodeRead(void *object, enum FsFieldType type,
 
   if (type == FS_NODE_CAPACITY)
   {
-    if (position == 0 && length >= sizeof(FsCapacity))
+    if (buffer != NULL && position == 0 && length >= sizeof(FsCapacity))
     {
       res = readNodeCapacity(context, node, buffer);
       if (res == E_OK)
@@ -2311,14 +2325,14 @@ static enum Result fatNodeRead(void *object, enum FsFieldType type,
   }
   else if (type == FS_NODE_NAME)
   {
-    if (position == 0)
+    if (buffer != NULL && position == 0)
       res = readNodeName(context, node, buffer, length, &bytesRead);
     else
       res = E_VALUE;
   }
   else if (type == FS_NODE_TIME)
   {
-    if (position == 0 && length >= sizeof(time64_t))
+    if (buffer != NULL && position == 0 && length >= sizeof(time64_t))
     {
       res = readNodeTime(context, node, buffer);
       if (res == E_OK)
@@ -2330,7 +2344,7 @@ static enum Result fatNodeRead(void *object, enum FsFieldType type,
 
   freePoolContext(handle, context);
 
-  if (res == E_OK && read)
+  if (res == E_OK && read != NULL)
     *read = bytesRead;
   return res;
 }
@@ -2396,11 +2410,7 @@ static enum Result fatNodeWrite(void *object, enum FsFieldType type,
 
   if (type == FS_NODE_ACCESS)
   {
-    if (position > 0 || length < sizeof(FsAccess))
-    {
-      res = E_VALUE;
-    }
-    else
+    if (buffer != NULL && position == 0 && length >= sizeof(FsAccess))
     {
       FsAccess access;
       memcpy(&access, buffer, sizeof(access));
@@ -2409,6 +2419,8 @@ static enum Result fatNodeWrite(void *object, enum FsFieldType type,
       if (res == E_OK)
         bytesWritten = sizeof(access);
     }
+    else
+      res = E_VALUE;
   }
   else if (type == FS_NODE_DATA)
   {
@@ -2416,11 +2428,7 @@ static enum Result fatNodeWrite(void *object, enum FsFieldType type,
   }
   else if (type == FS_NODE_TIME)
   {
-    if (position > 0 || length < sizeof(time64_t))
-    {
-      res = E_VALUE;
-    }
-    else
+    if (buffer != NULL && position == 0 && length >= sizeof(time64_t))
     {
       time64_t timestamp;
       memcpy(&timestamp, buffer, sizeof(timestamp));
@@ -2429,6 +2437,8 @@ static enum Result fatNodeWrite(void *object, enum FsFieldType type,
       if (res == E_OK)
         bytesWritten = sizeof(timestamp);
     }
+    else
+      res = E_VALUE;
   }
 
   freePoolContext(handle, context);

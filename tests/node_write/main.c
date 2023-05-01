@@ -257,7 +257,7 @@ START_TEST(testDataWrite)
   char buffer[MAX_BUFFER_LENGTH];
 
   /* Write zero bytes */
-  res = fsNodeWrite(node, FS_NODE_DATA, 0, 0, 0, &count);
+  res = fsNodeWrite(node, FS_NODE_DATA, 0, NULL, 0, &count);
   ck_assert_uint_eq(res, E_OK);
   ck_assert_uint_eq(count, 0);
 

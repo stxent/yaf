@@ -54,6 +54,10 @@ START_TEST(testDataReadErrors)
   char buffer[MAX_BUFFER_LENGTH];
   enum Result res;
 
+  /* Read to zero pointer */
+  res = fsNodeRead(node, FS_NODE_DATA, 0, NULL, sizeof(buffer), NULL);
+  ck_assert_uint_eq(res, E_VALUE);
+
   /* Aligned read */
   res = fsNodeRead(node, FS_NODE_DATA, ALIG_FILE_SIZE - sizeof(buffer),
       buffer, sizeof(buffer), NULL);

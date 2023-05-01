@@ -79,6 +79,10 @@ START_TEST(testDataWriteErrors)
   static const char buffer[MAX_BUFFER_LENGTH] = {0};
   enum Result res;
 
+  /* Write from zero pointer */
+  res = fsNodeWrite(node, FS_NODE_DATA, 0, NULL, sizeof(buffer), NULL);
+  ck_assert_uint_eq(res, E_VALUE);
+
   /* Aligned write */
   res = fsNodeWrite(node, FS_NODE_DATA,
       ALIG_FILE_SIZE, buffer, sizeof(buffer), NULL);
