@@ -92,6 +92,8 @@ enum Result fat32GetUsage(void *object, void *arena, size_t length,
 /*----------------------------------------------------------------------------*/
 enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config)
 {
+  static const uint32_t RESERVED_SECTORS = 32;
+
   uint64_t partitionSize;
   enum Result res;
 
@@ -99,15 +101,18 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config)
     return res;
   partitionSize >>= SECTOR_EXP;
 
-  const uint32_t sectorsPerCluster = config->clusterSize >> SECTOR_EXP;
+  const uint32_t reservedSectors = config->reserved ?
+      config->reserved : RESERVED_SECTORS;
+  const uint32_t sectorsPerCluster = config->cluster >> SECTOR_EXP;
   const uint32_t sectorCount = MIN(partitionSize, UINT32_MAX);
 
-  if (sectorCount < 2 + sectorsPerCluster + config->tableCount)
+  if (sectorCount < reservedSectors + sectorsPerCluster + config->tables)
     return E_VALUE;
 
   const uint32_t clusterCount =
-      ((sectorCount - 2) * CELL_COUNT - config->tableCount * (CELL_COUNT - 1))
-          / (config->tableCount + sectorsPerCluster * CELL_COUNT);
+      ((sectorCount - reservedSectors) * CELL_COUNT
+          - config->tables * (CELL_COUNT - 1))
+      / (config->tables + sectorsPerCluster * CELL_COUNT);
 
   static const uint64_t bootPosition = 0;
   struct BootSectorImage bImage;
@@ -118,21 +123,21 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config)
   bImage.sectorsPerCluster = sectorsPerCluster;
 
   /* Reserved sectors in front of the FAT */
-  bImage.reservedSectors = 2;
+  bImage.reservedSectors = reservedSectors;
   /* Number of FAT copies */
-  bImage.tableCount = config->tableCount;
+  bImage.tableCount = config->tables;
   memset(bImage.unused1, 0, sizeof(bImage.unused1));
   bImage.mediaDescriptor = 0xF8;
   memset(bImage.unused2, 0, sizeof(bImage.unused2));
   /* The number of sectors before the first FAT */
-  bImage.tableOffset = 2;
+  bImage.tableOffset = reservedSectors;
   /* Sectors per partition */
   bImage.partitionSize = sectorCount;
   /* Sectors per FAT record */
   bImage.tableSize = (clusterCount + (CELL_COUNT - 1)) / CELL_COUNT;
   memset(bImage.unused3, 0, sizeof(bImage.unused3));
   /* Root directory cluster */
-  bImage.rootCluster = 2;
+  bImage.rootCluster = CLUSTER_OFFSET;
   /* Information sector number */
   bImage.infoSector = 1;
   memset(bImage.unused4, 0, sizeof(bImage.unused4));

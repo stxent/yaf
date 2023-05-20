@@ -13,8 +13,9 @@
 START_TEST(testMemoryErrors)
 {
   static const struct Fat32FsConfig makeFsConfig =  {
-      .clusterSize = FS_CLUSTER_SIZE,
-      .tableCount = FS_TABLE_COUNT,
+      .cluster = FS_CLUSTER_SIZE,
+      .reserved = 16,
+      .tables = FS_TABLE_COUNT,
       .label = "TEST"
   };
   static const struct VirtualMemConfig vmemConfigDefault = {

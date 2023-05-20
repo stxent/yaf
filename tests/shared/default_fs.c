@@ -208,8 +208,9 @@ struct TestContext makeTestHandle(void)
   ck_assert_ptr_nonnull(vmem);
 
   static const struct Fat32FsConfig makeFsConfig =  {
-      .clusterSize = FS_CLUSTER_SIZE,
-      .tableCount = FS_TABLE_COUNT,
+      .cluster = FS_CLUSTER_SIZE,
+      .reserved = 0,
+      .tables = FS_TABLE_COUNT,
       .label = "TEST"
   };
   const enum Result res = fat32MakeFs(vmem, &makeFsConfig);

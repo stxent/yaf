@@ -13,8 +13,13 @@
 /*----------------------------------------------------------------------------*/
 struct Fat32FsConfig
 {
-  size_t clusterSize;
-  size_t tableCount;
+  /** Mandatory: cluster size in bytes. */
+  size_t cluster;
+  /** Optional: number of reserved sectors. */
+  size_t reserved;
+  /** Mandatory: number of FAT tables. */
+  size_t tables;
+  /** Optional: volume label. */
   const char *label;
 };
 /*----------------------------------------------------------------------------*/

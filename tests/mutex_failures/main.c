@@ -38,9 +38,8 @@ START_TEST(testMutexInitError)
   enum Result res;
 
   static const struct Fat32FsConfig makeFsConfig =  {
-      .clusterSize = FS_CLUSTER_SIZE,
-      .tableCount = FS_TABLE_COUNT,
-      .label = "TEST"
+      .cluster = FS_CLUSTER_SIZE,
+      .tables = FS_TABLE_COUNT
   };
   res = fat32MakeFs(vmem, &makeFsConfig);
   ck_assert_uint_eq(res, E_OK);
