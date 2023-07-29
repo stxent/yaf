@@ -73,7 +73,7 @@ START_TEST(testEmptyVolumeUsage)
       .cluster = FS_CLUSTER_SIZE,
       .tables = FS_TABLE_COUNT
   };
-  res = fat32MakeFs(vmem, &makeFsConfig);
+  res = fat32MakeFs(vmem, &makeFsConfig, NULL, 0);
   ck_assert_uint_eq(res, E_OK);
 
   struct Fat32Config fsConfig = {
@@ -114,7 +114,7 @@ START_TEST(testFullVolumeUsage)
       .cluster = FS_CLUSTER_SIZE,
       .tables = FS_TABLE_COUNT
   };
-  res = fat32MakeFs(vmem, &makeFsConfig);
+  res = fat32MakeFs(vmem, &makeFsConfig, NULL, 0);
   ck_assert_uint_eq(res, E_OK);
 
   struct Fat32Config fsConfig = {

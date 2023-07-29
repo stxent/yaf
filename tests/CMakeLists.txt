@@ -2,13 +2,15 @@
 # Project is distributed under the terms of the MIT License
 
 include(FindPkgConfig)
+
+find_package(Threads REQUIRED)
 pkg_check_modules(CHECK REQUIRED check)
 
 file(GLOB_RECURSE SHARED_SOURCES "shared/*.c")
 add_library(yaf_shared ${SHARED_SOURCES})
 target_compile_options(yaf_shared PUBLIC --coverage)
 target_include_directories(yaf_shared PUBLIC "shared")
-target_link_libraries(yaf_shared PUBLIC xcore yaf check gcov)
+target_link_libraries(yaf_shared PUBLIC xcore yaf check gcov Threads::Threads)
 
 string(TOLOWER ${CMAKE_SYSTEM_NAME} OS_TYPE)
 target_compile_definitions(yaf_shared PUBLIC

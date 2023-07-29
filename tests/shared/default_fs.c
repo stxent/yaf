@@ -213,7 +213,7 @@ struct TestContext makeTestHandle(void)
       .tables = FS_TABLE_COUNT,
       .label = "TEST"
   };
-  const enum Result res = fat32MakeFs(vmem, &makeFsConfig);
+  const enum Result res = fat32MakeFs(vmem, &makeFsConfig, NULL, 0);
   ck_assert_uint_eq(res, E_OK);
 
   const struct Fat32Config fsConfig = {

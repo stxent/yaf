@@ -28,7 +28,7 @@ BEGIN_DECLS
 FsCapacity fat32GetCapacity(const void *);
 size_t fat32GetClusterSize(const void *);
 enum Result fat32GetUsage(void *, void *, size_t, FsCapacity *);
-enum Result fat32MakeFs(void *, const struct Fat32FsConfig *);
+enum Result fat32MakeFs(void *, const struct Fat32FsConfig *, void *, size_t);
 
 END_DECLS
 /*----------------------------------------------------------------------------*/

@@ -98,7 +98,7 @@ START_TEST(testMountErrors)
       .cluster = FS_CLUSTER_SIZE,
       .tables = FS_TABLE_COUNT
   };
-  const enum Result res = fat32MakeFs(vmem, &makeFsConfig);
+  const enum Result res = fat32MakeFs(vmem, &makeFsConfig, NULL, 0);
   ck_assert_uint_eq(res, E_OK);
 
   struct Fat32Config fsConfig = {

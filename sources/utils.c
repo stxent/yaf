@@ -46,7 +46,7 @@ size_t fat32GetClusterSize(const void *object)
   return (size_t)(SECTOR_SIZE * (1 << handle->clusterSize));
 }
 /*----------------------------------------------------------------------------*/
-enum Result fat32GetUsage(void *object, void *arena, size_t length,
+enum Result fat32GetUsage(void *object, void *arena, size_t size,
     FsCapacity *result)
 {
   const struct FatHandle * const handle = object;
@@ -57,19 +57,19 @@ enum Result fat32GetUsage(void *object, void *arena, size_t length,
 
   while (cluster < handle->clusterCount)
   {
-    if ((cluster & (length / sizeof(uint32_t) - 1)) == 0)
+    if ((cluster & (size / sizeof(uint32_t) - 1)) == 0)
     {
       if (cluster == 0)
         cluster = CLUSTER_OFFSET;
 
       const uint32_t sector = handle->tableSector + (cluster >> CELL_COUNT);
 
-      res = readSector(handle->interface, sector, buffer, length);
+      res = readSector(handle->interface, sector, buffer, size);
       if (res != E_OK)
         break;
     }
 
-    uint32_t offset = (cluster & (length / sizeof(uint32_t) - 1)) << 2;
+    uint32_t offset = (cluster & (size / sizeof(uint32_t) - 1)) << 2;
     uint32_t value;
 
     memcpy(&value, buffer + offset, sizeof(value));
@@ -83,16 +83,20 @@ enum Result fat32GetUsage(void *object, void *arena, size_t length,
 
   if (res == E_OK)
   {
-    const uint32_t size = 1U << (handle->clusterSize + SECTOR_EXP);
-    *result = (FsCapacity)size * used;
+    const uint32_t count = 1U << (handle->clusterSize + SECTOR_EXP);
+    *result = (FsCapacity)count * used;
   }
 
   return res;
 }
 /*----------------------------------------------------------------------------*/
-enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config)
+enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
+    void *arena, size_t size)
 {
   static const uint32_t RESERVED_SECTORS = 32;
+
+  if (arena != NULL && size < (1 << SECTOR_EXP))
+    return E_MEMORY;
 
   uint64_t partitionSize;
   enum Result res;
@@ -164,46 +168,62 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config)
   if (ifWrite(interface, &iImage, sizeof(iImage)) != sizeof(iImage))
     return ifGetParam(interface, IF_STATUS, NULL);
 
-  /* Format FAT tables */
-  for (uint32_t i = 0; i < bImage.tableSize; ++i)
-  {
-    uint8_t buffer[1 << SECTOR_EXP];
+  uint8_t buffer[1 << SECTOR_EXP];
 
-    if (i > 0)
+  /* Format FAT tables */
+  for (size_t fat = 0; fat < bImage.tableCount; ++fat)
+  {
+    size_t tableArenaSize;
+    uint8_t *tableArena;
+
+    if (arena != NULL)
     {
-      memset(buffer, 0, sizeof(buffer));
+      tableArena = arena;
+      tableArenaSize = size & ~((1 << SECTOR_EXP) - 1);
     }
     else
     {
-      static const uint32_t pattern[] = {
-          TO_LITTLE_ENDIAN_32(CLUSTER_EOC_VAL),
-          TO_LITTLE_ENDIAN_32(CLUSTER_RES_VAL),
-          TO_LITTLE_ENDIAN_32(CLUSTER_EOC_VAL)
-      };
-      memcpy(buffer, pattern, sizeof(pattern));
-      memset(buffer + sizeof(pattern), 0, sizeof(buffer) - sizeof(pattern));
+      tableArena = buffer;
+      tableArenaSize = 1 << SECTOR_EXP;
     }
 
-    for (size_t fat = 0; fat < bImage.tableCount; ++fat)
+    for (uint32_t i = 0; i < bImage.tableSize;)
     {
+      if (i == 0)
+      {
+        static const uint32_t pattern[] = {
+            TO_LITTLE_ENDIAN_32(CLUSTER_EOC_VAL),
+            TO_LITTLE_ENDIAN_32(CLUSTER_RES_VAL),
+            TO_LITTLE_ENDIAN_32(CLUSTER_EOC_VAL)
+        };
+
+        memcpy(tableArena, pattern, sizeof(pattern));
+        memset(tableArena + sizeof(pattern), 0,
+            tableArenaSize - sizeof(pattern));
+      }
+
       const uint32_t sectors = i + bImage.tableOffset + bImage.tableSize * fat;
       const uint64_t position = (uint64_t)sectors << SECTOR_EXP;
 
       if ((res = ifSetParam(interface, IF_POSITION_64, &position)) != E_OK)
         return res;
-      if (ifWrite(interface, buffer, sizeof(buffer)) != sizeof(buffer))
+      if (ifWrite(interface, tableArena, tableArenaSize) != tableArenaSize)
         return ifGetParam(interface, IF_STATUS, NULL);
+
+      if (i == 0)
+        memset(tableArena, 0, tableArenaSize);
+
+      i += tableArenaSize >> SECTOR_EXP;
     }
   }
 
   /* Clear root cluster */
+  memset(buffer, 0, sizeof(buffer));
+
   for (size_t i = 0; i < sectorsPerCluster; ++i)
   {
-    uint8_t buffer[1 << SECTOR_EXP];
-    memset(buffer, 0, sizeof(buffer));
-
     /* Add volume label */
-    if (config->label != NULL)
+    if (i == 0 && config->label != NULL)
     {
       struct DirEntryImage * const entry = (struct DirEntryImage *)buffer;
       memcpy(entry->filename, config->label, strlen(config->label));
