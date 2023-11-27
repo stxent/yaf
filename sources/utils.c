@@ -121,30 +121,39 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
   static const uint64_t bootPosition = 0;
   struct BootSectorImage bImage;
 
-  memset(bImage.unused0, 0, sizeof(bImage.unused0));
-  memset(bImage.oemIdentifier, 0, sizeof(bImage.oemIdentifier));
+  memset(&bImage, 0, sizeof(bImage));
+
+  /* Magic numbers */
+  bImage.mediaDescriptor = 0xF8;
+  bImage.logicalNumber = 0x80;
+  bImage.extendedSignature = 0x29;
+
   bImage.bytesPerSector = 1 << SECTOR_EXP;
   bImage.sectorsPerCluster = sectorsPerCluster;
 
+  /* Jump code and NOP */
+  memcpy(bImage.jumpCode, "\xEB\x58\x90", 3);
+  /* OEM identifier */
+  memcpy(bImage.oemName, "libyaf", 6);
   /* Reserved sectors in front of the FAT */
   bImage.reservedSectors = reservedSectors;
   /* Number of FAT copies */
   bImage.tableCount = config->tables;
-  memset(bImage.unused1, 0, sizeof(bImage.unused1));
-  bImage.mediaDescriptor = 0xF8;
-  memset(bImage.unused2, 0, sizeof(bImage.unused2));
-  /* The number of sectors before the first FAT */
-  bImage.tableOffset = reservedSectors;
   /* Sectors per partition */
-  bImage.partitionSize = sectorCount;
+  bImage.sectorsPerPartition = sectorCount;
   /* Sectors per FAT record */
-  bImage.tableSize = (clusterCount + (CELL_COUNT - 1)) / CELL_COUNT;
-  memset(bImage.unused3, 0, sizeof(bImage.unused3));
+  bImage.sectorsPerTable = (clusterCount + (CELL_COUNT - 1)) >> CELL_COUNT;
   /* Root directory cluster */
   bImage.rootCluster = CLUSTER_OFFSET;
   /* Information sector number */
   bImage.infoSector = 1;
-  memset(bImage.unused4, 0, sizeof(bImage.unused4));
+  /* Backup boot sector */
+  bImage.backupSector = 0;
+  /* Volume name */
+  memcpy(bImage.volumeName, "NO NAME", 7);
+  /* FAT name */
+  memcpy(bImage.fatName, "FAT32", 5);
+  /* Boot Record signature */
   bImage.bootSignature = TO_BIG_ENDIAN_16(0x55AA);
 
   if ((res = ifSetParam(interface, IF_POSITION_64, &bootPosition)) != E_OK)
@@ -155,12 +164,12 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
   static const uint64_t infoPosition = 1 << SECTOR_EXP;
   struct InfoSectorImage iImage;
 
+  memset(&iImage, 0, sizeof(iImage));
+
   iImage.firstSignature = TO_BIG_ENDIAN_32(0x52526141UL);
-  memset(iImage.unused0, 0, sizeof(iImage.unused0));
   iImage.infoSignature = TO_BIG_ENDIAN_32(0x72724161UL);
   iImage.freeClusters = clusterCount - 3;
   iImage.lastAllocated = bImage.rootCluster;
-  memset(iImage.unused1, 0, sizeof(iImage.unused1));
   iImage.bootSignature = TO_BIG_ENDIAN_16(0x55AA);
 
   if ((res = ifSetParam(interface, IF_POSITION_64, &infoPosition)) != E_OK)
@@ -187,7 +196,7 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
       tableArenaSize = 1 << SECTOR_EXP;
     }
 
-    for (uint32_t i = 0; i < bImage.tableSize;)
+    for (uint32_t i = 0; i < bImage.sectorsPerTable;)
     {
       if (i == 0)
       {
@@ -202,7 +211,8 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
             tableArenaSize - sizeof(pattern));
       }
 
-      const uint32_t sectors = i + bImage.tableOffset + bImage.tableSize * fat;
+      const uint32_t sectors = i + bImage.reservedSectors
+          + bImage.sectorsPerTable * fat;
       const uint64_t position = (uint64_t)sectors << SECTOR_EXP;
 
       if ((res = ifSetParam(interface, IF_POSITION_64, &position)) != E_OK)
@@ -231,7 +241,7 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
     }
 
     const uint32_t sectors = i + bImage.reservedSectors
-        + bImage.tableSize * bImage.tableCount;
+        + bImage.sectorsPerTable * bImage.tableCount;
     const uint64_t position = (uint64_t)sectors << SECTOR_EXP;
 
     if ((res = ifSetParam(interface, IF_POSITION_64, &position)) != E_OK)

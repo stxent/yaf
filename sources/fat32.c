@@ -438,7 +438,7 @@ static enum Result mountStorage(struct FatHandle *handle)
 
   handle->tableSector = fromLittleEndian16(boot->reservedSectors);
   handle->dataSector = handle->tableSector
-      + boot->tableCount * fromLittleEndian32(boot->tableSize);
+      + boot->tableCount * fromLittleEndian32(boot->sectorsPerTable);
   handle->rootCluster = fromLittleEndian32(boot->rootCluster);
 
   DEBUG_PRINT(1, "fat32: cluster size:   %u\n", 1U << handle->clusterSize);
@@ -447,8 +447,8 @@ static enum Result mountStorage(struct FatHandle *handle)
 
 #ifdef CONFIG_WRITE
   handle->tableCount = boot->tableCount;
-  handle->tableSize = fromLittleEndian32(boot->tableSize);
-  handle->clusterCount = ((fromLittleEndian32(boot->partitionSize)
+  handle->tableSize = fromLittleEndian32(boot->sectorsPerTable);
+  handle->clusterCount = ((fromLittleEndian32(boot->sectorsPerPartition)
       - handle->dataSector) >> handle->clusterSize) + CLUSTER_OFFSET;
   handle->infoSector = fromLittleEndian16(boot->infoSector);
 
@@ -457,7 +457,7 @@ static enum Result mountStorage(struct FatHandle *handle)
   DEBUG_PRINT(1, "fat32: table size:     %"PRIu32"\n", handle->tableSize);
   DEBUG_PRINT(1, "fat32: cluster count:  %"PRIu32"\n", handle->clusterCount);
   DEBUG_PRINT(1, "fat32: sectors count:  %"PRIu32"\n",
-      fromLittleEndian32(boot->partitionSize));
+      fromLittleEndian32(boot->sectorsPerPartition));
 
   /* Read information sector */
   res = readSector(context, handle, handle->infoSector);

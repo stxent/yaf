@@ -282,9 +282,9 @@ struct VirtualMemRegion vmemExtractDataRegion(const void *object)
       (const struct BootSectorImage *)dev->data;
 
   const uint32_t tableSector = fromLittleEndian16(boot->reservedSectors);
-  const uint32_t dataSector =
-      tableSector + boot->tableCount * fromLittleEndian32(boot->tableSize);
-  const uint32_t totalSectors = fromLittleEndian32(boot->partitionSize);
+  const uint32_t dataSector = tableSector
+      + boot->tableCount * fromLittleEndian32(boot->sectorsPerTable);
+  const uint32_t totalSectors = fromLittleEndian32(boot->sectorsPerPartition);
 
   return (struct VirtualMemRegion){
       .begin = (uint64_t)dataSector * CONFIG_SECTOR_SIZE,
@@ -312,7 +312,7 @@ struct VirtualMemRegion vmemExtractNodeDataRegion(const void *object,
 
   const uint32_t tableSector = fromLittleEndian16(boot->reservedSectors);
   const uint32_t dataSector = tableSector
-      + boot->tableCount * fromLittleEndian32(boot->tableSize);
+      + boot->tableCount * fromLittleEndian32(boot->sectorsPerTable);
   const uint32_t nodeSector = dataSector
       + ((node->payloadCluster) - 2) * boot->sectorsPerCluster;
 
@@ -344,9 +344,9 @@ struct VirtualMemRegion vmemExtractTableRegion(const void *object, size_t table)
 
   const uint32_t tableBegin = fromLittleEndian16(boot->reservedSectors);
   const uint32_t tableSectorBegin = tableBegin
-      + (uint32_t)table * fromLittleEndian32(boot->tableSize);
+      + (uint32_t)table * fromLittleEndian32(boot->sectorsPerTable);
   const uint32_t tableSectorEnd = tableBegin
-      + (uint32_t)(table + 1) * fromLittleEndian32(boot->tableSize);
+      + (uint32_t)(table + 1) * fromLittleEndian32(boot->sectorsPerTable);
 
   return (struct VirtualMemRegion){
       .begin = (uint64_t)tableSectorBegin * CONFIG_SECTOR_SIZE,
@@ -363,10 +363,10 @@ struct VirtualMemRegion vmemExtractTableSectorRegion(const void *object,
       (const struct BootSectorImage *)dev->data;
 
   const uint32_t tableBegin = fromLittleEndian16(boot->reservedSectors);
-  const uint32_t tableSectorBegin = tableBegin
-      + (uint32_t)(table * fromLittleEndian32(boot->tableSize) + index);
-  const uint32_t tableSectorEnd = tableBegin
-      + (uint32_t)(table * fromLittleEndian32(boot->tableSize) + index + 1);
+  const uint32_t tableSectorBegin = index + tableBegin
+      + (uint32_t)table * fromLittleEndian32(boot->sectorsPerTable);
+  const uint32_t tableSectorEnd = 1 + index + tableBegin
+      + (uint32_t)table * fromLittleEndian32(boot->sectorsPerTable);
 
   return (struct VirtualMemRegion){
       .begin = (uint64_t)tableSectorBegin * CONFIG_SECTOR_SIZE,

@@ -257,34 +257,82 @@ struct DirEntryImage
 /* Boot sector */
 struct BootSectorImage
 {
-  char unused0[3];
-  char oemIdentifier[8];
+  /* 0x00 Jump Code + NOP */
+  char jumpCode[3];
+  /* 0x03 OEM identifier */
+  char oemName[8];
+
+  /* 0x0B Bytes per sector */
   uint16_t bytesPerSector;
+  /* 0x0D Sectors per cluster */
   uint8_t sectorsPerCluster;
-  uint16_t reservedSectors;  /* Reserved sectors in front of the FAT */
-  uint8_t tableCount;        /* Number of FAT copies */
+  /* 0x0E Reserved sectors in front of the FAT */
+  uint16_t reservedSectors;
+  /* 0x10 Number of copies of FAT */
+  uint8_t tableCount;
+
   char unused1[4];
-  uint8_t mediaDescriptor;   /* 0xF8 */
+
+  /* 0x15 Media Descriptor 0xF8 */
+  uint8_t mediaDescriptor;
+
   char unused2[6];
-  uint32_t tableOffset;      /* The number of sectors before the first FAT */
-  uint32_t partitionSize;    /* Sectors per partition */
-  uint32_t tableSize;        /* Sectors per FAT record */
+
+  /* 0x1C Number of hidden sectors preceding the partition */
+  uint32_t hiddenSectors;
+  /* 0x20 Number of sectors in the partition */
+  uint32_t sectorsPerPartition;
+  /* 0x24 Number of sectors per FAT */
+  uint32_t sectorsPerTable;
+
   char unused3[4];
-  uint32_t rootCluster;      /* Root directory cluster */
-  uint16_t infoSector;       /* Information sector number */
-  char unused4[460];
-  uint16_t bootSignature;    /* 0xAA55 */
+
+  /* 0x2C Cluster number of the Root Directory */
+  uint32_t rootCluster;
+  /* 0x30 Sector number of the Information Sector */
+  uint16_t infoSector;
+  /* 0x32 Sector number of the Backup Boot Sector */
+  uint16_t backupSector;
+
+  char unused4[12];
+
+  /* 0x40 Logical Drive number of the partition */
+  uint8_t logicalNumber;
+
+  char unused5;
+
+  /* 0x42 Extended signature 0x29 */
+  uint8_t extendedSignature;
+  /* 0x43 Serial number of the partition */
+  uint32_t serialNumber;
+  /* 0x47 Volume name of the partition */
+  char volumeName[11];
+  /* 0x52 FAT name */
+  char fatName[8];
+  /* 0x5A Executable code */
+  uint8_t executableCode[420];
+  /* 0x1FE Boot Record Signature 0x55 0xAA */
+  uint16_t bootSignature;
 } __attribute__((packed));
 /*----------------------------------------------------------------------------*/
 /* Info sector */
 struct InfoSectorImage
 {
+  /* 0x00 First signature */
   uint32_t firstSignature;
+
   char unused0[480];
+
+  /* 0x1E4 Signature of Information Sector */
   uint32_t infoSignature;
+  /* 0x1E8 Number of free clusters */
   uint32_t freeClusters;
+  /* 0x1EC Number of cluster that was most recently allocated */
   uint32_t lastAllocated;
+
   char unused1[14];
+
+  /* 0x1FE Boot Record Signature 0x55 0xAA */
   uint16_t bootSignature;
 } __attribute__((packed));
 /*----------------------------------------------------------------------------*/
