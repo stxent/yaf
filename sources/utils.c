@@ -62,7 +62,7 @@ enum Result fat32GetUsage(void *object, void *arena, size_t size,
       if (cluster == 0)
         cluster = CLUSTER_OFFSET;
 
-      const uint32_t sector = handle->tableSector + (cluster >> CELL_COUNT);
+      const uint32_t sector = handle->tableSector + (cluster >> CELL_COUNT_EXP);
 
       res = readSector(handle->interface, sector, buffer, size);
       if (res != E_OK)
@@ -93,6 +93,7 @@ enum Result fat32GetUsage(void *object, void *arena, size_t size,
 enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
     void *arena, size_t size)
 {
+  static const size_t CELL_COUNT = 1 << CELL_COUNT_EXP;
   static const uint32_t RESERVED_SECTORS = 32;
 
   if (arena != NULL && size < (1 << SECTOR_EXP))
@@ -142,7 +143,7 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
   /* Sectors per partition */
   bImage.sectorsPerPartition = sectorCount;
   /* Sectors per FAT record */
-  bImage.sectorsPerTable = (clusterCount + (CELL_COUNT - 1)) >> CELL_COUNT;
+  bImage.sectorsPerTable = (clusterCount + (CELL_COUNT - 1)) / CELL_COUNT;
   /* Root directory cluster */
   bImage.rootCluster = CLUSTER_OFFSET;
   /* Information sector number */

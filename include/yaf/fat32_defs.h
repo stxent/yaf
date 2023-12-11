@@ -74,9 +74,9 @@
 #define RESERVED_SECTOR         0xFFFFFFFFUL
 /*----------------------------------------------------------------------------*/
 /* Table entries per allocation table sector power */
-#define CELL_COUNT              (SECTOR_EXP - 2)
+#define CELL_COUNT_EXP          (SECTOR_EXP - 2)
 /* Table entry offset in allocation table sector */
-#define CELL_OFFSET(arg)        (((arg) & ((1 << CELL_COUNT) - 1)) << 2)
+#define CELL_OFFSET(arg)        (((arg) & ((1 << CELL_COUNT_EXP) - 1)) << 2)
 /* File or directory entry size power */
 #define ENTRY_EXP               (SECTOR_EXP - 5)
 /* Directory entry offset in sector */

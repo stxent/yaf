@@ -81,7 +81,7 @@ size_t getMaxSimilarNamesCount(void)
 /*----------------------------------------------------------------------------*/
 size_t getTableEntriesPerSector(void)
 {
-  return 1 << CELL_COUNT;
+  return 1 << CELL_COUNT_EXP;
 }
 /*----------------------------------------------------------------------------*/
 void restoreContextPool(void *object, PointerQueue *contexts)

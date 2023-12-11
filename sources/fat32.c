@@ -381,7 +381,7 @@ static enum Result getNextCluster(struct CommandContext *context,
     struct FatHandle *handle, uint32_t *cluster)
 {
   const enum Result res = readSector(context, handle, handle->tableSector
-      + (*cluster >> CELL_COUNT));
+      + (*cluster >> CELL_COUNT_EXP));
 
   if (res != E_OK)
     return res;
@@ -880,7 +880,7 @@ static enum Result allocateCluster(struct CommandContext *context,
 
     uint32_t * const address = (uint32_t *)(context->buffer
         + CELL_OFFSET(currentCluster));
-    const uint16_t currentOffset = currentCluster >> CELL_COUNT;
+    const uint16_t currentOffset = currentCluster >> CELL_COUNT_EXP;
 
     res = readSector(context, handle, handle->tableSector + currentOffset);
     if (res != E_OK)
@@ -891,7 +891,7 @@ static enum Result allocateCluster(struct CommandContext *context,
     {
       const uint32_t eoc = toLittleEndian32(CLUSTER_EOC_VAL);
       const uint32_t allocatedCluster = toLittleEndian32(currentCluster);
-      const uint16_t parentOffset = *cluster >> CELL_COUNT;
+      const uint16_t parentOffset = *cluster >> CELL_COUNT_EXP;
 
       /* Mark cluster as busy */
       memcpy(address, &eoc, sizeof(*address));
@@ -1225,7 +1225,7 @@ static enum Result freeChain(struct CommandContext *context,
 
   while (isClusterUsed(current))
   {
-    const uint32_t sector = handle->tableSector + (current >> CELL_COUNT);
+    const uint32_t sector = handle->tableSector + (current >> CELL_COUNT_EXP);
 
     /* Read allocation table sector with next cluster value */
     res = readSector(context, handle, sector);
@@ -1241,9 +1241,9 @@ static enum Result freeChain(struct CommandContext *context,
     memset(address, 0, sizeof(*address));
 
     /* Update table when switching table sectors */
-    if (current >> CELL_COUNT != next >> CELL_COUNT)
+    if (current >> CELL_COUNT_EXP != next >> CELL_COUNT_EXP)
     {
-      res = updateTable(context, handle, current >> CELL_COUNT);
+      res = updateTable(context, handle, current >> CELL_COUNT_EXP);
       if (res != E_OK)
         break;
     }
