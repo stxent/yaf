@@ -24,7 +24,7 @@ void *malloc(size_t size)
   if (mallocHookFails && !--mallocHookFails)
     allocate = false;
 
-  return allocate ? __libc_malloc(size) : 0;
+  return allocate ? __libc_malloc(size) : NULL;
 }
 /*----------------------------------------------------------------------------*/
 START_TEST(testClusterAllocationErrors)

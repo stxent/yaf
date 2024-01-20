@@ -20,7 +20,7 @@ void *malloc(size_t size)
   if (mallocHookFails && !--mallocHookFails)
     allocate = false;
 
-  return allocate ? __libc_malloc(size) : 0;
+  return allocate ? __libc_malloc(size) : NULL;
 }
 
 void *calloc(size_t number, size_t elementSize)
