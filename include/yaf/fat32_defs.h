@@ -200,24 +200,24 @@ struct FatNode
 };
 /*----------------------------------------------------------------------------*/
 /* Directory entry or long file name entry */
-struct DirEntryImage
+struct [[gnu::packed]] DirEntryImage
 {
   union
   {
     char filename[NAME_LENGTH];
 
-    struct
+    struct [[gnu::packed]]
     {
       char name[BASENAME_LENGTH];
       char extension[EXTENSION_LENGTH];
-    } __attribute__((packed));
+    };
 
     /* Long file name entry fields */
-    struct
+    struct [[gnu::packed]]
     {
       uint8_t ordinal;
       char16_t longName0[5];
-    } __attribute__((packed));
+    };
   };
 
   uint8_t flags;
@@ -234,7 +234,7 @@ struct DirEntryImage
   union
   {
     /* Directory entry fields */
-    struct
+    struct [[gnu::packed]]
     {
       uint16_t unused2[3];
       uint16_t clusterHigh; /* Starting cluster high word */
@@ -242,20 +242,20 @@ struct DirEntryImage
       uint16_t date;
       uint16_t clusterLow; /* Starting cluster low word */
       uint32_t size;
-    } __attribute__((packed));
+    };
 
     /* Long file name entry fields */
-    struct
+    struct [[gnu::packed]]
     {
       char16_t longName1[6];
       char16_t unused3;
       char16_t longName2[2];
-    } __attribute__((packed));
+    };
   };
-} __attribute__((packed));
+};
 /*----------------------------------------------------------------------------*/
 /* Boot sector */
-struct BootSectorImage
+struct [[gnu::packed]] BootSectorImage
 {
   /* 0x00 Jump Code + NOP */
   char jumpCode[3];
@@ -313,10 +313,10 @@ struct BootSectorImage
   uint8_t executableCode[420];
   /* 0x1FE Boot Record Signature 0x55 0xAA */
   uint16_t bootSignature;
-} __attribute__((packed));
+};
 /*----------------------------------------------------------------------------*/
 /* Info sector */
-struct InfoSectorImage
+struct [[gnu::packed]] InfoSectorImage
 {
   /* 0x00 First signature */
   uint32_t firstSignature;
@@ -334,6 +334,6 @@ struct InfoSectorImage
 
   /* 0x1FE Boot Record Signature 0x55 0xAA */
   uint16_t bootSignature;
-} __attribute__((packed));
+};
 /*----------------------------------------------------------------------------*/
 #endif /* YAF_FAT32_DEFS_H_ */
