@@ -388,7 +388,7 @@ static enum Result getNextCluster(struct CommandContext *context,
 
   uint32_t next;
 
-  memcpy(&next, context->buffer + CELL_OFFSET(*cluster), sizeof(next));
+  memcpy(&next, &context->buffer.cluster[CELL_INDEX(*cluster)], sizeof(next));
   next = fromLittleEndian32(next);
 
   if (isClusterUsed(next))
@@ -412,8 +412,7 @@ static enum Result mountStorage(struct FatHandle *handle)
   if (res != E_OK)
     goto exit;
 
-  const struct BootSectorImage * const boot =
-      (const struct BootSectorImage *)context->buffer;
+  const struct BootSectorImage * const boot = &context->buffer.bootSector;
 
   /* Check boot sector signature (55AA at 0x01FE) */
   if (fromBigEndian16(boot->bootSignature) != 0x55AA)
@@ -464,8 +463,7 @@ static enum Result mountStorage(struct FatHandle *handle)
   if (res != E_OK)
     goto exit;
 
-  const struct InfoSectorImage * const info =
-      (const struct InfoSectorImage *)context->buffer;
+  const struct InfoSectorImage * const info = &context->buffer.infoSector;
 
   /* Check info sector signatures (RRaA at 0x0000 and rrAa at 0x01E4) */
   if (fromBigEndian32(info->firstSignature) != 0x52526141UL
@@ -565,7 +563,7 @@ static enum Result readClusterChain(struct CommandContext *context,
       if (res != E_OK)
         return res;
 
-      memcpy(dataBuffer, context->buffer + offset, chunk);
+      memcpy(dataBuffer, context->buffer.raw + offset, chunk);
 
       if (chunk + offset >= SECTOR_SIZE)
         ++currentSector;
@@ -754,7 +752,10 @@ static enum Result readSector(struct CommandContext *context,
   res = ifSetParam(handle->interface, IF_POSITION_64, &position);
   if (res == E_OK)
   {
-    if (ifRead(handle->interface, context->buffer, SECTOR_SIZE) == SECTOR_SIZE)
+    const size_t count = ifRead(handle->interface, context->buffer.raw,
+        SECTOR_SIZE);
+
+    if (count == SECTOR_SIZE)
       context->sector = sector;
     else
       res = ifGetParam(handle->interface, IF_STATUS, NULL);
@@ -878,8 +879,8 @@ static enum Result allocateCluster(struct CommandContext *context,
     if (currentCluster >= handle->clusterCount)
       currentCluster = CLUSTER_OFFSET;
 
-    uint32_t * const address = (uint32_t *)(context->buffer
-        + CELL_OFFSET(currentCluster));
+    uint32_t * const address =
+        &context->buffer.cluster[CELL_INDEX(currentCluster)];
     const uint16_t currentOffset = currentCluster >> CELL_COUNT_EXP;
 
     res = readSector(context, handle, handle->tableSector + currentOffset);
@@ -914,8 +915,8 @@ static enum Result allocateCluster(struct CommandContext *context,
         if (res != E_OK)
           return res;
 
-        memcpy(context->buffer + CELL_OFFSET(*cluster), &allocatedCluster,
-            sizeof(allocatedCluster));
+        memcpy(&context->buffer.cluster[CELL_INDEX(*cluster)],
+            &allocatedCluster, sizeof(allocatedCluster));
 
         res = updateTable(context, handle, parentOffset);
         if (res != E_OK)
@@ -932,8 +933,7 @@ static enum Result allocateCluster(struct CommandContext *context,
       if (res != E_OK)
         return res;
 
-      struct InfoSectorImage * const info =
-          (struct InfoSectorImage *)context->buffer;
+      struct InfoSectorImage * const info = &context->buffer.infoSector;
 
       info->lastAllocated =
           toLittleEndian32(currentCluster);
@@ -957,7 +957,7 @@ static enum Result clearCluster(struct CommandContext *context,
 {
   uint32_t sector = calcSectorNumber(handle, cluster + 1);
 
-  memset(context->buffer, 0, SECTOR_SIZE);
+  memset(context->buffer.raw, 0, SECTOR_SIZE);
 
   do
   {
@@ -1232,8 +1232,7 @@ static enum Result freeChain(struct CommandContext *context,
     if (res != E_OK)
       break;
 
-    uint32_t * const address =
-        (uint32_t *)(context->buffer + CELL_OFFSET(current));
+    uint32_t * const address = &context->buffer.cluster[CELL_INDEX(current)];
     uint32_t next;
 
     memcpy(&next, address, sizeof(*address));
@@ -1261,8 +1260,7 @@ static enum Result freeChain(struct CommandContext *context,
   if (res != E_OK)
     return res;
 
-  struct InfoSectorImage * const info =
-      (struct InfoSectorImage *)context->buffer;
+  struct InfoSectorImage * const info = &context->buffer.infoSector;
 
   /* Set free clusters count */
   info->freeClusters = toLittleEndian32(
@@ -1570,7 +1568,7 @@ static enum Result writeClusterChain(struct CommandContext *context,
       if (res != E_OK)
         return res;
 
-      memcpy(context->buffer + offset, dataBuffer, chunk);
+      memcpy(context->buffer.raw + offset, dataBuffer, chunk);
 
       res = writeSector(context, handle, sector);
       if (res != E_OK)
@@ -1755,7 +1753,10 @@ static enum Result writeSector(struct CommandContext *context,
   res = ifSetParam(handle->interface, IF_POSITION_64, &position);
   if (res == E_OK)
   {
-    if (ifWrite(handle->interface, context->buffer, SECTOR_SIZE) == SECTOR_SIZE)
+    const size_t count = ifWrite(handle->interface, context->buffer.raw,
+        SECTOR_SIZE);
+
+    if (count == SECTOR_SIZE)
       context->sector = sector;
     else
       res = ifGetParam(handle->interface, IF_STATUS, NULL);

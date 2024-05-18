@@ -93,8 +93,8 @@ enum Result fat32GetUsage(void *object, void *arena, size_t size,
 enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
     void *arena, size_t size)
 {
-  static const size_t CELL_COUNT = 1 << CELL_COUNT_EXP;
-  static const uint32_t RESERVED_SECTORS = 32;
+  static const size_t clustersPerSector = 1 << CELL_COUNT_EXP;
+  static const uint32_t reservedSectorsDefault = 32;
 
   if (arena != NULL && size < (1 << SECTOR_EXP))
     return E_MEMORY;
@@ -107,7 +107,7 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
   partitionSize >>= SECTOR_EXP;
 
   const uint32_t reservedSectors = config->reserved ?
-      config->reserved : RESERVED_SECTORS;
+      config->reserved : reservedSectorsDefault;
   const uint32_t sectorsPerCluster = config->cluster >> SECTOR_EXP;
   const uint32_t sectorCount = MIN(partitionSize, UINT32_MAX);
 
@@ -115,9 +115,9 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
     return E_VALUE;
 
   const uint32_t clusterCount =
-      ((sectorCount - reservedSectors) * CELL_COUNT
-          - config->tables * (CELL_COUNT - 1))
-      / (config->tables + sectorsPerCluster * CELL_COUNT);
+      ((sectorCount - reservedSectors) * clustersPerSector
+          - config->tables * (clustersPerSector - 1))
+      / (config->tables + sectorsPerCluster * clustersPerSector);
 
   static const uint64_t bootPosition = 0;
   struct BootSectorImage bImage;
@@ -143,7 +143,8 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
   /* Sectors per partition */
   bImage.sectorsPerPartition = sectorCount;
   /* Sectors per FAT record */
-  bImage.sectorsPerTable = (clusterCount + (CELL_COUNT - 1)) / CELL_COUNT;
+  bImage.sectorsPerTable =
+      (clusterCount + (clustersPerSector - 1)) / clustersPerSector;
   /* Root directory cluster */
   bImage.rootCluster = CLUSTER_OFFSET;
   /* Information sector number */

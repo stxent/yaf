@@ -75,12 +75,12 @@
 /*----------------------------------------------------------------------------*/
 /* Table entries per allocation table sector power */
 #define CELL_COUNT_EXP          (SECTOR_EXP - 2)
-/* Table entry offset in allocation table sector */
-#define CELL_OFFSET(arg)        (((arg) & ((1 << CELL_COUNT_EXP) - 1)) << 2)
+/* Table entry index in allocation table sector */
+#define CELL_INDEX(arg)         ((arg) & ((1 << CELL_COUNT_EXP) - 1))
 /* File or directory entry size power */
 #define ENTRY_EXP               (SECTOR_EXP - 5)
-/* Directory entry offset in sector */
-#define ENTRY_OFFSET(index)     (((index) << 5) & (SECTOR_SIZE - 1))
+/* Directory entry index in sector */
+#define ENTRY_INDEX(index)      ((index) & ((1 << ENTRY_EXP) - 1))
 /* Directory entry position in cluster */
 #define ENTRY_SECTOR(index)     ((index) >> ENTRY_EXP)
 /*----------------------------------------------------------------------------*/
@@ -101,12 +101,6 @@ enum
 /*----------------------------------------------------------------------------*/
 extern const struct FsHandleClass * const FatHandle;
 extern const struct FsNodeClass * const FatNode;
-/*----------------------------------------------------------------------------*/
-struct CommandContext
-{
-  uint32_t sector;
-  uint8_t buffer[SECTOR_SIZE];
-};
 /*----------------------------------------------------------------------------*/
 struct Pool
 {
@@ -334,6 +328,22 @@ struct [[gnu::packed]] InfoSectorImage
 
   /* 0x1FE Boot Record Signature 0x55 0xAA */
   uint16_t bootSignature;
+};
+/*----------------------------------------------------------------------------*/
+struct CommandContext
+{
+  uint32_t sector;
+
+  union
+  {
+    uint8_t raw[SECTOR_SIZE];
+
+    struct BootSectorImage bootSector;
+    struct InfoSectorImage infoSector;
+
+    uint32_t cluster[SECTOR_SIZE / sizeof(uint32_t)];
+    struct DirEntryImage entry[SECTOR_SIZE / sizeof(struct DirEntryImage)];
+  } buffer;
 };
 /*----------------------------------------------------------------------------*/
 #endif /* YAF_FAT32_DEFS_H_ */

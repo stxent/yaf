@@ -68,7 +68,7 @@ static inline bool isClusterUsed(uint32_t cluster)
 static inline struct DirEntryImage *getDirEntry(struct CommandContext *context,
     uint16_t index)
 {
-  return (struct DirEntryImage *)(context->buffer + ENTRY_OFFSET(index));
+  return &context->buffer.entry[ENTRY_INDEX(index)];
 }
 
 static inline uint32_t makeClusterNumber(const struct DirEntryImage *entry)

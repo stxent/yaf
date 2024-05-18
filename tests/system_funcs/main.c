@@ -8,19 +8,20 @@
 #include <yaf/pointer_array.h>
 #include <check.h>
 /*----------------------------------------------------------------------------*/
+#define MAX_CAPACITY 17
+/*----------------------------------------------------------------------------*/
 START_TEST(testArrayErasure)
 {
-  static const size_t ARRAY_ELEMENTS = 8;
   PointerArray array;
 
-  const bool res = pointerArrayInit(&array, ARRAY_ELEMENTS);
+  const bool res = pointerArrayInit(&array, MAX_CAPACITY);
   ck_assert_uint_eq(res, true);
 
-  for (size_t i = 0; i < ARRAY_ELEMENTS; ++i)
+  for (size_t i = 0; i < pointerArrayCapacity(&array); ++i)
     pointerArrayPushBack(&array, (void *)i);
 
   pointerArrayEraseBySwap(&array, 0);
-  ck_assert(*pointerArrayAt(&array, 0) == (void *)(ARRAY_ELEMENTS - 1));
+  ck_assert(*pointerArrayAt(&array, 0) == (void *)(MAX_CAPACITY - 1));
 
   pointerArrayDeinit(&array);
 }

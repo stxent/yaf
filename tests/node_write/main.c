@@ -12,19 +12,19 @@
 /*----------------------------------------------------------------------------*/
 START_TEST(testAlignedRW)
 {
-  static const size_t BUFFER_LENGTH = MAX_BUFFER_LENGTH;
+  static const size_t bufferLength = MAX_BUFFER_LENGTH;
 
   struct TestContext context = makeTestHandle();
   struct FsNode * const node = fsOpenNode(context.handle, PATH_HOME_USER_TEMP1);
   ck_assert_ptr_nonnull(node);
 
   /* Read after each write */
-  for (size_t i = 0; i < ALIG_FILE_SIZE / BUFFER_LENGTH; ++i)
+  for (size_t i = 0; i < ALIG_FILE_SIZE / bufferLength; ++i)
   {
     size_t count;
     enum Result res;
-    char buffer[BUFFER_LENGTH];
-    char pattern[BUFFER_LENGTH];
+    char buffer[bufferLength];
+    char pattern[bufferLength];
 
     memset(pattern, i, sizeof(pattern));
 
@@ -279,7 +279,7 @@ END_TEST
 /*----------------------------------------------------------------------------*/
 START_TEST(testNameWrite)
 {
-  static const char NEW_NAME[] = "NEW_NAME.TXT";
+  static const char newNodeName[] = "NEW_NAME.TXT";
 
   struct TestContext context = makeTestHandle();
   struct FsNode *node = fsOpenNode(context.handle, PATH_HOME_ROOT_ALIG);
@@ -289,8 +289,8 @@ START_TEST(testNameWrite)
   enum Result res;
 
   /* Try to write new file name */
-  res = fsNodeWrite(node, FS_NODE_NAME, 0, NEW_NAME, strlen(NEW_NAME) + 1,
-      &count);
+  res = fsNodeWrite(node, FS_NODE_NAME, 0, newNodeName,
+      strlen(newNodeName) + 1, &count);
   ck_assert_uint_eq(res, E_INVALID);
 
   /* Release all resources */
@@ -301,7 +301,7 @@ END_TEST
 /*----------------------------------------------------------------------------*/
 START_TEST(testTimeWrite)
 {
-  static const time64_t NEW_TIME = (RTC_INITIAL_TIME + 3600) * 1000000;
+  static const time64_t newNodeTime = (RTC_INITIAL_TIME + 3600) * 1000000;
 
   struct TestContext context = makeTestHandle();
   struct FsNode *node = fsOpenNode(context.handle, PATH_HOME_ROOT_ALIG);
@@ -312,7 +312,7 @@ START_TEST(testTimeWrite)
   enum Result res;
 
   /* Write a new node time */
-  timestamp = NEW_TIME;
+  timestamp = newNodeTime;
   count = 0;
 
   res = fsNodeWrite(node, FS_NODE_TIME, 0,
@@ -328,7 +328,7 @@ START_TEST(testTimeWrite)
       &timestamp, sizeof(timestamp), &count);
   ck_assert_uint_eq(res, E_OK);
   ck_assert_uint_eq(count, sizeof(timestamp));
-  ck_assert(timestamp == NEW_TIME);
+  ck_assert(timestamp == newNodeTime);
 
   /* Try unaligned write to time */
   res = fsNodeWrite(node, FS_NODE_TIME, 1,

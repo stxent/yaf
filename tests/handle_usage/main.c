@@ -187,7 +187,7 @@ END_TEST
 /*----------------------------------------------------------------------------*/
 START_TEST(testUsedSpaceCalculation)
 {
-  static const FsCapacity TOTAL_SPACE_USED =
+  static const FsCapacity totalSpaceUsed =
       7 * FS_CLUSTER_SIZE + ALIG_FILE_SIZE
       + ((UNALIG_FILE_SIZE + FS_CLUSTER_SIZE - 1) & ~(FS_CLUSTER_SIZE - 1));
 
@@ -195,7 +195,7 @@ START_TEST(testUsedSpaceCalculation)
   FsCapacity used;
 
   used = fsFindUsedSpace(context.handle, NULL);
-  ck_assert_uint_eq(used, TOTAL_SPACE_USED);
+  ck_assert_uint_eq(used, totalSpaceUsed);
 
   /* Simulate context allocation error */
   PointerQueue contexts = drainContextPool(context.handle);
