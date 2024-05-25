@@ -7,6 +7,8 @@
 #ifndef YAF_FAT32_POOLS_H_
 #define YAF_FAT32_POOLS_H_
 /*----------------------------------------------------------------------------*/
+#include <yaf/fat32_defs.h>
+/*----------------------------------------------------------------------------*/
 bool allocatePool(struct Pool *, size_t, size_t);
 struct CommandContext *allocatePoolContext(struct FatHandle *);
 void *allocatePoolNode(struct FatHandle *);

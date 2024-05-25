@@ -12,20 +12,17 @@ target_include_directories(yaf_generic PUBLIC
 target_link_libraries(yaf_generic PUBLIC xcore)
 install(TARGETS yaf_generic EXPORT yaf-targets PUBLIC_HEADER DESTINATION include/yaf)
 
-string(TOLOWER ${CMAKE_SYSTEM_NAME} OS_TYPE)
 target_compile_definitions(yaf_generic PRIVATE
-        -DOS_TYPE=${OS_TYPE}
-        -DCONFIG_DEBUG=${YAF_CONFIG_DEBUG}
-        -DCONFIG_NAME_LENGTH=${FS_NAME_LENGTH}
-        -DCONFIG_SECTOR_SIZE=${YAF_CONFIG_SECTOR_SIZE})
-if(YAF_CONFIG_THREADS)
+        -DCONFIG_DEBUG=${YAF_DEBUG}
+        -DCONFIG_SECTOR_SIZE=${YAF_SECTOR_SIZE}
+)
+if(YAF_THREADS)
     target_compile_definitions(yaf_generic PRIVATE -DCONFIG_THREADS)
-    target_link_libraries(yaf_generic PUBLIC osw)
 endif()
-if(YAF_CONFIG_UNICODE)
+if(YAF_UNICODE)
     target_compile_definitions(yaf_generic PRIVATE -DCONFIG_UNICODE)
 endif()
-if(YAF_CONFIG_WRITE)
+if(YAF_WRITE)
     target_compile_definitions(yaf_generic PRIVATE -DCONFIG_WRITE)
 endif()
 if(BUILD_TESTING)

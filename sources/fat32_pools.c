@@ -4,7 +4,6 @@
  * Project is distributed under the terms of the MIT License
  */
 
-#include <yaf/fat32_defs.h>
 #include <yaf/fat32_pools.h>
 #include <stdlib.h>
 /*----------------------------------------------------------------------------*/

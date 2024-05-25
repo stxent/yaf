@@ -6,9 +6,9 @@
 
 #include "default_fs.h"
 #include "virtual_mem.h"
-#include <osw/mutex.h>
 #include <yaf/fat32.h>
 #include <yaf/utils.h>
+#include <xcore/os/mutex.h>
 #include <check.h>
 #include <pthread.h>
 #include <stdlib.h>

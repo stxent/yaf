@@ -15,11 +15,8 @@
 #include <xcore/unicode.h>
 
 #ifdef CONFIG_THREADS
-#include <osw/mutex.h>
+#include <xcore/os/mutex.h>
 #endif
-
-#include <stdbool.h>
-#include <stdint.h>
 /*----------------------------------------------------------------------------*/
 /* Sector size may be 512, 1024, 2048 or 4096 bytes, default is 512. */
 #if CONFIG_SECTOR_SIZE == 512
@@ -36,6 +33,11 @@
 
 /* Sector size in bytes */
 #define SECTOR_SIZE             (1 << SECTOR_EXP)
+/*----------------------------------------------------------------------------*/
+/* Use public definition from the XCORE library */
+#define CONFIG_NAME_LENGTH      FS_NAME_LENGTH
+/* Maximum number of duplicate name entries when using the 8.3 convention */
+#define MAX_SIMILAR_NAMES       100
 /*----------------------------------------------------------------------------*/
 /* Default pool size */
 #define DEFAULT_THREAD_COUNT    1
@@ -66,8 +68,6 @@
 #define E_FLAG_EMPTY            (char)0xE5
 /* The maximum possible size for a file is 4 GiB minus 1 byte */
 #define FILE_SIZE_MAX           0xFFFFFFFFUL
-/* Maximum number of duplicate name entries when using the 8.3 convention */
-#define MAX_SIMILAR_NAMES       100
 /* Reserved cluster number */
 #define RESERVED_CLUSTER        0
 /* Initial sector number */

@@ -13,6 +13,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 /*----------------------------------------------------------------------------*/
+/* Use public definition from the XCORE library */
+#define CONFIG_NAME_LENGTH FS_NAME_LENGTH
+/*----------------------------------------------------------------------------*/
 static void freeFillingNode(struct FsHandle *, const char *, size_t);
 static void insertFillingNode(struct FsHandle *, const char *, size_t);
 /*----------------------------------------------------------------------------*/

@@ -12,28 +12,17 @@ endif()
 # Library configuration
 
 option(BUILD_TESTING "Enable testing support." OFF)
-set(FS_NAME_LENGTH 64 CACHE STRING "Maximum length of filesystem entry name in bytes.")
+option(YAF_THREADS "Enable multithreading." ON)
+option(YAF_UNICODE "Enable support for Unicode characters." ON)
+option(YAF_WRITE "Enable write functions." ON)
+set(YAF_DEBUG 0 CACHE STRING "Debug level.")
+set(YAF_SECTOR_SIZE 512 CACHE STRING "Size of a filesystem sector may be 512, 1024, 2048 or 4096 bytes.")
 
 # Default compiler flags
 
 if(CMAKE_INTERPROCEDURAL_OPTIMIZATION)
     if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
         set(CMAKE_C_COMPILE_OPTIONS_IPO -flto=auto -ffat-lto-objects)
-    endif()
-endif()
-
-# Library configuration
-
-option(YAF_CONFIG_THREADS "Enable multithreading." ON)
-option(YAF_CONFIG_UNICODE "Enable support for Unicode characters." ON)
-option(YAF_CONFIG_WRITE "Enable write functions." ON)
-set(YAF_CONFIG_DEBUG 0 CACHE STRING "Debug level.")
-set(YAF_CONFIG_SECTOR_SIZE 512 CACHE STRING "Size of a filesystem sector may be 512, 1024, 2048 or 4096 bytes.")
-
-if(YAF_CONFIG_THREADS)
-    find_package(osw QUIET)
-    if(osw_FOUND)
-        message(STATUS "Found osw package")
     endif()
 endif()
 

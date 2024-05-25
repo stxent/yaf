@@ -6,7 +6,6 @@
 
 #include <yaf/debug.h>
 #include <yaf/fat32.h>
-#include <yaf/fat32_defs.h>
 #include <yaf/fat32_helpers.h>
 #include <yaf/fat32_pools.h>
 /*----------------------------------------------------------------------------*/
