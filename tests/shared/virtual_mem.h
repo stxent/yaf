@@ -8,7 +8,6 @@
 #define YAF_TESTS_SHARED_VIRTUAL_MEM_H_
 /*----------------------------------------------------------------------------*/
 #include <xcore/interface.h>
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 /*----------------------------------------------------------------------------*/
