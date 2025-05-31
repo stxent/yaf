@@ -20,6 +20,10 @@ set(YAF_SECTOR_SIZE 512 CACHE STRING "Size of a filesystem sector may be 512, 10
 
 # Default compiler flags
 
+if(BUILD_TESTING)
+    set(CMAKE_C_STANDARD 23)
+endif()
+
 if(CMAKE_INTERPROCEDURAL_OPTIMIZATION)
     if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
         set(CMAKE_C_COMPILE_OPTIONS_IPO -flto=auto -ffat-lto-objects)
