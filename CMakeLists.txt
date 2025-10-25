@@ -20,7 +20,7 @@ set(YAF_SECTOR_SIZE 512 CACHE STRING "Size of a filesystem sector may be 512, 10
 
 # Default compiler flags
 
-if(BUILD_TESTING)
+if(PROJECT_IS_TOP_LEVEL)
     set(CMAKE_C_STANDARD 23)
 endif()
 
