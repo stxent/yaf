@@ -86,9 +86,8 @@ bool rawDateTimeToTimestamp(time64_t *timestamp, uint16_t date, uint16_t time)
   };
 
   time64_t unixTime;
-  const enum Result res = rtMakeEpochTime(&unixTime, &dateTime);
 
-  if (res == E_OK)
+  if (rtMakeEpochTime(&unixTime, &dateTime))
   {
     *timestamp = unixTime * 1000000;
     return true;

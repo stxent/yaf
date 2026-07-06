@@ -6,7 +6,7 @@
 
 YAF is a lightweight and portable library implementing a FAT32 file system
 driver tailored for embedded devices with limited resources. The library
-is designed to be platform‑agnostic — it does not rely on any specific
+is designed to be platform-agnostic — it does not rely on any specific
 hardware or operating system, and supports the same platforms
 as the **Xcore** library.
 
@@ -33,8 +33,8 @@ YAF supports the following functionality:
 * Creating directories and files
 * Modifying entry attributes
 * Static allocation of internal buffers
-* Single‑threaded and multi‑threaded configurations
-* UTF‑8 support for paths
+* Single-threaded and multi-threaded configurations
+* UTF-8 support for paths
 * Formatting partitions as FAT32
 * Calculating free space
 
@@ -98,13 +98,13 @@ of available options:
 
 * **BUILD_TESTING** — Enables building of unit tests. Set to ON if you want to
   validate YAF on your host or target.
-* **YAF_THREADS** — Enables OS support and thread‑safety mechanisms.
+* **YAF_THREADS** — Enables OS support and thread-safety mechanisms.
   Required if your app uses multiple threads accessing the file system.
-* **YAF_UNICODE** — Enables UTF‑8 support for file and directory names.
+* **YAF_UNICODE** — Enables UTF-8 support for file and directory names.
   When disabled, only ASCII paths are supported.
 * **YAF_WRITE** — Enables all write operations: creating, renaming,
   deleting files and directories, modifying attributes. If disabled, the library
-  runs in read‑only mode.
+  runs in read-only mode.
 * **YAF_DEBUG** — Sets the debug message level: 0 — disabled (no output),
   1 — errors only, 2 — warnings and errors, 3 — verbose (all debug messages).
 * **YAF_SECTOR_SIZE** — Defines the memory sector size (in bytes) used by the
