@@ -27,12 +27,12 @@ START_TEST(testAuxStreamErrors)
 
   /* Try to write node access */
   res = fsNodeWrite(node, FS_NODE_ACCESS, 0, &access, sizeof(access),
-      NULL);
+      nullptr);
   ck_assert_uint_eq(res, E_ADDRESS);
 
   /* Try to write node time */
   res = fsNodeWrite(node, FS_NODE_TIME, 0, &timestamp, sizeof(timestamp),
-      NULL);
+      nullptr);
   ck_assert_uint_eq(res, E_ADDRESS);
 
   /* Restore access */
@@ -57,7 +57,7 @@ START_TEST(testClusterAllocationErrors)
   vmemAddMarkedRegion(context.interface,
       vmemExtractTableSectorRegion(context.interface, 0, 0), true, false, true);
   res = fsNodeWrite(node, FS_NODE_DATA,
-      ALIG_FILE_SIZE, buffer, sizeof(buffer), NULL);
+      ALIG_FILE_SIZE, buffer, sizeof(buffer), nullptr);
   ck_assert_uint_eq(res, E_INTERFACE);
   vmemClearRegions(context.interface);
 
@@ -80,17 +80,17 @@ START_TEST(testDataWriteErrors)
   enum Result res;
 
   /* Write from zero pointer */
-  res = fsNodeWrite(node, FS_NODE_DATA, 0, NULL, sizeof(buffer), NULL);
+  res = fsNodeWrite(node, FS_NODE_DATA, 0, nullptr, sizeof(buffer), nullptr);
   ck_assert_uint_eq(res, E_VALUE);
 
   /* Aligned write */
   res = fsNodeWrite(node, FS_NODE_DATA,
-      ALIG_FILE_SIZE, buffer, sizeof(buffer), NULL);
+      ALIG_FILE_SIZE, buffer, sizeof(buffer), nullptr);
   ck_assert_uint_eq(res, E_INTERFACE);
 
   /* Unaligned write */
   res = fsNodeWrite(node, FS_NODE_DATA,
-      ALIG_FILE_SIZE, buffer, sizeof(buffer) / 2, NULL);
+      ALIG_FILE_SIZE, buffer, sizeof(buffer) / 2, nullptr);
   ck_assert_uint_eq(res, E_INTERFACE);
 
   /* Unaligned write error during sector read */
@@ -98,7 +98,7 @@ START_TEST(testDataWriteErrors)
   vmemAddMarkedRegion(context.interface,
       vmemExtractDataRegion(context.interface), false, true, true);
   res = fsNodeWrite(node, FS_NODE_DATA,
-      ALIG_FILE_SIZE, buffer, sizeof(buffer) / 2, NULL);
+      ALIG_FILE_SIZE, buffer, sizeof(buffer) / 2, nullptr);
   ck_assert_uint_eq(res, E_INTERFACE);
 
   /* Seek error */
@@ -106,7 +106,7 @@ START_TEST(testDataWriteErrors)
   vmemAddRegion(context.interface,
       vmemExtractTableRegion(context.interface, 0));
   res = fsNodeWrite(node, FS_NODE_DATA,
-      ALIG_FILE_SIZE - sizeof(buffer), buffer, sizeof(buffer), NULL);
+      ALIG_FILE_SIZE - sizeof(buffer), buffer, sizeof(buffer), nullptr);
   ck_assert_uint_eq(res, E_ADDRESS);
 
   /* Restore access */
@@ -135,7 +135,7 @@ START_TEST(testNodeMaxLength)
    * before writing to memory.
    */
   const enum Result res = fsNodeWrite(node, FS_NODE_DATA,
-      ALIG_FILE_SIZE, &buffer, (size_t)UINT32_MAX, NULL);
+      ALIG_FILE_SIZE, &buffer, (size_t)UINT32_MAX, nullptr);
   ck_assert_uint_eq(res, E_ADDRESS);
 
   /* Restore access */

@@ -58,7 +58,7 @@ static void restoreNodeAccess(struct FsHandle *handle, const char *path)
   ck_assert_ptr_nonnull(node);
 
   const enum Result res = fsNodeWrite(node, FS_NODE_ACCESS, 0,
-      &access, sizeof(access), NULL);
+      &access, sizeof(access), nullptr);
   ck_assert_uint_eq(res, E_OK);
 
   fsNodeFree(node);
@@ -146,7 +146,7 @@ void makeFillingNodes(struct FsHandle *handle, const char *dir, size_t count)
             strlen(name) + 1,
             FS_NODE_NAME
         }, {
-            NULL,
+            nullptr,
             0,
             FS_NODE_DATA
         }
@@ -184,7 +184,7 @@ void makeNode(struct FsHandle *handle, const char *path, bool dir, bool ro)
           sizeof(timestamp),
           FS_NODE_TIME
       }, {
-          NULL,
+          nullptr,
           0,
           FS_NODE_DATA
       }
@@ -213,7 +213,7 @@ struct TestContext makeTestHandle(void)
       .tables = FS_TABLE_COUNT,
       .label = "TEST"
   };
-  const enum Result res = fat32MakeFs(vmem, &makeFsConfig, NULL, 0);
+  const enum Result res = fat32MakeFs(vmem, &makeFsConfig, nullptr, 0);
   ck_assert_uint_eq(res, E_OK);
 
   const struct Fat32Config fsConfig = {

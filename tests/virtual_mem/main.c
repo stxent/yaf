@@ -20,7 +20,7 @@ void *malloc(size_t size)
   if (mallocHookFails && !--mallocHookFails)
     allocate = false;
 
-  return allocate ? __libc_malloc(size) : NULL;
+  return allocate ? __libc_malloc(size) : nullptr;
 }
 
 void *calloc(size_t number, size_t elementSize)
@@ -55,11 +55,11 @@ START_TEST(testInterfaceParams)
   enum Result res;
 
   /* Try to read incorrect parameter */
-  res = ifGetParam(vmem, IF_ZEROCOPY, NULL);
+  res = ifGetParam(vmem, IF_ZEROCOPY, nullptr);
   ck_assert_uint_eq(res, E_INVALID);
 
   /* Try to write incorrect parameter */
-  res = ifSetParam(vmem, IF_ZEROCOPY, NULL);
+  res = ifSetParam(vmem, IF_ZEROCOPY, nullptr);
   ck_assert_uint_eq(res, E_INVALID);
 
   /* Try to set incorrect position */
@@ -80,7 +80,7 @@ START_TEST(testInterfaceParams)
   ck_assert_uint_eq(value, FS_TOTAL_SIZE);
 
   /* Read status */
-  res = ifGetParam(vmem, IF_STATUS, NULL);
+  res = ifGetParam(vmem, IF_STATUS, nullptr);
   ck_assert_uint_eq(res, E_OK);
 
   /* Set and verify position */

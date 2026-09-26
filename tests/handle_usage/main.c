@@ -42,7 +42,7 @@ START_TEST(testCapacityReading)
 
   /* Read capacity failure */
 
-  res = fsNodeRead(node, FS_NODE_CAPACITY, 0, &capacity, 0, NULL);
+  res = fsNodeRead(node, FS_NODE_CAPACITY, 0, &capacity, 0, nullptr);
   ck_assert_uint_eq(res, E_VALUE);
 
   fsNodeFree(node);
@@ -73,7 +73,7 @@ START_TEST(testEmptyVolumeUsage)
       .cluster = FS_CLUSTER_SIZE,
       .tables = FS_TABLE_COUNT
   };
-  res = fat32MakeFs(vmem, &makeFsConfig, NULL, 0);
+  res = fat32MakeFs(vmem, &makeFsConfig, nullptr, 0);
   ck_assert_uint_eq(res, E_OK);
 
   struct Fat32Config fsConfig = {
@@ -114,7 +114,7 @@ START_TEST(testFullVolumeUsage)
       .cluster = FS_CLUSTER_SIZE,
       .tables = FS_TABLE_COUNT
   };
-  res = fat32MakeFs(vmem, &makeFsConfig, NULL, 0);
+  res = fat32MakeFs(vmem, &makeFsConfig, nullptr, 0);
   ck_assert_uint_eq(res, E_OK);
 
   struct Fat32Config fsConfig = {
@@ -164,7 +164,7 @@ START_TEST(testFullVolumeUsage)
 
   /* Cross-verification */
 
-  size = fsFindUsedSpace(handle, NULL);
+  size = fsFindUsedSpace(handle, nullptr);
   ck_assert_uint_eq(size, used);
 
   /* Read failures */
@@ -194,12 +194,12 @@ START_TEST(testUsedSpaceCalculation)
   struct TestContext context = makeTestHandle();
   FsCapacity used;
 
-  used = fsFindUsedSpace(context.handle, NULL);
+  used = fsFindUsedSpace(context.handle, nullptr);
   ck_assert_uint_eq(used, totalSpaceUsed);
 
   /* Simulate context allocation error */
   PointerQueue contexts = drainContextPool(context.handle);
-  used = fsFindUsedSpace(context.handle, NULL);
+  used = fsFindUsedSpace(context.handle, nullptr);
   ck_assert_uint_eq(used, 0);
   restoreContextPool(context.handle, &contexts);
 

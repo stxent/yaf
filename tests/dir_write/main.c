@@ -49,7 +49,7 @@ static void insertFillingNode(struct FsHandle *handle, const char *dir,
           strlen(name) + 1,
           FS_NODE_NAME
       }, {
-          NULL,
+          nullptr,
           0,
           FS_NODE_DATA
       }
@@ -110,7 +110,7 @@ START_TEST(testDirWrite)
           strlen(name) + 1,
           FS_NODE_NAME
       }, {
-          NULL,
+          nullptr,
           0,
           FS_NODE_DATA
       }
@@ -195,7 +195,7 @@ START_TEST(testNodeCreation)
           1,
           FS_NODE_NAME
       }, {
-          NULL,
+          nullptr,
           0,
           FS_NODE_DATA
       }
@@ -206,7 +206,7 @@ START_TEST(testNodeCreation)
           strlen(name) + 1,
           FS_NODE_NAME
       }, {
-          NULL,
+          nullptr,
           0,
           FS_NODE_ACCESS
       }
@@ -217,7 +217,7 @@ START_TEST(testNodeCreation)
           strlen(name) / 2,
           FS_NODE_NAME
       }, {
-          NULL,
+          nullptr,
           0,
           FS_NODE_DATA
       }
@@ -228,14 +228,14 @@ START_TEST(testNodeCreation)
           strlen(name) + 1,
           FS_NODE_NAME
       }, {
-          NULL,
+          nullptr,
           0,
           FS_NODE_TIME
       }
   };
   const struct FsFieldDescriptor nodeWithoutNameDesc[] = {
       {
-          NULL,
+          nullptr,
           0,
           FS_NODE_DATA
       }
@@ -257,11 +257,11 @@ START_TEST(testNodeCreation)
           strlen(name) + 1,
           FS_NODE_NAME
       }, {
-          NULL,
+          nullptr,
           0,
           FS_NODE_DATA
       }, {
-          NULL,
+          nullptr,
           0,
           FS_TYPE_END
       }
@@ -341,7 +341,7 @@ START_TEST(testReadOnlyDirWriting)
           strlen(name) + 1,
           FS_NODE_NAME
       }, {
-          NULL,
+          nullptr,
           0,
           FS_NODE_DATA
       }
@@ -357,12 +357,12 @@ START_TEST(testReadOnlyDirWriting)
   ck_assert_ptr_nonnull(parent);
 
   res = fsNodeWrite(parent, FS_NODE_ACCESS, 0, &roAccess, sizeof(roAccess),
-      NULL);
+      nullptr);
   ck_assert_uint_eq(res, E_OK);
   res = fsNodeCreate(parent, desc, ARRAY_SIZE(desc));
   ck_assert_uint_eq(res, E_ACCESS);
   res = fsNodeWrite(parent, FS_NODE_ACCESS, 0, &rwAccess, sizeof(rwAccess),
-      NULL);
+      nullptr);
   ck_assert_uint_eq(res, E_OK);
 
   fsNodeFree(parent);
@@ -374,12 +374,12 @@ START_TEST(testReadOnlyDirWriting)
   ck_assert_ptr_nonnull(node);
 
   res = fsNodeWrite(parent, FS_NODE_ACCESS, 0, &roAccess, sizeof(roAccess),
-      NULL);
+      nullptr);
   ck_assert_uint_eq(res, E_OK);
   res = fsNodeRemove(parent, node);
   ck_assert_uint_eq(res, E_ACCESS);
   res = fsNodeWrite(parent, FS_NODE_ACCESS, 0, &rwAccess, sizeof(rwAccess),
-      NULL);
+      nullptr);
   ck_assert_uint_eq(res, E_OK);
 
   fsNodeFree(node);
@@ -392,12 +392,12 @@ START_TEST(testReadOnlyDirWriting)
   ck_assert_ptr_nonnull(node);
 
   res = fsNodeWrite(node, FS_NODE_ACCESS, 0, &roAccess, sizeof(roAccess),
-      NULL);
+      nullptr);
   ck_assert_uint_eq(res, E_OK);
   res = fsNodeRemove(parent, node);
   ck_assert_uint_eq(res, E_ACCESS);
   res = fsNodeWrite(node, FS_NODE_ACCESS, 0, &rwAccess, sizeof(rwAccess),
-      NULL);
+      nullptr);
   ck_assert_uint_eq(res, E_OK);
 
   fsNodeFree(node);

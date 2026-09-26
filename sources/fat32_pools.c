@@ -16,7 +16,7 @@ bool allocatePool(struct Pool *pool, size_t capacity, size_t width)
 
   uint8_t *data = malloc(width * capacity);
 
-  if (data == NULL)
+  if (data == nullptr)
     return false;
 
   if (!pointerQueueInit(&pool->queue, capacity))
@@ -40,7 +40,7 @@ bool allocatePool(struct Pool *pool, size_t capacity, size_t width)
 /*----------------------------------------------------------------------------*/
 struct CommandContext *allocatePoolContext(struct FatHandle *handle)
 {
-  struct CommandContext *context = NULL;
+  struct CommandContext *context = nullptr;
 
   lockPools(handle);
   if (!pointerQueueEmpty(&handle->pools.contexts.queue))
@@ -50,14 +50,14 @@ struct CommandContext *allocatePoolContext(struct FatHandle *handle)
   }
   unlockPools(handle);
 
-  if (context != NULL)
+  if (context != nullptr)
     context->sector = RESERVED_SECTOR;
   return context;
 }
 /*----------------------------------------------------------------------------*/
 void *allocatePoolNode(struct FatHandle *handle)
 {
-  struct FatNode *node = NULL;
+  struct FatNode *node = nullptr;
 
   lockPools(handle);
   if (!pointerQueueEmpty(&handle->pools.nodes.queue))
@@ -67,7 +67,7 @@ void *allocatePoolNode(struct FatHandle *handle)
   }
   unlockPools(handle);
 
-  if (node != NULL)
+  if (node != nullptr)
     allocateStaticNode(handle, node);
 
   return node;

@@ -18,16 +18,16 @@ static enum Result readSector(void *interface, uint32_t sector,
   const uint64_t position = (uint64_t)sector << SECTOR_EXP;
   enum Result res;
 
-  ifSetParam(interface, IF_ACQUIRE, NULL);
+  ifSetParam(interface, IF_ACQUIRE, nullptr);
 
   res = ifSetParam(interface, IF_POSITION_64, &position);
   if (res == E_OK)
   {
     if (ifRead(interface, buffer, length) != length)
-      res = ifGetParam(interface, IF_STATUS, NULL);
+      res = ifGetParam(interface, IF_STATUS, nullptr);
   }
 
-  ifSetParam(interface, IF_RELEASE, NULL);
+  ifSetParam(interface, IF_RELEASE, nullptr);
   return res;
 }
 /*----------------------------------------------------------------------------*/
@@ -96,7 +96,7 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
   static const size_t clustersPerSector = 1 << CELL_COUNT_EXP;
   static const uint32_t reservedSectorsDefault = 32;
 
-  if (arena != NULL && size < (1 << SECTOR_EXP))
+  if (arena != nullptr && size < (1 << SECTOR_EXP))
     return E_MEMORY;
 
   uint64_t partitionSize;
@@ -161,7 +161,7 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
   if ((res = ifSetParam(interface, IF_POSITION_64, &bootPosition)) != E_OK)
     return res;
   if (ifWrite(interface, &bImage, sizeof(bImage)) != sizeof(bImage))
-    return ifGetParam(interface, IF_STATUS, NULL);
+    return ifGetParam(interface, IF_STATUS, nullptr);
 
   static const uint64_t infoPosition = 1 << SECTOR_EXP;
   struct InfoSectorImage iImage;
@@ -177,7 +177,7 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
   if ((res = ifSetParam(interface, IF_POSITION_64, &infoPosition)) != E_OK)
     return res;
   if (ifWrite(interface, &iImage, sizeof(iImage)) != sizeof(iImage))
-    return ifGetParam(interface, IF_STATUS, NULL);
+    return ifGetParam(interface, IF_STATUS, nullptr);
 
   uint8_t buffer[1 << SECTOR_EXP];
 
@@ -187,7 +187,7 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
     size_t tableArenaSize;
     uint8_t *tableArena;
 
-    if (arena != NULL)
+    if (arena != nullptr)
     {
       tableArena = arena;
       tableArenaSize = size & ~((1 << SECTOR_EXP) - 1);
@@ -220,7 +220,7 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
       if ((res = ifSetParam(interface, IF_POSITION_64, &position)) != E_OK)
         return res;
       if (ifWrite(interface, tableArena, tableArenaSize) != tableArenaSize)
-        return ifGetParam(interface, IF_STATUS, NULL);
+        return ifGetParam(interface, IF_STATUS, nullptr);
 
       if (i == 0)
         memset(tableArena, 0, tableArenaSize);
@@ -235,7 +235,7 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
   for (size_t i = 0; i < sectorsPerCluster; ++i)
   {
     /* Add volume label */
-    if (i == 0 && config->label != NULL)
+    if (i == 0 && config->label != nullptr)
     {
       struct DirEntryImage * const entry = (struct DirEntryImage *)buffer;
       memcpy(entry->filename, config->label, strlen(config->label));
@@ -249,7 +249,7 @@ enum Result fat32MakeFs(void *interface, const struct Fat32FsConfig *config,
     if ((res = ifSetParam(interface, IF_POSITION_64, &position)) != E_OK)
       return res;
     if (ifWrite(interface, buffer, sizeof(buffer)) != sizeof(buffer))
-      return ifGetParam(interface, IF_STATUS, NULL);
+      return ifGetParam(interface, IF_STATUS, nullptr);
   }
 
   return E_OK;

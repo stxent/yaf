@@ -4,8 +4,8 @@
  * Project is distributed under the terms of the MIT License
  */
 
- #include <yaf/pointer_array.h>
- /*----------------------------------------------------------------------------*/
+#include <yaf/pointer_array.h>
+/*----------------------------------------------------------------------------*/
 void pointerArrayEraseBySwap(PointerArray *array, size_t index)
 {
   assert(index < array->size);
